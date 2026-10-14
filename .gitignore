@@ -1,0 +1,52 @@
+# ===== Python =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# ===== 虚拟环境 =====
+.venv/
+venv/
+env/
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+
+# ===== 打包产物 =====
+build/
+dist/
+dist_editor/
+*.spec
+
+# ===== 用户隐私 / 本地配置 =====
+user_config.json
+ai_config.json
+ai_config.json.bak
+prompt_samples/
+
+# ===== 本地备份 =====
+originals/
+last_saved/
+editor_cards/
+editor_cards_backup/
+diff_reports/
+
+# ===== 临时文件 =====
+_tmp_head_export/
+_tmp_luban_export/
+*.log
+debug.log
+requests.log
+probe.log
+
+# ===== 游戏素材（版权）=====
+web/portraits/
+web/portraits_backup/
+
+# ===== 测试脚本 =====
+tools/test_unitypy.py
+tools/filter_headportrait.py
+tools/find_luban_bundle.py

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>WorldApart · 人物卡编辑器</title>
+<link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+
+<header>
+  <div class="title">WorldApart <span class="sub">/ 人物卡编辑器</span></div>
+  <div class="status" id="header-status">加载中...</div>
+</header>
+
+<main>
+  <div id="nav">
+    <div class="nav-group-label">编辑</div>
+    <div class="nav-item active" data-page="cards">人物卡</div>
+    <div class="nav-item" data-page="prompts">AI 提示词</div>
+    <div class="nav-item" data-page="tools">工具</div>
+
+    <div class="nav-group-label" style="margin-top:16px;">服务</div>
+    <div class="nav-item" data-page="services">服务管理</div>
+    <div class="nav-item" data-page="logs">日志</div>
+
+    <div class="nav-group-label" style="margin-top:16px;">关于</div>
+    <div class="nav-item" data-page="about">关于</div>
+
+    <div class="nav-spacer"></div>
+    <div id="nav-footer">
+      <div><span class="dot-on">●</span> 配置保存在编辑器项目</div>
+      <div style="color:#bbb;">core_proxy 读取它</div>
+    </div>
+  </div>
+
+  <div id="content">
+
+    <!-- ========== 人物卡 ========== -->
+    <div class="page active" id="page-cards">
+      <div id="cards-page">
+        <div class="page-header">
+          <h2>人物卡</h2>
+          <div class="count" id="cards-count">加载中...</div>
+        </div>
+        <div class="page-subtitle">从 editor_cards/ 读取的 Markdown 卡片（可通过"工具 → 导出角色卡"更新）。</div>
+
+        <div class="toolbar">
+          <input type="text" id="cards-search" placeholder="搜索姓名或 ID">
+          <div class="toolbar-right">
+            <button class="secondary" onclick="openCreateDialog()">+ 新建卡片</button>
+          </div>
+        </div>
+
+        <div id="card-grid"></div>
+
+        <div class="pager">
+          <span id="pager-text">1 / 1</span>
+          <button id="btn-prev" onclick="prevPage()">上一页</button>
+          <button id="btn-next" onclick="nextPage()">下一页</button>
+        </div>
+      </div>
+
+      <div id="edit-page" style="display:none;">
+        <div id="edit-sidebar">
+          <div class="back-bar">
+            <span class="back-link" onclick="backToCards()">‹ 返回卡片库</span>
+          </div>
+          <div class="search-bar">
+            <input type="text" id="edit-search" placeholder="名称或 ID">
+          </div>
+          <div id="edit-list"></div>
+          <div id="edit-sidebar-footer">
+            <span id="edit-list-count">0 / 0 卡片</span>
+          </div>
+        </div>
+        <div id="edit-main"></div>
+      </div>
+    </div>
+
+    <!-- ========== AI 注入 ========== -->
+    <div class="page" id="page-inject">
+      <div id="inject-page">
+        <div class="page-header">
+          <h2>AI 注入</h2>
+          <div class="count">core_proxy 读取</div>
+        </div>
+        <div class="page-subtitle">这些内容会在每次对话时注入到 AI 的 system prompt 里。</div>
+        <div id="inject-main"></div>
+      </div>
+    </div>
+
+        <!-- ========== AI 提示词 ========== -->
+    <div class="page" id="page-prompts">
+      <div id="prompts-page">
+        <div class="page-header">
+          <h2>AI 提示词</h2>
+          <div class="count">core_proxy 读取</div>
+        </div>
+        <div class="page-subtitle">管理 core_proxy 注入 + 查看游戏固定段落。</div>
+        <div id="prompts-main"></div>
+      </div>
+    </div>
+
+    <!-- ========== 工具 ========== -->
+    <div class="page" id="page-tools">
+      <div id="tools-page">
+        <div class="page-header">
+          <h2>工具</h2>
+        </div>
+
+        <div class="ai-tabs">
+          <div class="ai-tab active" data-tab="portrait" onclick="switchToolTab('portrait')">头像提取</div>
+          <div class="ai-tab" data-tab="cards" onclick="switchToolTab('cards')">导出角色卡</div>
+                    <div class="ai-tab" data-tab="diff" onclick="switchToolTab('diff')">卡片对比</div>
+          <div class="ai-tab" data-tab="batch" onclick="switchToolTab('batch')">批量工具</div>
+          <div class="ai-tab" data-tab="io" onclick="switchToolTab('io')">导入 / 导出</div>
+
+        </div>
+
+        <div class="ai-tab-content" id="tools-tab-content"></div>
+      </div>
+    </div>
+
+
+    <!-- ========== 服务管理 ========== -->
+    <div class="page" id="page-services">
+      <div id="services-page">
+        <div class="page-header">
+          <h2>服务管理</h2>
+          <div class="count">Caddy + core_proxy</div>
+        </div>
+        <div class="page-subtitle">这两个服务是游戏 AI 对话的中转层。关闭编辑器时会自动停止。</div>
+        
+                <div class="upstream-box" style="background:#f9fbff;border-color:#d0e0f0;margin-bottom:16px;">
+          <h3 style="margin:0 0 10px;font-size:14px;color:#333;">游戏目录</h3>
+          <div style="font-size:12px;color:#888;margin-bottom:8px;">
+            编辑器通过这个路径读取 NPC 卡片。如果游戏换位置了，可以在这里重新指定。
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="game-dir-display" type="text" readonly
+                   style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-family:Consolas,monospace;font-size:12px;background:#fafafa;">
+            <button class="secondary" onclick="onChangeGameDir()">修改</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-right">
+            <button class="secondary" onclick="startAllServices()">启动全部</button>
+            <button class="secondary" onclick="stopAllServices()">停止全部</button>
+          </div>
+        </div>
+
+        <div class="service-list">
+          <div class="service-item">
+            <div class="service-info">
+              <div class="service-name">
+                <span class="status-dot stopped" id="status-dot-core_proxy"></span>
+                core_proxy.py
+              </div>
+              <div class="service-desc">端口 8789 · 清洗 + 去重 + 兜底</div>
+            </div>
+            <div class="service-actions">
+              <span class="service-status" id="status-text-core_proxy">未运行</span>
+              <button class="secondary" onclick="startService('core_proxy')">启动</button>
+              <button class="secondary" onclick="stopService('core_proxy')">停止</button>
+            </div>
+          </div>
+
+          <div class="service-item">
+            <div class="service-info">
+              <div class="service-name">
+                <span class="status-dot stopped" id="status-dot-caddy"></span>
+                caddy
+              </div>
+              <div class="service-desc">端口 8788 · 转发 + TLS</div>
+            </div>
+            <div class="service-actions">
+              <span class="service-status" id="status-text-caddy">未运行</span>
+              <button class="secondary" onclick="startService('caddy')">启动</button>
+              <button class="secondary" onclick="stopService('caddy')">停止</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="service-tip">
+          <strong>提示：</strong>游戏里 AI 对话正常前，先确保 <code>llama-server</code>（8080）已经用 LlamaCPP GUI 启动。
+        </div>
+  <div class="upstream-box" style="background:#ffffff;border-color:#e0e0e0;">
+          <h3 style="margin:0 0 10px;font-size:14px;color:#333;">游戏接口地址</h3>
+          <div style="font-size:12px;color:#888;margin-bottom:8px;">
+            在游戏的"自定义 AI 模型"设置里，把接口地址填成下面这个：
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="game-api-url" type="text" readonly value="http://127.0.0.1:8788/v1/chat/completions"
+                   style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-family:Consolas,monospace;font-size:13px;background:#fafafa;">
+            <button class="secondary" onclick="copyGameApiUrl()">复制</button>
+          </div>
+          <div style="font-size:12px;color:#666;margin-top:8px;">
+            API Key、模型名称、上下文长度按你实际使用的上游填。
+          </div>
+        </div>
+        <div class="upstream-box">
+          <h3 style="margin:0 0 10px;font-size:14px;color:#333;">上游地址（core_proxy 转发目标）</h3>
+          
+          <div style="font-size:12px;color:#888;margin-bottom:8px;">
+            默认填你本地的 <code>http://127.0.0.1:8080/</code>；想接第三方 API，就填对方的 base_url（如 <code>https://api.deepseek.com/</code>）。
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input id="upstream-url" type="text" placeholder="http://127.0.0.1:8080/"
+                   style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-family:inherit;font-size:13px;">
+          </div>
+
+          <div id="upstream-live-status" ...>正在读取当前状态...</div> 
+          <div style="margin-bottom:10px;font-size:12px;color:#666;">
+            快捷：
+            <span class="link" onclick="setUpstream('http://127.0.0.1:8080/')">本地 8080</span>
+            <span class="link" onclick="setUpstream('https://api.deepseek.com/')">DeepSeek</span>
+            <span class="link" onclick="setUpstream('https://api.openai.com/')">OpenAI</span>
+          </div>
+          <div style="font-size:12px;color:#e67e22;margin-bottom:10px;">
+            ⚠ 修改后需要重启 core_proxy 才能生效。
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button class="secondary" onclick="saveUpstreamOnly()">仅保存</button>
+            <button class="primary" onclick="saveAndRestartUpstream()">保存并重启 core_proxy</button>
+            <span class="inject-status" id="upstream-status"></span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========== 日志 ========== -->
+    <div class="page" id="page-logs">
+      <div id="logs-page">
+        <div class="page-header">
+          <h2>日志</h2>
+          <div class="count">实时输出</div>
+        </div>
+        <div class="page-subtitle">core_proxy 和 caddy 的运行日志。</div>
+
+        <div class="toolbar">
+          <div class="toolbar-right">
+            <button class="secondary" onclick="clearLogs()">清空日志</button>
+          </div>
+        </div>
+
+        <div id="log-box" class="log-box"></div>
+      </div>
+    </div>
+
+      <!-- ========== 关于 ========== -->
+    <div class="page" id="page-about">
+      <div id="about-page">
+        <div class="about-header">
+          <div class="about-icon">ℹ️</div>
+          <h1>WorldApart 人物卡编辑器</h1>
+                    <div class="about-version">版本 0.2</div>
+        </div>
+
+        <div class="about-card">
+          <div class="about-item">
+            <div class="about-item-title">这是什么</div>
+            <div class="about-item-text">
+              游戏《不问凡尘》（WorldApart）的 AI 对话辅助编辑器。它让你在游戏外编辑 NPC 的"用户名片"，并通过本地中转层把内容注入到游戏发给 AI 的提示词里，让游戏里 NPC 的对话体现出你写的设定。
+            </div>
+          </div>
+
+                    <div class="about-item">
+            <div class="about-item-title">主要功能</div>
+            <div class="about-item-text">
+              · 编辑 NPC 人物卡（用户名片、预设资料、原游戏背景）<br>
+              · 用户名片注入，影响游戏里 NPC 的回复<br>
+              · 撤销 / 恢复原版，改动随时回退<br>
+              · 查看游戏实际发给 AI 的完整 prompt<br>
+              · AI 提示词管理（INJECT 注入 + REPLACE 替换规则）<br>
+              · 内置 Caddy + core_proxy 启停和日志<br>
+              · 从游戏直接导出角色卡（不依赖 Mod）<br>
+              · 从游戏资源里提取 NPC 头像<br>
+              · 卡片对比（游戏更新后看新增 / 改动 / 删除）<br>
+              · 合并改动（游戏字段用新版，用户名片保留）<br>
+              · 上游地址切换（本地大模型 / 第三方 API）
+            </div>
+          </div>
+
+          <div class="about-item">
+            <div class="about-item-title">工作原理</div>
+            <div class="about-item-text">
+              游戏发对话请求 → Caddy 8788 转发 → core_proxy 8789 拦截 → 提取 NPC 名字、读取对应 .md 卡片、把"用户名片"注入 prompt → 转发给上游（本地 8080 或第三方 API）→ AI 回复 → 游戏显示。
+            </div>
+          </div>
+
+          <div class="about-item">
+            <div class="about-item-title">卡片来源</div>
+            <div class="about-item-text">
+              编辑器从游戏本体的 <code>assets/luban/data/tbnpcbasecfg.json</code> 等表里解析出 NPC 数据，生成卡片到 <code>editor_cards\</code>。整个过程不依赖游戏侧的 Mod，纯编辑器本地操作。
+            </div>
+          </div>
+
+          <div class="about-item">
+            <div class="about-item-title">技术栈</div>
+            <div class="about-item-text">
+              Python 3.10 + pywebview（桌面壳）<br>
+              Flask（core_proxy 代理）<br>
+              Caddy（转发层）<br>
+              纯 HTML / CSS / JavaScript（前端，无框架）
+            </div>
+          </div>
+          <div class="about-item">
+            <div class="about-item-title">反馈与交流</div>
+            <div class="about-item-text">
+              使用中遇到问题、想提建议（比较懒，做完这个现在累了，压榨了几个大肥鱼所得），可以来 B 站找我：<br>
+              <a href="https://space.bilibili.com/2134959" target="_blank" style="color:#4a90e2;">Nannl(bilibili)</a>
+            </div>
+          </div>
+          <div class="about-item">
+            <div class="about-item-title">免责声明</div>
+            <div class="about-item-text">
+              本工具不修改游戏本体，只通过"AI 提示词中转层"影响对话结果。所有改动都是本地行为。使用风险自负。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div class="foot-left" id="foot-left">就绪</div>
+  <div class="foot-right">
+    <button class="secondary" id="btn-delete" style="display:none;" onclick="onDeleteCard()">删除此卡片</button>
+    <button class="primary" id="btn-save" style="display:none;" onclick="onSaveCard()">保存卡片</button>
+  </div>
+</footer>
+
+<script src="cards.js"></script>
+<script src="edit.js"></script>
+<script src="services.js"></script>
+<script src="tools.js"></script>
+<script src="prompts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+    admin off
+}
+
+:8788 {
+    log {
+        output file requests.log
+        format json
+    }
+    @options {
+        method OPTIONS
+    }
+    handle @options {
+        header Access-Control-Allow-Origin "*"
+        header Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        header Access-Control-Allow-Headers "Authorization, Content-Type, X-API-Key"
+        respond 204
+    }
+    reverse_proxy 127.0.0.1:8789 {
+        header_down Access-Control-Allow-Origin "*"
+        header_down Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        header_down Access-Control-Allow-Headers "Authorization, Content-Type, X-API-Key"
+    }
+}
