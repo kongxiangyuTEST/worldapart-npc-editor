@@ -57,14 +57,6 @@ def build_card(npc, tables):
     gender = gender_text(npc.get("gender", 0))
     age = str(npc.get("age", ""))
 
-    # 境界
-    realm = "未知或凡人"
-    layer_id = npc.get("propLayerId")
-    if layer_id is not None:
-        layer = tables["layer"].get(str(layer_id)) or tables["layer"].get(layer_id)
-        if layer:
-            realm = str(layer.get("id", ""))
-
     # 个性
     personality = npc.get("personalityDesc", "") or ""
     pers_id = npc.get("propPersonality")
@@ -99,7 +91,6 @@ def build_card(npc, tables):
     lines.append(f"- 姓名：{npc_name}")
     lines.append(f"- 性别：{gender}")
     lines.append(f"- 年龄：{age}")
-    lines.append(f"- 境界：{realm}")
     lines.append(f"- 个性：{personality}")
     lines.append(f"- 兴趣：{interest_str}")
     lines.append("")
