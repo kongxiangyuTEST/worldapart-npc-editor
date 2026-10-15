@@ -334,18 +334,14 @@ def extract_npc_cards(assetstudio_cli, game_dir, project_dir, keep_tmp=False, lo
     data_dir = game_dir / "WorldApart_Data"
     tmp_dir = project_dir / "_tmp_luban_export"
     cards_out = project_dir / "editor_cards"
-    parser_script = project_dir / "tools" / "parse_npc_cards.py"
-    venv_python = project_dir / ".venv" / "Scripts" / "python.exe"
+
 
     # 检查
     if not Path(assetstudio_cli).is_file():
         return {"ok": False, "msg": f"找不到 AssetStudioModCLI.exe：{assetstudio_cli}"}
     if not data_dir.is_dir():
         return {"ok": False, "msg": f"找不到游戏资源目录：{data_dir}"}
-    if not parser_script.is_file():
-        return {"ok": False, "msg": f"找不到解析脚本：{parser_script}"}
-    if not venv_python.is_file():
-        return {"ok": False, "msg": f"找不到 Python：{venv_python}"}
+
 
         # 导出前先备份旧的 editor_cards
     if cards_out.is_dir() and any(cards_out.glob("*.md")):
@@ -397,31 +393,23 @@ def extract_npc_cards(assetstudio_cli, game_dir, project_dir, keep_tmp=False, lo
         if not (json_dir / name).is_file():
             return {"ok": False, "msg": f"CLI 没导出 {name}"}
 
-    # 3. 跑解析脚本
+    # 3. 直接调解析（不依赖外部 Python）
     _log("[解析] 开始生成卡片...")
-    cmd2 = [str(venv_python), str(parser_script), str(tmp_dir), str(cards_out)]
     try:
-        # 让子进程强制用 UTF-8 输出
-        env = os.environ.copy()
-        env["PYTHONIOENCODING"] = "utf-8"
-
-        proc2 = subprocess.Popen(
-            cmd2, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, encoding="utf-8", errors="replace", bufsize=1,
-            creationflags=creationflags,
-            env=env,
-        )
-        for line in iter(proc2.stdout.readline, ""):
-            line = line.rstrip("\r\n")
-            if line:
-                _log(f"[解析] {line}")
-        proc2.wait()
+        import sys as _sys
+        import importlib
+        tools_dir = str(project_dir / "tools")
+        if tools_dir not in _sys.path:
+            _sys.path.insert(0, tools_dir)
+        import parse_npc_cards
+        importlib.reload(parse_npc_cards)
+        r = parse_npc_cards.parse_cards(tmp_dir, cards_out, log=lambda m: _log(f"[解析] {m}"))
+        if not r.get("ok"):
+            return {"ok": False, "msg": r.get("msg", "解析失败")}
     except Exception as e:
-        return {"ok": False, "msg": f"解析脚本执行失败: {e}"}
+        return {"ok": False, "msg": f"解析失败: {e}"}
 
-    if proc2.returncode != 0:
-        return {"ok": False, "msg": f"解析脚本退出码 {proc2.returncode}"}
-
+    
     # 4. 数一下生成了多少张
     count = len(list(cards_out.glob("*.md")))
     _log(f"[完成] 共生成 {count} 张卡片")
