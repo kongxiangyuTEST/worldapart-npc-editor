@@ -110,19 +110,20 @@ def index_by_id(rows):
     return out
 
 
-def main():
-    if len(sys.argv) < 3:
-        print("用法: python parse_npc_cards.py <luban_export_dir> <output_dir>")
-        sys.exit(1)
+def parse_cards(src, out_dir, log=None):
+    """供外部调用。src: Luban 导出目录，out_dir: 输出目录"""
+    def _log(msg):
+        if log: log(msg)
+        else: print(msg)
 
-    src = Path(sys.argv[1])
-    out_dir = Path(sys.argv[2])
+    src = Path(src)
+    out_dir = Path(out_dir)
     data_dir = src / "assets" / "luban" / "data"
     if not data_dir.is_dir():
-        print(f"[错误] 找不到 {data_dir}")
-        sys.exit(1)
+        _log(f"[错误] 找不到 {data_dir}")
+        return {"ok": False, "msg": f"找不到 {data_dir}"}
 
-    print("加载表...")
+    _log("加载表...")
     npc_rows = load_json(data_dir / "tbnpcbasecfg.json")
     layer_rows = load_json(data_dir / "tbcultivatelayer.json")
     pers_rows = load_json(data_dir / "tbnpcpersonality.json")
@@ -136,7 +137,7 @@ def main():
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"共 {len(npc_rows)} 条 NPC，开始生成...")
+    _log(f"共 {len(npc_rows)} 条 NPC，开始生成...")
     ok = 0
     err = 0
     for npc in npc_rows:
@@ -150,11 +151,69 @@ def main():
         except Exception as e:
             err += 1
             if err < 5:
-                print(f"[错误] {e}")
+                _log(f"[错误] {e}")
 
-    print(f"完成：成功 {ok} 张，失败 {err} 张")
-    print(f"输出目录：{out_dir}")
+    _log(f"完成：成功 {ok} 张，失败 {err} 张")
+    _log(f"输出目录：{out_dir}")
+    return {"ok": True, "done": ok, "failed": err}
 
+
+def parse_cards(src, out_dir, log=None):
+    """供外部调用。src: Luban 导出目录，out_dir: 输出目录"""
+    def _log(msg):
+        if log:
+            log(msg)
+        else:
+            print(msg)
+
+    src = Path(src)
+    out_dir = Path(out_dir)
+    data_dir = src / "assets" / "luban" / "data"
+    if not data_dir.is_dir():
+        _log(f"[错误] 找不到 {data_dir}")
+        return {"ok": False, "msg": f"找不到 {data_dir}"}
+
+    _log("加载表...")
+    npc_rows = load_json(data_dir / "tbnpcbasecfg.json")
+    layer_rows = load_json(data_dir / "tbcultivatelayer.json")
+    pers_rows = load_json(data_dir / "tbnpcpersonality.json")
+    item_rows = load_json(data_dir / "tbitemtype.json")
+
+    tables = {
+        "layer": index_by_id(layer_rows),
+        "personality": index_by_id(pers_rows),
+        "item": index_by_id(item_rows),
+    }
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    _log(f"共 {len(npc_rows)} 条 NPC，开始生成...")
+    ok = 0
+    err = 0
+    for npc in npc_rows:
+        try:
+            content = build_card(npc, tables)
+            npc_id = str(npc.get("id", ""))
+            npc_name = L10n(npc.get("npcName", {}))
+            fname = f"{npc_id}-{safe_name(npc_name)}.md"
+            (out_dir / fname).write_text(content, encoding="utf-8")
+            ok += 1
+        except Exception as e:
+            err += 1
+            if err < 5:
+                _log(f"[错误] {e}")
+
+    _log(f"完成：成功 {ok} 张，失败 {err} 张")
+    _log(f"输出目录：{out_dir}")
+    return {"ok": True, "done": ok, "failed": err}
+
+
+def main():
+    if len(sys.argv) < 3:
+        print("用法: python parse_npc_cards.py <luban_export_dir> <output_dir>")
+        sys.exit(1)
+    r = parse_cards(sys.argv[1], sys.argv[2])
+    sys.exit(0 if r.get("ok") else 1)
 
 if __name__ == "__main__":
     main()

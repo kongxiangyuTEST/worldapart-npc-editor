@@ -30,6 +30,26 @@ os.makedirs(ORIGINALS_DIR, exist_ok=True)
 os.makedirs(LAST_SAVED_DIR, exist_ok=True)
 
 
+def ensure_user_configs():
+    """首次启动时，从 example 生成实际配置文件"""
+    ai_path = os.path.join(PROJECT_DIR, "ai_config.json")
+    ai_example = os.path.join(PROJECT_DIR, "ai_config.example.json")
+    if not os.path.isfile(ai_path) and os.path.isfile(ai_example):
+        try:
+            shutil.copy2(ai_example, ai_path)
+            print(f"[启动] 已生成 ai_config.json")
+        except Exception as e:
+            print(f"[启动] 生成 ai_config.json 失败: {e}")
+
+    u_path = os.path.join(PROJECT_DIR, "user_config.json")
+    u_example = os.path.join(PROJECT_DIR, "user_config.example.json")
+    if not os.path.isfile(u_path) and os.path.isfile(u_example):
+        try:
+            shutil.copy2(u_example, u_path)
+            print(f"[启动] 已生成 user_config.json")
+        except Exception as e:
+            print(f"[启动] 生成 user_config.json 失败: {e}")
+
 # ==================== Markdown 卡片解析 ====================
 CARD_RE = re.compile(CARD_NAME_PREFIX_RE)
 # ==================== 头像映射 ====================
@@ -746,12 +766,13 @@ class Api:
 # ==================== 启动 ====================
 
 def on_closing():
-    print("[退出] 正在停止服务...")
-    service_mgr.stop_all()
-    print("[退出] 服务已停止")
-
+    try:
+        service_mgr.stop_all()
+    except Exception:
+        pass
 
 if __name__ == "__main__":
+    ensure_user_configs()
     print("=" * 60)
     print(f"卡片目录: {CARDS_DIR}")
     print(f"原版备份: {ORIGINALS_DIR}")
