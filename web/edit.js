@@ -186,8 +186,10 @@ function renderEditMain() {
     currentCard.name = e.target.value;
     markDirty();
   };
-  for (const key of ['姓名', '性别', '年龄', '境界', '个性', '兴趣']) {
+  for (const key of ['姓名', '性别', '年龄', '个性', '兴趣']) {
+    // 跳过"境界"——它被锁住了，不需要绑定
     const el = document.getElementById('f-preset-' + key);
+    if (!el) continue;
     el.oninput = e => {
       currentCard.preset[key] = e.target.value;
       markDirty();
@@ -206,13 +208,16 @@ function renderEditMain() {
 }
 
 function presetFieldHTML(key, value) {
+  // 境界：暂时锁住（游戏运行时数据，配置表拿不到）
+  const locked = key === '境界';
   return `
     <div class="field">
       <label>
-        <span>${key}</span>
-        ${fieldActionsHTML('preset.' + key)}
+        <span>${key}${locked ? ' <span style="color:#bbb;font-weight:normal;font-size:11px;">（暂未支持）</span>' : ''}</span>
+        ${locked ? '' : fieldActionsHTML('preset.' + key)}
       </label>
-      <input id="f-preset-${key}" value="${escapeHtml(value)}">
+      <input id="f-preset-${key}" value="${escapeHtml(value)}"
+             ${locked ? 'readonly style="background:#f5f5f5;color:#aaa;cursor:not-allowed;" placeholder="（游戏运行时数据，暂无法读取）"' : ''}>
     </div>
   `;
 }
