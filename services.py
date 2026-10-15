@@ -238,9 +238,15 @@ def extract_portraits(assetstudio_cli, game_dir, project_dir, keep_tmp=False, lo
             line = line.rstrip("\r\n")
             if not line:
                 continue
+            # 跳过刷屏日志
             if "Exported [" in line:
                 continue
-            if "Finish" in line or "Error" in line or "Loading" in line:
+            if "Loading" in line:
+                continue
+            # 跳过"字体转不了图"这类无害错误
+            if "Failed to convert" in line:
+                continue
+            if "Finish" in line or "Error" in line:
                 _log(f"[CLI] {line}")
         proc.wait()
     except Exception as e:
@@ -368,13 +374,18 @@ def extract_npc_cards(assetstudio_cli, game_dir, project_dir, keep_tmp=False, lo
         _extract_proc = proc
         for line in iter(proc.stdout.readline, ""):
             line = line.rstrip("\r\n")
-            if line and ("Finish" in line or "Error" in line):
+            if not line:
+                continue
+            # 跳过刷屏日志
+            if "Exported [" in line:
+                continue
+            if "Loading" in line:
+                continue
+            # 跳过"字体转不了图"这类无害错误
+            if "Failed to convert" in line:
+                continue
+            if "Finish" in line or "Error" in line:
                 _log(f"[CLI] {line}")
-            elif line and "Exported" in line:
-                # 只显示进度百分比
-                if "/1467]" in line:
-                    n = line.split("[")[-1].rstrip("]")
-                    _log(f"[CLI] {n}")
         proc.wait()
     except Exception as e:
         _extract_proc = None
