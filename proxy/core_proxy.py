@@ -182,6 +182,19 @@ print("=" * 60)
 
 app = Flask(__name__)
 
+@app.errorhandler(Exception)
+def _handle_exception(e):
+    import traceback
+    tb = traceback.format_exc()
+    print("=" * 60, flush=True)
+    print("[FATAL] 未捕获异常:", flush=True)
+    print(tb, flush=True)
+    print("=" * 60, flush=True)
+    return Response(
+        json.dumps({"error": "internal", "traceback": tb}, ensure_ascii=False),
+        status=500,
+        content_type="application/json; charset=utf-8"
+    )
 # ============================================================
 # 五、用户名片：提取 NPC 名 + 读卡片 + 注入
 # ============================================================
@@ -688,34 +701,38 @@ def forward(req_json, game_auth):
 
 @app.route("/v1/chat/completions", methods=["POST"])
 def chat_completions():
-    
-    global recent_replies
-    t0 = time.time()
 
     try:
         req_json = request.get_json(force=True)
     except Exception as e:
-        return Response(json.dumps({"error": f"invalid json: {e}"}),
+            print(f"[core_proxy] JSON 解析失败: {e}", flush=True)
+            return Response(json.dumps({"error": f"invalid json: {e}"}),
                         status=400, content_type="application/json; charset=utf-8")
 
-    # 【新增】用户名片注入（受开关控制）
+    global recent_replies
+    t0 = time.time()
+
     card_len = 0
     if inject_user_card_enabled:
         try:
             card_len = inject_user_card(req_json)
         except Exception as e:
-            print(f"[名片] 注入失败: {e}")
+            import traceback
+            print(f"[名片] 注入失败: {e}", flush=True)
+            print(traceback.format_exc(), flush=True)
             card_len = 0
     else:
-        print("[名片] 用户名片注入已关闭，跳过")
-     # 【新增】保存 prompt 样本
+        print("[名片] 用户名片注入已关闭，跳过", flush=True)
+
     try:
         save_prompt_sample(req_json)
     except Exception as e:
+        import traceback
         print(f"[样本] 保存失败: {e}", flush=True)
+        print(traceback.format_exc(), flush=True)
 
-    # 原有逻辑：改写 messages
     rules_applied = rewrite_messages(req_json)
+
     req_json["chat_template_kwargs"] = {"enable_thinking": False}
 
     messages = req_json.get("messages") or []
