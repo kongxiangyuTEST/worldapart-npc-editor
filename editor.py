@@ -1,20 +1,31 @@
 import webview
 import os
 import re
+import sys
 import json
 import shutil
 import time
 import memory_manager
+
+# ==================== 智能动态路径 ====================
+if getattr(sys, 'frozen', False):
+    # 打包环境：exe 所在的目录
+    base_dir = os.path.dirname(sys.executable)
+else:
+    # 源码环境：当前 py 文件所在的目录
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+memory_manager.MEMORY_DIR = os.path.join(base_dir, "memory")
+if not os.path.exists(memory_manager.MEMORY_DIR):
+    os.makedirs(memory_manager.MEMORY_DIR)
+
 import threading
 from datetime import datetime
 from config import CARDS_DIR, WEB_DIR, IGNORED_FILES, CARD_NAME_PREFIX_RE
 import services
 from services import CORE_PROXY, CADDY
 
-
 # ==================== 路径 ====================
-
-import sys
 if getattr(sys, 'frozen', False):
     PROJECT_DIR = os.path.dirname(sys.executable)
 else:
@@ -264,7 +275,6 @@ def open_dir(path):
     return False
 
 
-
 # ==================== 卡片管理 ====================
 def list_cards():
     if not os.path.isdir(CARDS_DIR):
@@ -395,34 +405,6 @@ def push_log(name, line):
         if len(LOG_BUFFER) > LOG_MAX:
             del LOG_BUFFER[: len(LOG_BUFFER) - LOG_MAX]
 
-# ==================== 头像映射 ====================
-def load_portraits_index():
-    """加载"游戏路径 → zip 文件名"的映射"""
-    if not os.path.isfile(PORTRAITS_INDEX_PATH):
-        print(f"[头像] 找不到 {PORTRAITS_INDEX_PATH}")
-        return {}
-    try:
-        with open(PORTRAITS_INDEX_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"[头像] 加载失败: {e}")
-        return {}
-
-
-PORTRAITS_INDEX = load_portraits_index()
-print(f"[头像] 已加载 {len(PORTRAITS_INDEX)} 条映射")
-
-
-def get_portrait_filename(npc_id):
-    """
-    根据 NPC ID，返回 zip 内文件名（如 "0.png"），没有则返回 None。
-    游戏内路径格式：assets/res/gui/atlas/headportrait/{id}.png
-    """
-    key = f"assets/res/gui/atlas/headportrait/{npc_id}.png"
-    return PORTRAITS_INDEX.get(key)
-
-
-
 # ==================== 服务管理器 ====================
 service_mgr = services.init_manager(log_callback=push_log)
 
@@ -457,7 +439,7 @@ class Api:
         path = os.path.join(PORTRAITS_DIR, filename)
         if not os.path.isfile(path):
             return None
-        return f"/portraits/{filename}"
+        return f"portraits/{filename}"
     
         # --- 全局提示词片段 ---
     def get_prompt_fragments(self):
@@ -473,22 +455,54 @@ class Api:
         
         # --- 长期记忆 ---
     def get_memory_list(self):
-        import os
+        """列出 memory/ 下的记忆文件，返回结构化条目给前端（含错误信息）。"""
+        import traceback
+
         mem_dir = memory_manager.MEMORY_DIR
-        files = []
-        if os.path.exists(mem_dir):
-            for f in os.listdir(mem_dir):
-                if f.endswith(".json"):
-                    files.append(f.replace(".json", ""))
-        return {"ok": True, "list": files}
+        try:
+            items = []
+            if os.path.isdir(mem_dir):
+                for fname in os.listdir(mem_dir):
+                    if not fname.endswith(".json"):
+                        continue
+                    stem = fname[:-5].strip()
+                    npc_id, sep, npc_name = stem.partition("-")
+                    if not sep or not npc_id.isdigit():
+                        continue
+                    path = os.path.join(mem_dir, fname)
+                    try:
+                        mtime = os.path.getmtime(path)
+                    except OSError:
+                        mtime = 0
+                    items.append({
+                        "id": int(npc_id),
+                        "name": npc_name,
+                        "filename": fname,
+                        "mtime": mtime,
+                    })
+            items.sort(key=lambda x: (-x["mtime"], x["id"]))
+            return {"ok": True, "items": items, "debug_path": mem_dir}
+        except Exception as e:
+            return {
+                "ok": False,
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+                "debug_path": mem_dir,
+            }
 
     def get_memory(self, npc_id, npc_name):
-        data = memory_manager.load_memory(int(npc_id), npc_name)
-        return {"ok": True, "data": data}
+        try:
+            data = memory_manager.load_memory(int(npc_id), npc_name)
+            return {"ok": True, "data": data}
+        except Exception as e:
+            return {"ok": False, "msg": f"读取记忆失败: {e}"}
 
     def save_memory(self, npc_id, npc_name, data):
-        success = memory_manager.save_memory(int(npc_id), npc_name, data)
-        return {"ok": success}
+        try:
+            success = memory_manager.save_memory(int(npc_id), npc_name, data)
+            return {"ok": success, "msg": "" if success else "写入文件失败"}
+        except Exception as e:
+            return {"ok": False, "msg": f"保存记忆失败: {e}"}
 
     def trigger_memory_merge(self, npc_id, npc_name):
         import memory_manager
@@ -496,17 +510,21 @@ class Api:
         import os
         import requests
         
-        # 1. 确定本地模型地址
-        upstream = "http://127.0.0.1:8080/v1/chat/completions"
+        # 1. 上游地址统一从 proxy/core_proxy_config.json 读（唯一真相源）
+        conf_path = os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json")
+        upstream_base = "http://127.0.0.1:8080/"
         fallback_key = ""
         try:
-            if os.path.isfile("ai_config.json"):
-                with open("ai_config.json", "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                    upstream = cfg.get("upstream", upstream)
-                    fallback_key = cfg.get("fallback_key", "")
-        except:
-            pass
+            with open(conf_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            upstream_base = (cfg.get("upstream_base_url") or upstream_base).rstrip("/")
+            fallback_key = cfg.get("api_key") or ""
+        except FileNotFoundError:
+            print(f"[记忆总结] 没找到 {conf_path}，用默认 8080")
+        except Exception as e:
+            print(f"[记忆总结] 读取 core_proxy_config.json 失败: {e}")
+
+        upstream = upstream_base + "/v1/chat/completions"
             
         data = memory_manager.load_memory(int(npc_id), npc_name)
         logs = "\n\n".join(data.get("recent_logs", []))
@@ -589,8 +607,21 @@ class Api:
 
         
     def clear_memory(self, npc_id, npc_name):
-        success = memory_manager.clear_memory(int(npc_id), npc_name)
-        return {"ok": success}
+        try:
+            success = memory_manager.clear_memory(int(npc_id), npc_name)
+            return {"ok": success, "msg": "" if success else "记忆文件不存在"}
+        except Exception as e:
+            return {"ok": False, "msg": f"清空失败: {e}"}
+
+    def open_memory_dir(self):
+        """打开记忆目录（打包后就是 exe 同级的 memory\\）"""
+        try:
+            mem_dir = memory_manager.MEMORY_DIR
+            os.makedirs(mem_dir, exist_ok=True)
+            return {"ok": open_dir(mem_dir), "path": mem_dir}
+        except Exception as e:
+            return {"ok": False, "msg": str(e), "path": memory_manager.MEMORY_DIR}
+
     # --- 卡片 ---
     def get_cards_list(self):
         return list_cards()
@@ -849,6 +880,63 @@ class Api:
         except Exception as e:
             return {"ok": False, "msg": str(e)}
         
+    # --- 提示词预览（试演）---
+    def preview_prompt(self, npc_name=None, with_memory=True):
+        """用最近一次游戏对话的真实 prompt 跑一遍完整注入。
+
+        不调用上游、不保存样本、不写记忆 —— 可以反复试。
+        """
+        import urllib.request
+        import json as _json
+
+        sample = find_latest_sample(npc_name or "")
+        if sample is None:
+            tip = f"没有找到 {npc_name} 的样本" if npc_name else "没有找到任何样本"
+            return {"ok": False, "msg": tip + "，先进游戏对话一次再试"}
+        if sample.get("error"):
+            return {"ok": False, "msg": f"样本读取失败: {sample['error']}"}
+
+        data = sample.get("content") or {}
+        messages = data.get("messages") or []
+        if not messages:
+            return {"ok": False, "msg": "样本里没有 messages"}
+
+        port = 8789
+        try:
+            with open(os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json"),
+                      "r", encoding="utf-8") as f:
+                port = int(_json.load(f).get("listen_port", 8789))
+        except Exception:
+            pass
+
+        body = _json.dumps({"messages": messages, "with_memory": bool(with_memory)},
+                           ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/_preview",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        try:
+            with opener.open(req, timeout=20) as r:
+                out = _json.loads(r.read().decode("utf-8"))
+        except Exception as e:
+            return {"ok": False,
+                    "msg": f"core_proxy 没响应（{e}）。先到「服务管理」把它启动起来"}
+
+        if not out.get("ok"):
+            return {"ok": False, "msg": out.get("msg", "预览失败")}
+
+        return {
+            "ok": True,
+            "stats": out.get("stats", {}),
+            "system": out.get("system", ""),
+            "roles": out.get("roles", []),
+            "sample": sample.get("filename"),
+            "mtime": sample.get("mtime"),
+        }
+
     # --- 服务 ---
     def get_services_status(self):
         return service_mgr.get_all_status()
@@ -883,10 +971,6 @@ class Api:
         with LOG_LOCK:
             LOG_BUFFER.clear()
         return {"ok": True}
-
-
-
-
 
 
 # ==================== 启动 ====================

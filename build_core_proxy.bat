@@ -1,5 +1,6 @@
 @echo off
 chcp 65001 >nul
+setlocal
 echo ============================================
 echo   打包 core_proxy.exe
 echo ============================================
@@ -9,7 +10,7 @@ cd /d "%~dp0proxy"
 
 if not exist "..\.venv\Scripts\pyinstaller.exe" (
     echo [错误] 找不到 pyinstaller，请先运行 setup.bat
-    pause
+if not defined NO_PAUSE pause
     exit /b 1
 )
 
@@ -30,6 +31,8 @@ echo [2/2] 开始打包...
   --hidden-import click ^
   --hidden-import itsdangerous ^
   --hidden-import markupsafe ^
+  --hidden-import memory_manager ^
+  --hidden-import config ^
   --collect-all flask ^
   core_proxy.py
 
@@ -37,4 +40,4 @@ echo.
 echo ============================================
 echo   完成！输出在 proxy\dist\core_proxy\
 echo ============================================
-pause
+if not defined NO_PAUSE pause

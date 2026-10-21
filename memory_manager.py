@@ -1,11 +1,21 @@
 import os
 import json
 import re
+import shutil
+import threading
 import datetime
 
 # ================= 配置 =================
 # 记忆文件存放的文件夹（与 editor_cards 同级）
-MEMORY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "memory")
+import sys
+if getattr(sys, 'frozen', False):
+    # 打包后的真实 exe 路径
+    base_dir = os.path.dirname(sys.executable)
+else:
+    # 源码运行时的 py 文件路径
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+MEMORY_DIR = os.path.join(base_dir, "memory")
+
 # 遗忘日志
 FORGET_LOG = os.path.join(MEMORY_DIR, "_遗忘纪录.log")
 
@@ -14,9 +24,23 @@ AGE_DOWNGRADE_LIMIT = 24
 AGE_DELETE_LIMIT = 48
 FACT_CATEGORIES = ["赠物", "承诺", "关系里程碑", "重要事件"]
 
+# 注入预算相关的默认值（core_proxy 会从 ai_config.json 的 memory_budget 覆盖总预算）
+GIST_MAX = 150                 # 早期梗概上限
+RECENT_MAX = 650               # 最近剧情上限
+FACT_CAP_PER_CATEGORY = 20     # 每个分类最多注入多少条事实
+PROTECTED_CATEGORIES = ("关系里程碑",)   # 这几类永不被预算砍掉
+
+# 写盘备份
+BACKUP_DIR = os.path.join(MEMORY_DIR, "_backup")
+BACKUP_KEEP = 3                # 每个角色保留最近几份备份
+
+# 读写锁：合并跑在后台线程，和请求线程会同时读写同一个记忆文件
+LOCK = threading.RLock()
+
 # 确保文件夹存在
-if not os.path.exists(MEMORY_DIR):
-    os.makedirs(MEMORY_DIR)
+for _d in (MEMORY_DIR, BACKUP_DIR):
+    if not os.path.exists(_d):
+        os.makedirs(_d, exist_ok=True)
 
 # ================= 核心逻辑 =================
 
@@ -28,13 +52,16 @@ def get_memory_path(npc_id, npc_name):
 def load_memory(npc_id, npc_name):
     """读取角色记忆，如果没有就生成一份空白的"""
     path = get_memory_path(npc_id, npc_name)
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"读取记忆出错: {e}")
-            
+    with LOCK:
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+            except Exception as e:
+                print(f"读取记忆出错: {e}")
+
     # 默认空白记忆
     return {
         "npc_id": npc_id,
@@ -45,16 +72,49 @@ def load_memory(npc_id, npc_name):
         "facts": {cat: [] for cat in FACT_CATEGORIES}
     }
 
-def save_memory(npc_id, npc_name, data):
-    """保存记忆到文件"""
-    path = get_memory_path(npc_id, npc_name)
+
+def _backup_memory_file(path, npc_id, npc_name):
+    """覆盖前把旧文件备份一份，只保留最近 BACKUP_KEEP 份。"""
     try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
+        if not os.path.isfile(path):
+            return
+        os.makedirs(BACKUP_DIR, exist_ok=True)
+        ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        dst = os.path.join(BACKUP_DIR, f"{npc_id}-{npc_name}.{ts}.json")
+        shutil.copy2(path, dst)
+
+        prefix = f"{npc_id}-{npc_name}."
+        olds = sorted([f for f in os.listdir(BACKUP_DIR) if f.startswith(prefix)], reverse=True)
+        for f in olds[BACKUP_KEEP:]:
+            try:
+                os.remove(os.path.join(BACKUP_DIR, f))
+            except OSError:
+                pass
     except Exception as e:
-        print(f"保存记忆出错: {e}")
-        return False
+        print(f"备份记忆失败: {e}")
+
+
+def save_memory(npc_id, npc_name, data):
+    """保存记忆到文件（原子写：先写临时文件再替换，避免写一半崩掉留下坏 JSON）"""
+    path = get_memory_path(npc_id, npc_name)
+    with LOCK:
+        try:
+            _backup_memory_file(path, npc_id, npc_name)
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+            return True
+        except Exception as e:
+            print(f"保存记忆出错: {e}")
+            try:
+                if os.path.exists(path + ".tmp"):
+                    os.remove(path + ".tmp")
+            except OSError:
+                pass
+            return False
 
 def log_forget(npc_id, npc_name, fact):
     """记录被遗忘的事实到日志"""
@@ -119,35 +179,116 @@ def reset_fact_age(data, mentioned_text):
                 fact["age_count"] = 0
     return data
 
-def build_injection_text(data, budget_chars=2000, priority=None):
+def _clip(text, limit):
+    """超长时限长：保留开头 60% 和结尾 40%，中间用省略号。"""
+    if not text or len(text) <= limit:
+        return text
+    if limit <= 12:
+        return text[:limit]
+    head = int(limit * 0.6)
+    tail = limit - head - 2
+    return text[:head].rstrip() + "……" + (text[-tail:].lstrip() if tail > 0 else "")
+
+
+def _fact_hits(text, hint):
+    """事实里的中文词是否在本轮玩家发言里出现过（纯字符串匹配，不花 token）。"""
+    if not hint or not text:
+        return False
+    words = re.findall(r"[\u4e00-\u9fa5]{2,4}", str(text))
+    return any(w in hint for w in words)
+
+
+def build_injection_text(data, budget_chars=2000, hint="", priority=None):
+    """把记忆拼成注入文本。
+
+    与旧版的区别（旧版是拼完 text[:2000] 硬截断，会把摘要和里程碑直接切掉）：
+      1. 摘要按 GIST_MAX / RECENT_MAX 各自限长，超了保留头尾
+      2. 事实按分类顺序输出，'关系里程碑' 标记为受保护，预算裁剪时永不被砍
+      3. 预算不足时从后往前删事实行；事实删光还超，才去压摘要
+      4. 重要度 ≤2 的琐事只有在本轮玩家发言命中时才注入
+      5. 每个分类最多 FACT_CAP_PER_CATEGORY 条（取最近的）
     """
-    把记忆拼成发给 AI 的文本（控制台字数和顺序）
-    """
-    if not priority:
-        priority = ["关系里程碑", "5", "early_gist", "4", "long_summary", "3"]
-        
-    parts = []
-    parts.append(f"【当前时间地点】{data.get('time_location', '未知')}")
-    
-    # 临时存放事实，按优先级组装
-    facts_pool = {i: [] for i in range(1, 6)}
-    for cat in FACT_CATEGORIES:
-        for fact in data["facts"].get(cat, []):
-            imp = fact.get("importance", 3)
-            facts_pool[imp].append(f"- [{cat}] {fact['text']}")
-            
-    for p in priority:
-        if p == "early_gist" and data.get("early_gist"):
-            parts.append(f"【故事早期梗概】\n{data['early_gist']}")
-        elif p == "long_summary" and data.get("long_summary"):
-            parts.append(f"【最近剧情】\n{data['long_summary']}")
-        elif p.isdigit():
-            imp = int(p)
-            if imp >= 3: # 只有 3 级及以上默认注入
-                parts.extend(facts_pool[imp])
-                
-    text = "\n".join(parts)
-    # 如果超预算，从后往前砍（简单截断）
+    facts = data.get("facts") or {}
+
+    items = []   # [(kind, text, protected)]
+
+    time_loc = str(data.get("time_location") or "未知").strip()
+    if time_loc:
+        items.append(("time", f"【当前时间地点】{time_loc}", True))
+
+    gist = _clip(str(data.get("early_gist") or "").strip(), GIST_MAX)
+    if gist:
+        items.append(("gist", f"【故事早期梗概】\n{gist}", False))
+
+    recent = _clip(str(data.get("long_summary") or "").strip(), RECENT_MAX)
+    if recent:
+        items.append(("recent", f"【最近剧情】\n{recent}", False))
+
+    # 分类顺序：里程碑（保护）→ 承诺 → 赠物 → 重要事件
+    order = ["关系里程碑", "承诺", "赠物", "重要事件"]
+    order += [c for c in FACT_CATEGORIES if c not in order]
+
+    for cat in order:
+        arr = facts.get(cat) or []
+        if not isinstance(arr, list) or not arr:
+            continue
+
+        picked = []
+        for it in arr[-FACT_CAP_PER_CATEGORY:]:
+            if isinstance(it, dict):
+                imp = it.get("importance", 3)
+                text = str(it.get("text") or "").strip()
+            else:
+                imp, text = 3, str(it).strip()
+            if not text:
+                continue
+            try:
+                imp = int(imp)
+            except (TypeError, ValueError):
+                imp = 3
+            # 琐事按需注入：本轮没提到就不塞进去
+            if imp <= 2 and not _fact_hits(text, hint):
+                continue
+            picked.append((imp, text))
+
+        if not picked:
+            continue
+
+        protected = cat in PROTECTED_CATEGORIES
+        lines = [f"【{cat}】"] + [f"- {t}" for _, t in picked]
+        items.append(("fact", "\n".join(lines), protected))
+
+    def total():
+        return sum(len(t) + 1 for _, t, _ in items)
+
+    # 预算裁剪：先删事实（从后往前、跳过受保护的），再压摘要
+    guard = 0
+    while total() > budget_chars and guard < 200:
+        guard += 1
+        removed = False
+        for i in range(len(items) - 1, -1, -1):
+            kind, text, protected = items[i]
+            if kind == "fact" and not protected:
+                items.pop(i)
+                removed = True
+                break
+        if removed:
+            continue
+
+        # 没有可删的事实了：压摘要（保留头尾）
+        shrunk = False
+        for i in range(len(items) - 1, -1, -1):
+            kind, text, protected = items[i]
+            if kind in ("recent", "gist") and len(text) > 120:
+                over = total() - budget_chars
+                new_limit = max(120, len(text) - over - 10)
+                items[i] = (kind, _clip(text, new_limit), protected)
+                shrunk = True
+                break
+        if not shrunk:
+            break
+
+    text = "\n".join(t for _, t, _ in items)
     if len(text) > budget_chars:
         text = text[:budget_chars] + "\n（记忆过长，已截断）"
     return text
@@ -236,10 +377,11 @@ def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key):
 def clear_memory(npc_id, npc_name):
     """清空某个角色的所有长期记忆"""
     path = get_memory_path(npc_id, npc_name)
-    if os.path.exists(path):
-        try:
-            os.remove(path)
-            return True
-        except Exception as e:
-            print(f"删除失败: {e}")
+    with LOCK:
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+                return True
+            except Exception as e:
+                print(f"删除失败: {e}")
     return False

@@ -3,6 +3,8 @@
 let aiConfig = null;          // 当前配置（对应 ai_config.json）
 let promptFragments = null;   // prompt_fragments.json
 let currentTab = 'user_card'; // 当前 Tab
+let previewNpc = '';          // 预览用 NPC 名
+let previewWithMemory = true; // 预览是否带长期记忆
 
 async function initPromptsPage() {
   // 加载 AI 配置
@@ -29,6 +31,7 @@ function renderPromptsPage() {
       <div class="ai-tab${currentTab === 'user_card' ? ' active' : ''}" data-tab="user_card" onclick="switchAiTab('user_card')">用户名片</div>
       <div class="ai-tab${currentTab === 'inject' ? ' active' : ''}" data-tab="inject" onclick="switchAiTab('inject')">注入规则</div>
       <div class="ai-tab${currentTab === 'replace' ? ' active' : ''}" data-tab="replace" onclick="switchAiTab('replace')">系统prompt替换</div>
+      <div class="ai-tab${currentTab === 'preview' ? ' active' : ''}" data-tab="preview" onclick="switchAiTab('preview')">预览效果</div>
       <div class="ai-tab${currentTab === 'fragments' ? ' active' : ''}" data-tab="fragments" onclick="switchAiTab('fragments')">固定段落</div>
     </div>
     <div class="ai-tab-content" id="ai-tab-content"></div>
@@ -63,6 +66,8 @@ function renderTabContent() {
     box.innerHTML = renderInjectTab();
   } else if (currentTab === 'replace') {
     box.innerHTML = renderReplaceTab();
+  } else if (currentTab === 'preview') {
+    box.innerHTML = renderPreviewTab();
   } else if (currentTab === 'fragments') {
     box.innerHTML = renderFragmentsTab();
   }
@@ -84,7 +89,7 @@ function renderUserCardTab() {
       <p>游戏每次对话时，core_proxy 会：</p>
       <ol>
         <li>从游戏发出的 prompt 里提取"当前对话 NPC 名字"</li>
-        <li>去 <code>Mods/WorldApartNpcCards/</code> 找对应的 .md 卡片</li>
+        <li>去 <code>editor_cards/</code> 找对应的 .md 卡片</li>
         <li>读取卡片"用户名片"区块的内容</li>
         <li>把内容注入到 prompt 的 <code>## 用户补充</code> 段落</li>
       </ol>
@@ -117,12 +122,93 @@ function renderReplaceTab() {
     </div>
   `).join('');
   return `
-    <div class="field-hint">对玩家输入做"查找 → 替换"（按顺序执行）。</div>
+    <div class="field-hint">对游戏<b>原始 system prompt</b> 做"查找 → 替换"（按顺序执行）。原文在游戏更新后可能变化，预览页会告诉你命中了几条。</div>
     <div id="rules-container">${rows}</div>
     <div class="inject-actions">
       <button class="secondary" onclick="addRule()">+ 添加规则</button>
     </div>
   `;
+}
+
+// ============= Tab 4：预览效果 =============
+function renderPreviewTab() {
+  return `
+    <div class="field-hint">
+      用最近一次游戏对话的真实 prompt 跑一遍完整注入（替换 → 注入语 → 名片 → 记忆），
+      <b>不调用模型、不写记忆</b>，可以反复试。
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;margin:12px 0;flex-wrap:wrap;">
+      <input id="preview-npc" type="text" placeholder="NPC 名字（留空 = 最新样本）"
+             value="${escapeHtml(previewNpc)}"
+             style="width:220px;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-size:13px;">
+      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:4px;">
+        <input type="checkbox" id="preview-memory" ${previewWithMemory ? 'checked' : ''}> 带长期记忆
+      </label>
+      <button class="primary" onclick="runPreview()">跑一次</button>
+      <span class="inject-status" id="preview-status"></span>
+    </div>
+    <div id="preview-result"></div>
+  `;
+}
+
+async function runPreview() {
+  const npcEl = document.getElementById('preview-npc');
+  const memEl = document.getElementById('preview-memory');
+  previewNpc = npcEl ? npcEl.value.trim() : '';
+  previewWithMemory = memEl ? memEl.checked : true;
+
+  setPreviewStatus('正在组装...', '');
+  const box = document.getElementById('preview-result');
+  if (box) box.innerHTML = '';
+
+  let res;
+  try {
+    res = await pywebview.api.preview_prompt(previewNpc, previewWithMemory);
+  } catch (e) {
+    setPreviewStatus('✗ ' + ((e && e.message) || e), 'error');
+    return;
+  }
+
+  if (!res || !res.ok) {
+    setPreviewStatus('✗ ' + ((res && res.msg) || '失败'), 'error');
+    return;
+  }
+
+  setPreviewStatus('✓ 完成', 'success');
+  renderPreviewResult(res);
+}
+
+function renderPreviewResult(res) {
+  const box = document.getElementById('preview-result');
+  if (!box) return;
+  const s = res.stats || {};
+  const roleText = (res.roles || []).join(' → ');
+
+  const warn = (s.rules_hit || 0) === 0
+    ? '<div style="background:#fff8e6;border:1px solid #f0d38a;color:#8a6d1f;padding:8px 10px;border-radius:4px;font-size:12px;margin-bottom:8px;">'
+      + '⚠ 没有任何替换规则命中。可能是游戏更新后原文变了，打开"系统prompt替换"对照一下。</div>'
+    : '';
+
+  box.innerHTML = `
+    ${warn}
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#555;margin-bottom:8px;align-items:center;">
+      <span>样本：<code>${escapeHtml(res.sample || '')}</code></span>
+      <span>规则命中：<b>${s.rules_hit || 0}</b> 条</span>
+      <span>注入语：<b>${s.inject_chars || 0}</b> 字</span>
+      <span>名片：<b>${s.card_chars || 0}</b> 字</span>
+      <span>记忆：<b>${s.memory_chars || 0}</b> 字</span>
+      <span>system 总长：<b>${s.system_chars || 0}</b> 字</span>
+    </div>
+    <div style="font-size:12px;color:#888;margin-bottom:6px;">角色顺序：${escapeHtml(roleText)}</div>
+    <pre style="max-height:420px;overflow:auto;background:#fafafa;border:1px solid #eee;border-radius:6px;padding:12px;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${escapeHtml(res.system || '')}</pre>
+  `;
+}
+
+function setPreviewStatus(text, cls) {
+  const s = document.getElementById('preview-status');
+  if (!s) return;
+  s.textContent = text;
+  s.className = 'inject-status ' + (cls || '');
 }
 
 // ============= Tab 4：固定段落 =============
@@ -201,7 +287,7 @@ async function saveAiConfig2() {
 
   const res = await pywebview.api.save_ai_config(aiConfig);
   if (res.ok) {
-    setAiStatus('✓ 已保存（重启 core_proxy 后生效）', 'success');
+    setAiStatus('✓ 已保存，下次对话自动生效（不用重启）', 'success');
   } else {
     setAiStatus('✗ ' + (res.msg || '保存失败'), 'error');
   }

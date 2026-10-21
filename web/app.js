@@ -2,7 +2,37 @@
 
 let allCards = [];
 
+// 各页面初始化函数的名字。
+// 这里只存字符串、不直接引用函数：某个脚本加载失败时，
+// 只是那一页不初始化，不会让整个 init() 抛异常中断。
+const PAGE_INIT_STEPS = [
+  'initCardsPage',
+  'initEditPage',
+  'initServicesPage',
+  'initLogsPage',
+  'initPromptsPage',
+  'initMemoryPage',
+];
+
+let initStarted = false;
+let initFailures = [];
+
+function reportError(scope, err) {
+  const msg = (err && (err.message || String(err))) || '未知错误';
+  console.error('[' + scope + ']', err);
+
+  const s = document.getElementById('header-status');
+  if (s) {
+    s.textContent = '⚠ ' + scope + ' 出错：' + String(msg).slice(0, 80);
+    s.style.color = '#c0392b';
+  }
+  setFootLeft('⚠ ' + scope + ' 出错：' + msg);
+}
+
 async function init() {
+  if (initStarted) return;
+  initStarted = true;
+
   document.querySelectorAll('.nav-item').forEach(el => {
     el.onclick = () => switchPage(el.dataset.page);
   });
@@ -12,40 +42,37 @@ async function init() {
     document.getElementById('header-status').textContent =
       `共 ${allCards.length} 张卡片`;
   } catch (e) {
-    document.getElementById('header-status').textContent = '加载失败: ' + e;
-    console.error(e);
-    return;
+    allCards = [];
+    reportError('读取卡片列表', e);
   }
-
-  const steps = [
-    ['initCardsPage', initCardsPage],
-    ['initEditPage', initEditPage],
-    ['initServicesPage', initServicesPage],
-    ['initLogsPage', initLogsPage],
-    ['initPromptsPage', initPromptsPage],
-    ['initMemoryPage', initMemoryPage],
-  ];
 
   // 加载游戏目录显示
   setTimeout(loadGameDirDisplay, 100);
 
-  for (const [name, fn] of steps) {
-    try {
-      if (typeof fn === 'function') {
-        fn(allCards);
-      } else {
-        console.error(`函数 ${name} 未定义！`);
-        document.getElementById('header-status').textContent = `函数 ${name} 未定义`;
-      }
-    } catch (e) {
-      console.error(`${name} 失败:`, e);
-      document.getElementById('header-status').textContent = `${name} 失败: ${e.message}`;
+  initFailures = [];
+  for (const name of PAGE_INIT_STEPS) {
+    const fn = window[name];
+    if (typeof fn !== 'function') {
+      initFailures.push(name);
+      console.error(`初始化函数 ${name} 未定义，对应脚本可能加载失败`);
+      continue;
     }
+    try {
+      await fn(allCards);
+    } catch (e) {
+      initFailures.push(name);
+      reportError(name, e);
+    }
+  }
+
+  if (initFailures.length) {
+    setFootLeft('部分页面未初始化：' + initFailures.join('、') + '（详见控制台）');
   }
 }
 
-function switchPage(name) {
-  
+function switchPage(pageName) {
+  const name = pageName || '';
+
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.page === name);
   });
@@ -60,22 +87,29 @@ function switchPage(name) {
   }
 
   if (name === 'cards' && typeof backToCards === 'function') {
-    if (document.getElementById('edit-page').style.display === 'flex') return;
+    const editPage = document.getElementById('edit-page');
+    if (editPage && editPage.style.display === 'flex') return;
     backToCards();
   }
-  
-  if (name === 'services' && typeof loadGameDirDisplay === 'function') {
-    loadGameDirDisplay();
+
+  if (name === 'services') {
+    if (typeof loadGameDirDisplay === 'function') loadGameDirDisplay();
+    if (typeof refreshServicesStatus === 'function') refreshServicesStatus();
+    if (typeof refreshUpstreamLive === 'function') refreshUpstreamLive();
+  }
+
+  if (name === 'memory' && typeof initMemoryPage === 'function') {
+    try {
+      initMemoryPage();
+    } catch (e) {
+      reportError('长期记忆', e);
+    }
   }
 }
 
-  if (name === 'memory' && typeof initMemoryPage === 'function') {
-    initMemoryPage();
-  }
-
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c =>
-    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
   );
 }
 
@@ -85,8 +119,32 @@ function showFooterButtons(showSave, showDelete) {
 }
 
 function setFootLeft(text) {
-  document.getElementById('foot-left').textContent = text;
+  const el = document.getElementById('foot-left');
+  if (el) el.textContent = text;
 }
+
+// ===== 全局错误出口 =====
+// 任何脚本里的未捕获错误都会显示到标题栏，避免"界面看着正常但功能全死"。
+window.addEventListener('error', (e) => {
+  if (!e || !e.message) return;
+  const s = document.getElementById('header-status');
+  if (s) {
+    s.textContent = '⚠ 脚本错误：' + String(e.message).slice(0, 80);
+    s.style.color = '#c0392b';
+  }
+  console.error('[window.error]', (e.filename || '') + ':' + (e.lineno || 0), e.message);
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  const msg = (e && e.reason && e.reason.message) || String((e && e.reason) || '');
+  if (!msg) return;
+  const s = document.getElementById('header-status');
+  if (s) {
+    s.textContent = '⚠ 未处理的异常：' + msg.slice(0, 80);
+    s.style.color = '#c0392b';
+  }
+  console.error('[unhandledrejection]', e.reason);
+});
 
 window.addEventListener('pywebviewready', init);
 setTimeout(() => {
@@ -124,10 +182,10 @@ async function onChangeGameDir() {
   setTimeout(async () => {
     try {
       const cards = await pywebview.api.get_cards_list();
-      if (typeof allCards !== 'undefined') allCards = cards;
+      allCards = cards;
       if (typeof cardsRef !== 'undefined') cardsRef = cards;
       document.getElementById('header-status').textContent = `共 ${cards.length} 张卡片`;
-    } catch (e) {}
+    } catch (e) { }
   }, 1200);
   alert('✓ 已保存，core_proxy 已重启');
 }

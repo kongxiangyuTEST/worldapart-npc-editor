@@ -187,12 +187,7 @@ async function saveAndRestartUpstream() {
   }
 }
 
-// 服务页初始化时，顺便加载上游地址
-const _origInitServicesPage = initServicesPage;
-initServicesPage = async function() {
-  await _origInitServicesPage();
-  await loadUpstream();
-};
+// 注：上游地址的加载已并入 initServicesPage() 里，不再二次包装。
 
 // ==================== 游戏接口地址 ====================
 

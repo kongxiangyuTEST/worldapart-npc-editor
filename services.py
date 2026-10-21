@@ -1,4 +1,6 @@
+import socket
 import os
+import json
 import subprocess
 import sys
 import threading
@@ -16,31 +18,107 @@ else:
 
 
 # ==================== 配置 ====================
-GAME_DIR = str(PROJECT_DIR / "proxy")
+PROXY_DIR = str(PROJECT_DIR / "proxy")
+GAME_DIR = PROXY_DIR          # 兼容旧名字（历史遗留，实际指 proxy 目录）
 
 IS_FROZEN = getattr(sys, 'frozen', False)
+CADDY_PORT = 8788
+
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
+
+
+def _core_proxy_config_path():
+    return os.path.join(PROXY_DIR, "core_proxy_config.json")
+
+
+def core_proxy_port(default=8789):
+    """core_proxy 的监听端口，以 proxy/core_proxy_config.json 为准。"""
+    try:
+        with open(_core_proxy_config_path(), "r", encoding="utf-8") as f:
+            return int(json.load(f).get("listen_port", default))
+    except Exception:
+        return default
+
+
+def _resolve_python():
+    """开发环境用哪个解释器：优先项目内 .venv，否则用当前解释器。"""
+    candidates = [
+        PROJECT_DIR / ".venv" / "Scripts" / "python.exe",
+        Path(sys.executable),
+    ]
+    for p in candidates:
+        try:
+            if p.is_file():
+                return str(p)
+        except OSError:
+            continue
+    return sys.executable
+
+
+def _pids_listening_on(port):
+    """返回监听指定 TCP 端口的 PID 列表（仅 Windows 有实现，其它平台返回空）。"""
+    if sys.platform != "win32":
+        return []
+    pids = set()
+    try:
+        out = subprocess.run(
+            ["netstat", "-ano", "-p", "TCP"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            creationflags=_NO_WINDOW, timeout=10,
+        ).stdout
+    except Exception:
+        return []
+    suffix = ":" + str(port)
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 5 and parts[0].upper() == "TCP" and parts[3].upper() == "LISTENING":
+            if parts[1].endswith(suffix):
+                try:
+                    pids.add(int(parts[4]))
+                except ValueError:
+                    pass
+    return sorted(pids)
+
+
+def _kill_tree(pid):
+    """强杀进程及其子进程。
+
+    Windows 上虚拟环境的 python.exe 可能只是个转发壳，真正的服务跑在子进程里，
+    只 terminate() 父进程会留下孤儿继续占着端口，所以必须连树一起杀。
+    """
+    if not pid or pid == os.getpid():
+        return
+    try:
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)],
+                           capture_output=True, creationflags=_NO_WINDOW, timeout=10)
+        else:
+            subprocess.run(["kill", "-9", str(pid)], capture_output=True, timeout=5)
+    except Exception:
+        pass
+
 
 if IS_FROZEN:
     # 打包后：用 proxy\core_proxy.exe
     PYTHON_EXE = str(PROJECT_DIR / "proxy" / "core_proxy.exe")
     CORE_PROXY = {
         "name": "core_proxy",
-        "cwd": GAME_DIR,
+        "cwd": PROXY_DIR,
         "cmd": [PYTHON_EXE],
     }
 else:
-    # 开发环境：用 .venv 里的 python 跑 core_proxy.py
-    PYTHON_EXE = r"H:\llama\models\.venv\Scripts\python.exe"
+    # 开发环境：用虚拟环境里的 python 跑 core_proxy.py
+    PYTHON_EXE = _resolve_python()
     CORE_PROXY = {
         "name": "core_proxy",
-        "cwd": GAME_DIR,
-        "cmd": [PYTHON_EXE, "core_proxy.py"],
+        "cwd": PROXY_DIR,
+        "cmd": [PYTHON_EXE, "-u", "core_proxy.py"],
     }
 
 CADDY = {
     "name": "caddy",
-    "cwd": GAME_DIR,
-    "cmd": [os.path.join(GAME_DIR, "caddy_windows_amd64.exe"), "run"],
+    "cwd": PROXY_DIR,
+    "cmd": [os.path.join(PROXY_DIR, "caddy_windows_amd64.exe"), "run"],
 }
 
 # 当前正在跑的提取进程
@@ -67,10 +145,49 @@ class ServiceManager:
             if self.log_callback:
                 self.log_callback(name, f"[reader 错误] {e}")
 
+    def _say(self, name, msg):
+        if self.log_callback:
+            self.log_callback(name, msg)
+
+    def _service_port(self, name):
+        """服务对应的监听端口：core_proxy 读配置，caddy 固定 8788。"""
+        if name == "core_proxy":
+            return core_proxy_port()
+        if name == "caddy":
+            return CADDY_PORT
+        return None
+
+    def _free_port(self, name, port, wait=2.0):
+        """清掉端口上的残留进程，返回端口是否已空。"""
+        own = self.processes.get(name)
+        own_pid = own.pid if (own is not None and own.poll() is None) else None
+        stale = [p for p in _pids_listening_on(port) if p != own_pid]
+        if not stale:
+            return True
+
+        self._say(name, f"[清理] 端口 {port} 被残留进程占用 (PID {', '.join(map(str, stale))})，正在结束")
+        for pid in stale:
+            _kill_tree(pid)
+
+        deadline = time.time() + wait
+        while time.time() < deadline:
+            if not _pids_listening_on(port):
+                self._say(name, f"[清理] 端口 {port} 已释放")
+                return True
+            time.sleep(0.1)
+
+        self._say(name, f"[清理] 警告：端口 {port} 仍被占用，启动可能失败")
+        return False
+
     def start(self, service_def):
         name = service_def["name"]
         if name in self.processes and self.processes[name].poll() is None:
             return {"ok": False, "msg": f"{name} 已在运行"}
+
+        # 起之前先清掉端口上的残留进程（上次崩溃留下的孤儿会抢同一个端口）
+        port = self._service_port(name)
+        if port:
+            self._free_port(name, port)
 
         try:
             creationflags = 0
@@ -116,18 +233,23 @@ class ServiceManager:
             try:
                 proc.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
-                if self.log_callback:
-                    self.log_callback(name, f"[管理器] {name} 超时未退出，强杀")
+                self._say(name, f"[管理器] {name} 超时未退出，强杀")
                 proc.kill()
                 proc.wait(timeout=3)
 
-            if self.log_callback:
-                self.log_callback(name, f"[管理器] {name} 已停止")
+            # 连子进程一起收掉：venv 的 python.exe 常是转发壳，真正的服务在子进程里
+            _kill_tree(proc.pid)
+
+            # 端口上如果还有别的孤儿，一并清理，避免下次启动抢不到端口
+            port = self._service_port(name)
+            if port and _pids_listening_on(port):
+                self._free_port(name, port)
+
+            self._say(name, f"[管理器] {name} 已停止")
             return {"ok": True}
 
         except Exception as e:
-            if self.log_callback:
-                self.log_callback(name, f"[管理器] 停止失败: {e}")
+            self._say(name, f"[管理器] 停止失败: {e}")
             return {"ok": False, "msg": str(e)}
 
     def stop_all(self):
@@ -135,14 +257,20 @@ class ServiceManager:
             self.stop(name)
 
     def status(self, name):
+        # 如果进程对象还在，直接用它的
         proc = self.processes.get(name)
-        if proc is None:
-            return "stopped"
-        code = proc.poll()
-        if code is None:
+        if proc is not None and proc.poll() is None:
             return "running"
-        else:
-            return f"exited({code})"
+
+        # 如果进程对象丢了，直接查端口
+        port = self._service_port(name)
+        if not port:
+            return "unknown"
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                return "running"
+        except (ConnectionRefusedError, TimeoutError, OSError):
+            return "stopped"
 
     def get_all_status(self):
         return {
@@ -620,187 +748,6 @@ def list_card_backups(project_dir):
             out.append({"name": d.name, "count": cnt, "path": str(d)})
     return out
 
-
-# ==================== 卡片对比 ====================
-
-def backup_editor_cards(project_dir, log=None):
-    """把 editor_cards\\ 备份到 editor_cards_backup\\{时间戳}\\"""
-    from pathlib import Path
-    from datetime import datetime
-    import shutil
-
-    def _log(msg):
-        if log: log(msg)
-
-    src = Path(project_dir) / "editor_cards"
-    if not src.is_dir() or not any(src.glob("*.md")):
-        return {"ok": False, "msg": "editor_cards 为空，无需备份"}
-
-    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-    backup_root = Path(project_dir) / "editor_cards_backup"
-    backup_root.mkdir(exist_ok=True)
-    dst = backup_root / ts
-    shutil.copytree(src, dst)
-    _log(f"[备份] 已备份到 {dst}")
-
-    all_backups = sorted([d for d in backup_root.iterdir() if d.is_dir()],
-                         key=lambda d: d.name, reverse=True)
-    for old in all_backups[5:]:
-        shutil.rmtree(old, ignore_errors=True)
-        _log(f"[清理] 删掉旧备份 {old.name}")
-
-    return {"ok": True, "path": str(dst)}
-
-
-def list_card_backups(project_dir):
-    """列出所有备份"""
-    from pathlib import Path
-    root = Path(project_dir) / "editor_cards_backup"
-    if not root.is_dir():
-        return []
-    out = []
-    for d in sorted(root.iterdir(), key=lambda x: x.name, reverse=True):
-        if d.is_dir():
-            cnt = len(list(d.glob("*.md")))
-            out.append({"name": d.name, "count": cnt, "path": str(d)})
-    return out
-
-
-def _parse_card_for_diff(path):
-    """读一张 .md 卡片，拆成 {user_card, preset, background}"""
-    from pathlib import Path
-    p = Path(path)
-    if not p.is_file():
-        return None
-    with p.open("r", encoding="utf-8") as f:
-        raw = f.read()
-    lines = raw.split("\n")
-
-    section = None
-    user_lines, bg_lines = [], []
-    preset = {}
-    skip_comment = False
-
-    for line in lines:
-        s = line.rstrip()
-        if s.startswith("# ") and not s.startswith("## "):
-            section = "title"
-            continue
-        if s.startswith("## "):
-            h = s[3:].strip()
-            if h.startswith("用户名片"):
-                section = "user"
-            elif h.startswith("预设资料"):
-                section = "preset"
-            elif h.startswith("原游戏背景"):
-                section = "bg"
-            else:
-                section = "other"
-            skip_comment = False
-            continue
-        if section == "user":
-            if "<!--" in line:
-                skip_comment = True
-            if skip_comment:
-                if "-->" in line:
-                    skip_comment = False
-                continue
-            user_lines.append(line)
-        elif section == "preset":
-            ss = s.strip()
-            if ss.startswith("- ") and "：" in ss:
-                k, v = ss[2:].split("：", 1)
-                preset[k.strip()] = v.strip()
-        elif section == "bg":
-            bg_lines.append(line)
-
-    return {
-        "user_card": "\n".join(user_lines).strip(),
-        "preset": preset,
-        "background": "\n".join(bg_lines).strip(),
-    }
-
-
-def diff_editor_cards(old_dir, new_dir, project_dir=None, log=None):
-    """对比新旧卡片目录"""
-    from pathlib import Path
-    from datetime import datetime
-    import json as _json
-
-    def _log(msg):
-        if log: log(msg)
-
-    old_dir = Path(old_dir)
-    new_dir = Path(new_dir)
-
-    if not old_dir.is_dir():
-        return {"ok": False, "msg": f"旧目录不存在：{old_dir}"}
-    if not new_dir.is_dir():
-        return {"ok": False, "msg": f"新目录不存在：{new_dir}"}
-
-    old_files = {f.name: f for f in old_dir.glob("*.md")}
-    new_files = {f.name: f for f in new_dir.glob("*.md")}
-
-    old_names = set(old_files)
-    new_names = set(new_files)
-
-    added = sorted(new_names - old_names)
-    removed = sorted(old_names - new_names)
-    common = sorted(old_names & new_names)
-
-    changed = []
-    unchanged = []
-
-    for name in common:
-        old_data = _parse_card_for_diff(old_files[name])
-        new_data = _parse_card_for_diff(new_files[name])
-        if not old_data or not new_data:
-            continue
-
-        diffs = []
-        if old_data["background"] != new_data["background"]:
-            diffs.append("原游戏背景")
-        for k in ("姓名", "性别", "年龄", "境界", "个性", "兴趣"):
-            if old_data["preset"].get(k) != new_data["preset"].get(k):
-                diffs.append(f"预设·{k}")
-
-        if diffs:
-            changed.append({
-                "filename": name,
-                "fields": diffs,
-                "old_bg": old_data["background"][:200],
-                "new_bg": new_data["background"][:200],
-                "user_card_kept": bool(old_data["user_card"]),
-            })
-        else:
-            unchanged.append(name)
-
-    _log(f"[对比] 新增 {len(added)}，改动 {len(changed)}，删除 {len(removed)}，没变 {len(unchanged)}")
-
-    if project_dir:
-        report_dir = Path(project_dir) / "diff_reports"
-        report_dir.mkdir(exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-        report = {
-            "time": ts,
-            "old_dir": str(old_dir),
-            "new_dir": str(new_dir),
-            "added": added,
-            "changed": changed,
-            "removed": removed,
-            "unchanged_count": len(unchanged),
-        }
-        with (report_dir / f"diff-{ts}.json").open("w", encoding="utf-8") as f:
-            _json.dump(report, f, ensure_ascii=False, indent=2)
-        _log(f"[对比] 报告已保存到 {report_dir / f'diff-{ts}.json'}")
-
-    return {
-        "ok": True,
-        "added": added,
-        "changed": changed,
-        "removed": removed,
-        "unchanged_count": len(unchanged),
-    }
 
 def merge_cards(old_dir, new_dir, out_dir=None, project_dir=None, log=None):
     """

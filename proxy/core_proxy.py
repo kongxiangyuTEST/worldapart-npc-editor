@@ -19,7 +19,7 @@ from pathlib import Path
 
 import requests
 from flask import Flask, request, Response
-
+GAME_DIR = ""
 CURRENT_NPC_NAME = None
 
 # ============================================================
@@ -35,25 +35,24 @@ else:
 
 sys.path.insert(0, str(PROJECT_DIR))
 import memory_manager
+import os
 
+# ==================== 智能动态路径 ====================
+if getattr(sys, 'frozen', False):
+    # 打包环境：exe 所在的目录的上一级（因为 exe 在 proxy 文件夹里）
+    base_dir = os.path.dirname(sys.executable)
+    base_dir = os.path.dirname(base_dir)
+else:
+    # 源码环境：proxy 文件夹的上一级
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def _load_game_dir():
-    """从 user_config.json 读游戏目录"""
-    cfg = PROJECT_DIR / "user_config.json"
-    if not cfg.is_file():
-        print(f"[警告] 找不到 {cfg}，卡片目录将不可用")
-        return ""
-    try:
-        import json as _json
-        with open(cfg, "r", encoding="utf-8") as f:
-            data = _json.load(f)
-        return data.get("game_dir", "")
-    except Exception as e:
-        print(f"[警告] 读 user_config.json 失败: {e}")
-        return ""
+# 动态设置 memory 目录
+memory_manager.MEMORY_DIR = os.path.join(base_dir, "memory")
+if not os.path.exists(memory_manager.MEMORY_DIR):
+    os.makedirs(memory_manager.MEMORY_DIR)
 
-
-GAME_DIR = _load_game_dir()
+# 动态设置 cards 目录
+cards_dir = os.path.join(base_dir, "editor_cards")
 
 # ============================================================
 # 一、读配置
@@ -82,44 +81,80 @@ UPSTREAM_BASE = conf.get("upstream_base_url", "http://127.0.0.1:8080/").rstrip("
 FALLBACK_KEY = conf.get("api_key")
 
 # ============================================================
-# 二、读 AI 配置（从编辑器项目的 ai_config.json）
+# 二、AI 配置（ai_config.json，按 mtime 热加载）
 # ============================================================
 AI_CONFIG_PATH = PROJECT_DIR / "ai_config.json"
 
-inject = ""
-rules = []
-inject_user_card_enabled = True   # 默认开启
+# inject / rules / 开关 / 记忆预算都放这里。
+# 文件内容一变，下一次请求自动重读 —— 改完存盘即生效，不用重启 core_proxy。
+_AI = {
+    "mtime": None,
+    "inject": "",
+    "rules": [],             # [(old, new), ...]
+    "inject_user_card": True,
+    "memory_budget": 2000,   # 每轮记忆注入预算（字）
+    "memory_hint": True,     # 低重要度事实是否只在玩家发言命中时注入
+}
 
-if AI_CONFIG_PATH.exists():
+
+def load_ai_config(force=False):
+    """读 ai_config.json；文件没变就复用缓存。返回配置字典。"""
     try:
-        with open(AI_CONFIG_PATH, "r", encoding="utf-8") as f:
-            ai_conf = json.load(f)
-        inject = (ai_conf.get("inject") or "").strip()
-        inject_user_card_enabled = ai_conf.get("inject_user_card", True)
-        for r in ai_conf.get("rules", []):
-            old = (r.get("old") or "").strip()
-            new = (r.get("new") or "").strip()
-            if old:
-                rules.append((old, new))
-        print(f"[配置] 已从 {AI_CONFIG_PATH} 读取配置（用户名片注入: {inject_user_card_enabled}）")
+        mtime = AI_CONFIG_PATH.stat().st_mtime
+    except OSError:
+        if _AI["mtime"] is None:
+            print(f"[警告] 未找到 {AI_CONFIG_PATH}，将原样转发 prompt。")
+        return _AI
+
+    if not force and _AI["mtime"] == mtime:
+        return _AI
+
+    try:
+        with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as f:
+            conf = json.load(f)
     except Exception as e:
-        print(f"[警告] 读取 ai_config.json 失败: {e}")
-else:
-    print(f"[警告] 未找到 {AI_CONFIG_PATH}，将原样转发 prompt。")
+        print(f"[警告] ai_config.json 解析失败，沿用上次配置: {e}")
+        return _AI
+
+    new_rules = []
+    for r in conf.get("rules") or []:
+        old = (r.get("old") or "").strip()
+        new = (r.get("new") or "").strip()
+        if old:
+            new_rules.append((old, new))
+
+    _AI["inject"] = (conf.get("inject") or "").strip()
+    _AI["rules"] = new_rules
+    _AI["inject_user_card"] = bool(conf.get("inject_user_card", True))
+    try:
+        _AI["memory_budget"] = int(conf.get("memory_budget", 2000))
+    except (TypeError, ValueError):
+        print(f"[配置] memory_budget 不是数字，回落 2000")
+        _AI["memory_budget"] = 2000
+    _AI["memory_hint"] = bool(conf.get("memory_hint", True))
+    _AI["mtime"] = mtime
+    print(f"[配置] ai_config.json 已加载：注入 {len(_AI['inject'])} 字，"
+          f"替换 {len(new_rules)} 条，名片注入 {_AI['inject_user_card']}，"
+          f"记忆预算 {_AI['memory_budget']} 字", flush=True)
+    return _AI
 
 # ============================================================
 # 三、用户名片配置
 # ============================================================
 # 卡片目录
-_editor_cards = PROJECT_DIR / "editor_cards"
-_mod_cards = Path(GAME_DIR) / "Mods" / "WorldApartNpcCards" if GAME_DIR else None
+# _editor_cards = PROJECT_DIR / "editor_cards"
+# _mod_cards = Path(GAME_DIR) / "Mods" / "WorldApartNpcCards" if GAME_DIR else None
 
-if _editor_cards.is_dir() and any(_editor_cards.glob("*.md")):
-    CARDS_DIR = _editor_cards
-elif _mod_cards and _mod_cards.is_dir():
-    CARDS_DIR = _mod_cards
-else:
-    CARDS_DIR = _editor_cards
+# if _editor_cards.is_dir() and any(_editor_cards.glob("*.md")):
+#     CARDS_DIR = _editor_cards
+# elif _mod_cards and _mod_cards.is_dir():
+#     CARDS_DIR = _mod_cards
+# else:
+#     CARDS_DIR = _editor_cards
+
+# 卡片目录，直接写死指向当前编辑器目录
+CARDS_DIR = PROJECT_DIR / "editor_cards"
+
 # ============================================================
 # 三·补充、Prompt 样本保存
 # ============================================================
@@ -176,11 +211,13 @@ FALLBACK_LINES = [
     "（她轻轻吸了口气，好像在等你说下去。）",
 ]
 
+load_ai_config(force=True)
+
 print("=" * 60)
 print("  core_proxy (Python 重写版 + 语义去重 + 残留清洗 + 角色交替修正 + 用户名片注入)  已就绪")
 print(f"  监听:  http://{LISTEN_HOST}:{LISTEN_PORT}")
 print(f"  上游:  {UPSTREAM_BASE}/v1/chat/completions")
-print(f"  改写:  注入 {len(inject)} 字符 + {len(rules)} 条替换规则")
+print(f"  改写:  注入 {len(_AI['inject'])} 字符 + {len(_AI['rules'])} 条替换规则（改完存盘即生效）")
 print(f"  名片:  {CARDS_DIR}")
 print(f"  Key:   优先用游戏 Authorization，配置里有 FALLBACK_KEY: {bool(FALLBACK_KEY)}")
 print("=" * 60)
@@ -217,10 +254,19 @@ def extract_npc_name(messages):
         if not isinstance(content, str):
             continue
         # 只在含"角色设定"的消息里找
-        if "角色设定" not in content:
+        idx = content.find("角色设定")
+        if idx < 0:
             continue
+
+        # 只截取"角色设定"这一节，避免把注入语里的
+        # "你是活人，不是 AI" 当成 NPC 名字
+        seg = content[idx:]
+        nxt = seg.find("## ", len("角色设定"))
+        if nxt > 0:
+            seg = seg[:nxt]
+
         # 提取 "你是 XXX"
-        match = NPC_NAME_RE.search(content)
+        match = NPC_NAME_RE.search(seg)
         if match:
             name = match.group(1).strip()
             # 去掉"（客栈老板娘）"之类
@@ -310,39 +356,23 @@ def load_user_card_for_npc(npc_name):
     return None
 
 
-def inject_user_card(req_json):
+def inject_user_card(req_json, npc_name=None):
     """
-    在 req_json["messages"] 里找到 NPC 名字，读用户名片，注入到 prompt。
+    读该 NPC 的用户名片，注入到 prompt。
+    npc_name 由 prepare_messages() 统一解析后传入，避免重复解析、解析口径不一致。
     返回：注入的字符数（0 表示没注入）
     """
     messages = req_json.get("messages") or []
     if not messages:
         return 0
 
-    # 1. 先尝试用原版逻辑提取名字
-    npc_name = extract_npc_name(messages)
-    
-    # # 2. 如果原版提取不到（或者提取错了），用暴力搜索兜底
-    # if not npc_name or npc_name == "活人 不是":
-    #     all_text = "".join([str(m.get("content", "")) for m in messages])
-    #     try:
-    #         import config
-    #         import os
-    #         for f in os.listdir(config.CARDS_DIR):
-    #             if f.endswith(".md"):
-    #                 parts = f.replace(".md", "").split("-")
-    #                 if len(parts) >= 2:
-    #                     c_name = parts[1]
-    #                     if c_name in all_text:
-    #                         npc_name = c_name
-    #                         break
-    #     except Exception:
-    #         pass
+    if npc_name is None:
+        npc_name = extract_npc_name(messages)
 
     if not npc_name:
         print("[名片] 未提取到 NPC 名字，跳过注入", flush=True)
         return 0
-    
+
     global CURRENT_NPC_NAME
     CURRENT_NPC_NAME = npc_name
 
@@ -546,15 +576,72 @@ def normalize_response(raw_body):
     return clean_tail(temp), extra_fields
 
 
-def apply_rules(text):
+def apply_rules(text, rules=None):
+    """应用替换规则。
+
+    匹配顺序（越来越宽松，避免游戏更新后静默失效）：
+      1. 原文精确匹配
+      2. 两边去掉首尾空白后再匹配
+      3. 原文的 \\n 换成 \\r\\n 再匹配（游戏 prompt 行尾可能不同）
+
+    返回 (新文本, 命中条数, 命中明细)
+    """
     if not text:
-        return text, 0
+        return text, 0, []
+
+    pairs = _AI["rules"] if rules is None else rules
     count = 0
-    for old, new in rules:
-        if old and old in text:
+    detail = []
+
+    for old, new in pairs:
+        if not old:
+            continue
+        hit = None
+        if old in text:
+            hit = old
+        else:
+            o2 = old.strip()
+            if o2 and o2 != old and o2 in text:
+                hit = o2
+            elif "\n" in old and old.replace("\n", "\r\n") in text:
+                hit = old.replace("\n", "\r\n")
+
+        if hit is None:
+            continue
+
+        if hit == old:
             text = text.replace(old, new)
-            count += 1
-    return text, count
+        elif hit == old.strip():
+            text = text.replace(hit, new.strip())
+        else:
+            text = text.replace(hit, new.replace("\n", "\r\n"))
+
+        count += 1
+        detail.append(old[:30].replace("\n", " "))
+
+    return text, count, detail
+
+
+def apply_rules_to_messages(messages):
+    """替换规则只作用于【游戏原始的 system 消息】。
+
+    历史问题：早期实现只替换最后一条 user 消息，而游戏把"默认一两句短句…"这类
+    要求全写在 system 里 → 12 条规则从来没生效过（日志永远是 rules=0）。
+    """
+    total = 0
+    detail = []
+    for m in messages:
+        if not isinstance(m, dict) or m.get("role") != "system":
+            continue
+        content = m.get("content")
+        if not isinstance(content, str):
+            continue
+        new_content, n, det = apply_rules(content)
+        if n:
+            m["content"] = new_content
+            total += n
+            detail.extend(det)
+    return total, detail
 
 
 def similarity_ratio(a, b):
@@ -652,22 +739,16 @@ def fix_alternation(messages):
 
 
 def rewrite_messages(req_json):
-    rules_applied = 0
+    """合并 system + 前置注入语 + 强制角色交替。
+
+    替换规则不在这里做 —— 由 prepare_messages() 在注入名片/记忆之前、
+    只对游戏原始 system 消息应用一次，避免误伤后面自己加的块。
+    """
     messages = req_json.get("messages") or []
     if not messages:
-        return rules_applied
+        return 0
 
-    # 1. 替换规则只对最后一条 user 生效
-    last_user_idx = -1
-    for i in range(len(messages) - 1, -1, -1):
-        if messages[i].get("role") == "user":
-            last_user_idx = i
-            break
-    if last_user_idx >= 0 and isinstance(messages[last_user_idx].get("content"), str):
-        txt, rules_applied = apply_rules(messages[last_user_idx]["content"])
-        messages[last_user_idx]["content"] = txt
-
-    # 2. 拆分 system / others
+    # 1. 拆分 system / others
     system_parts = []
     others = []
     for m in messages:
@@ -676,18 +757,18 @@ def rewrite_messages(req_json):
         else:
             others.append(m)
 
-    # 3. 强制角色交替
+    # 2. 强制角色交替
     others = fix_alternation(others)
 
-    # 4. 合并所有 system
+    # 3. 合并所有 system，注入语放最前面
     parts = []
-    if inject:
-        parts.append(inject)
+    if _AI["inject"]:
+        parts.append(_AI["inject"])
     parts.extend(system_parts)
     parts.append("必须严格按 system 消息在最前、然后 user 和 assistant 交替的顺序回复。")
     final_system = "\r\n\r\n".join(parts)
 
-    # 5. 重排
+    # 4. 重排
     new_messages = [{"role": "system", "content": final_system}]
     new_messages.extend(others)
     req_json["messages"] = new_messages
@@ -695,81 +776,84 @@ def rewrite_messages(req_json):
     roles = [m.get("role") for m in new_messages]
     print(f"[REWRITE] 角色顺序: {roles[:8]}")
 
-    return rules_applied
+    return 0
 
 # ==================== 长期记忆核心注入 ====================
-def inject_memory_to_messages(req_json):
-    """将长期记忆注入到 system 提示词中"""
-    messages = req_json.get("messages") or []
-    if not messages: return None, None
-    
-    global CURRENT_NPC_NAME
-    npc_name = None
-    npc_id = None
-    
-    # 优先使用名片模块抓到的精准名字
-    if CURRENT_NPC_NAME:
-        npc_name = CURRENT_NPC_NAME
-        try:
-            import config
-            import os
-            for f in os.listdir(config.CARDS_DIR):
-                if f.endswith(f"-{npc_name}.md"):
-                    npc_id = int(f.split("-")[0])
-                    break
-        except Exception:
-            pass
-            
-    # 如果没抓到，再用暴力扫描兜底
-    if not npc_id:
-        all_text = "".join([str(m.get("content", "")) for m in messages])
-        try:
-            import config
-            import os
-            for f in os.listdir(config.CARDS_DIR):
-                if f.endswith(".md"):
-                    parts = f.replace(".md", "").split("-")
-                    if len(parts) >= 2 and parts[0].isdigit():
-                        c_id = int(parts[0])
-                        c_name = parts[1]
-                        if c_name in all_text:
-                            npc_name = c_name
-                            npc_id = c_id
-                            break
-        except Exception as e:
-            print(f"[记忆] 扫描出错: {e}", flush=True)
+def inject_memory_to_messages(req_json, npc_name=None):
+    """把长期记忆注入到 system 提示词。
 
-    if not npc_id:
-        return None, None
-        
-    print(f"[记忆] 成功锁定角色: {npc_name}({npc_id})", flush=True)
-    
-    # 加载记忆并拼装
+    npc_name 由 prepare_messages() 在改写前解析好后传进来；
+    不传则就地解析（兜底）。
+    返回 (npc_id, npc_name, 注入字数)
+    """
+    messages = req_json.get("messages") or []
+    if not messages:
+        return None, None, 0
+
+    global CURRENT_NPC_NAME
+
+    if npc_name is None:
+        npc_name = extract_npc_name(messages)
+    CURRENT_NPC_NAME = npc_name
+
+    if not npc_name:
+        print("[记忆] 本轮未提取到 NPC 名字，跳过注入", flush=True)
+        return None, None, 0
+
+    card_files = find_card_files(npc_name)
+    if not card_files:
+        print(f"[记忆] 卡片目录里找不到 {npc_name}，跳过注入", flush=True)
+        return None, None, 0
+
+    try:
+        npc_id = int(card_files[0].name.split("-", 1)[0])
+    except (ValueError, IndexError):
+        print(f"[记忆] 无法解析 {npc_name} 的 ID，跳过注入", flush=True)
+        return None, None, 0
+
+    # 加载记忆并拼装（预算从 ai_config.json 读，默认 2000 字）
     data = memory_manager.load_memory(npc_id, npc_name)
-    memory_text = memory_manager.build_injection_text(data, budget_chars=2000)
-    
+    user_say = ""
+    for m in reversed(messages):
+        if m.get("role") == "user" and isinstance(m.get("content"), str):
+            user_say = m["content"]
+            break
+
+    memory_text = memory_manager.build_injection_text(
+        data,
+        budget_chars=_AI["memory_budget"],
+        hint=user_say if _AI["memory_hint"] else "",
+    )
+
     if not memory_text.strip():
-        return npc_id, npc_name
-        
+        return npc_id, npc_name, 0
+
     mem_block = f"\n\n【长期记忆（请自然带入）】\n{memory_text}\n"
-    
+
     # 注入到 system 提示词
     sys_content = ""
     for m in messages:
         if m.get("role") == "system":
             sys_content = m.get("content", "")
             break
-            
+
     if sys_content:
         messages[0]["content"] = sys_content + mem_block
     else:
         messages.insert(0, {"role": "system", "content": mem_block})
-        
+
     req_json["messages"] = messages
-    return npc_id, npc_name
-
-
+    return npc_id, npc_name, len(memory_text)
 def update_memory_after_chat(npc_id, npc_name, user_text, ai_text):
+    # 后台合并线程可能同时在读写同一个记忆文件，整段加锁
+    with memory_manager.LOCK:
+        return _update_memory_locked(npc_id, npc_name, user_text, ai_text)
+
+
+def _update_memory_locked(npc_id, npc_name, user_text, ai_text):
+
+    print(f"[记忆调试] 当前实际写入路径: {memory_manager.MEMORY_DIR}", flush=True)
+    
     """对话后更新记忆（老化 + 12轮自动合并）"""
     if not npc_id or not npc_name: return
     data = memory_manager.load_memory(npc_id, npc_name)
@@ -788,18 +872,9 @@ def update_memory_after_chat(npc_id, npc_name, user_text, ai_text):
         logs_str = "\n\n".join(data["recent_logs"])
         # 开个线程去请求AI，不卡游戏运行
         import threading
-        # 从配置文件读取真实的上游地址和 Key
-        import json, os
+        # 上游地址与 Key 统一以 core_proxy_config.json 为准（启动时已读入）
         upstream_url = UPSTREAM_BASE + "/v1/chat/completions"
         f_key = FALLBACK_KEY
-        try:
-            if os.path.isfile("ai_config.json"):
-                with open("ai_config.json", "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                    upstream_url = cfg.get("upstream", upstream_url)
-                    f_key = cfg.get("fallback_key", f_key)
-        except:
-            pass
 
         threading.Thread(
             target=memory_manager.do_auto_merge, 
@@ -810,23 +885,70 @@ def update_memory_after_chat(npc_id, npc_name, user_text, ai_text):
         
     # 4. 保存回文件
     memory_manager.save_memory(npc_id, npc_name, data)
-# =========================================================
-    """对话后更新记忆（老化+提到了清零）"""
-    if not npc_id or not npc_name: return
-    data = memory_manager.load_memory(npc_id, npc_name)
-    
-    # 1. 防降级：如果本轮用户提到了某事实，清零老化
-    memory_manager.reset_fact_age(data, user_text)
-    
-    # 2. 老化处理（24轮降级/48轮删除）
-    data, changed = memory_manager.process_aging(npc_id, npc_name, data)
-    
-    # 3. 保存回文件
-    memory_manager.save_memory(npc_id, npc_name, data)
 
 
 # ============================================================
-# 八、转发
+# 八、提示词组装（转发和预览共用同一条流水线）
+# ============================================================
+
+def prepare_messages(req_json, with_memory=True, with_card=True):
+    """把游戏原始 messages 加工成最终发给模型的 messages（原地修改）。
+
+    顺序很关键：
+      1. 先从【原始 system】解析 NPC 名（此时还没塞注入语，不会认错人）
+      2. 替换规则只作用于原始 system
+      3. 注入用户名片（要在合并 system 之前，靠 "## 说话习惯" 定位插入点）
+      4. 合并 system + 前置注入语
+      5. 注入长期记忆（追加到合并后的 system 末尾）
+
+    返回 stats 字典，供日志和 /_preview 使用。
+    """
+    load_ai_config()          # mtime 变了就重读，改完存盘即生效
+
+    messages = req_json.get("messages") or []
+    npc_name = extract_npc_name(messages)
+
+    rules_hit, rule_detail = apply_rules_to_messages(messages)
+
+    card_len = 0
+    if with_card and _AI["inject_user_card"]:
+        try:
+            card_len = inject_user_card(req_json, npc_name)
+        except Exception as e:
+            import traceback
+            print(f"[名片] 注入失败: {e}", flush=True)
+            print(traceback.format_exc(), flush=True)
+    elif not _AI["inject_user_card"]:
+        print("[名片] 用户名片注入已关闭，跳过", flush=True)
+
+    rewrite_messages(req_json)
+
+    npc_id, npc_label, mem_len = (None, None, 0)
+    if with_memory:
+        npc_id, npc_label, mem_len = inject_memory_to_messages(req_json, npc_name)
+        if npc_id:
+            print(f"[记忆] 已注入 {npc_label}({npc_id}) 的长期记忆（{mem_len} 字）", flush=True)
+    else:
+        npc_label = npc_name
+
+    final_messages = req_json.get("messages") or []
+    sys_len = len(final_messages[0]["content"]) if final_messages and final_messages[0].get("role") == "system" else 0
+
+    return {
+        "npc_name": npc_name or npc_label,
+        "npc_id": npc_id,
+        "rules_hit": rules_hit,
+        "rules_detail": rule_detail,
+        "inject_chars": len(_AI["inject"]),
+        "card_chars": card_len,
+        "memory_chars": mem_len,
+        "system_chars": sys_len,
+        "messages": len(final_messages),
+    }
+
+
+# ============================================================
+# 九、转发
 # ============================================================
 
 def forward(req_json, game_auth):
@@ -849,7 +971,7 @@ def forward(req_json, game_auth):
 
 
 # ============================================================
-# 九、路由
+# 十、路由
 # ============================================================
 
 @app.route("/v1/chat/completions", methods=["POST"])
@@ -865,18 +987,7 @@ def chat_completions():
     global recent_replies
     t0 = time.time()
 
-    card_len = 0
-    if inject_user_card_enabled:
-        try:
-            card_len = inject_user_card(req_json)
-        except Exception as e:
-            import traceback
-            print(f"[名片] 注入失败: {e}", flush=True)
-            print(traceback.format_exc(), flush=True)
-            card_len = 0
-    else:
-        print("[名片] 用户名片注入已关闭，跳过", flush=True)
-
+    # 样本存的是【游戏原始】prompt（注入前），便于对照"我改了什么"
     try:
         save_prompt_sample(req_json)
     except Exception as e:
@@ -884,13 +995,16 @@ def chat_completions():
         print(f"[样本] 保存失败: {e}", flush=True)
         print(traceback.format_exc(), flush=True)
 
-    rules_applied = rewrite_messages(req_json)
+    try:
+        stats = prepare_messages(req_json)
+    except Exception as e:
+        import traceback
+        print(f"[组装] 失败: {e}", flush=True)
+        print(traceback.format_exc(), flush=True)
+        stats = {"rules_hit": 0, "card_chars": 0, "memory_chars": 0}
 
-    # 注入长期记忆
-    active_npc_id, active_npc_name = inject_memory_to_messages(req_json)
-    if active_npc_id:
-        print(f"[记忆] 已注入角色 {active_npc_name}({active_npc_id}) 的长期记忆")
-
+    active_npc_id = stats.get("npc_id")
+    active_npc_name = stats.get("npc_name")
 
     req_json["chat_template_kwargs"] = {"enable_thinking": False}
 
@@ -902,7 +1016,9 @@ def chat_completions():
                 last_user_len = len(m["content"])
                 break
 
-    print(f"[REQ] messages={len(messages)}, last_user_len={last_user_len}, rules={rules_applied}, card={card_len}")
+    print(f"[REQ] messages={len(messages)}, last_user_len={last_user_len}, "
+          f"rules={stats.get('rules_hit', 0)}, card={stats.get('card_chars', 0)}, "
+          f"memory={stats.get('memory_chars', 0)}, system={stats.get('system_chars', 0)}")
 
     game_auth = request.headers.get("Authorization")
 
@@ -1026,6 +1142,57 @@ def _status():
     return jsonify({
         "upstream": UPSTREAM_BASE,
         "listen_port": LISTEN_PORT,
+        "npc": CURRENT_NPC_NAME,
+        "inject_chars": len(_AI["inject"]),
+        "rules": len(_AI["rules"]),
+        "memory_budget": _AI["memory_budget"],
+        "config_mtime": _AI["mtime"],
+    })
+
+
+@app.route("/_preview", methods=["POST"])
+def _preview():
+    """试演：拿一段 messages 走完整注入流程，返回最终结果。
+
+    不调用上游、不保存样本、不写记忆 —— 可以反复试。
+    """
+    from flask import jsonify
+    import copy
+
+    try:
+        body = request.get_json(force=True) or {}
+    except Exception as e:
+        return Response(json.dumps({"ok": False, "msg": f"invalid json: {e}"}, ensure_ascii=False),
+                        status=400, content_type="application/json; charset=utf-8")
+
+    messages = body.get("messages")
+    if not isinstance(messages, list) or not messages:
+        return Response(json.dumps({"ok": False, "msg": "messages 不能为空"}, ensure_ascii=False),
+                        status=400, content_type="application/json; charset=utf-8")
+
+    req = {"messages": copy.deepcopy(messages)}
+    with_memory = bool(body.get("with_memory", True))
+    with_card = bool(body.get("with_card", True))
+
+    try:
+        stats = prepare_messages(req, with_memory=with_memory, with_card=with_card)
+    except Exception as e:
+        import traceback
+        return Response(json.dumps({"ok": False, "msg": f"组装失败: {e}",
+                                    "traceback": traceback.format_exc()}, ensure_ascii=False),
+                        status=500, content_type="application/json; charset=utf-8")
+
+    final = req.get("messages") or []
+    system_text = ""
+    if final and final[0].get("role") == "system" and isinstance(final[0].get("content"), str):
+        system_text = final[0]["content"]
+
+    return jsonify({
+        "ok": True,
+        "stats": stats,
+        "system": system_text,
+        "roles": [m.get("role") for m in final],
+        "messages": final,
     })
 
 

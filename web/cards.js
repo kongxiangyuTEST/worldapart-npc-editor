@@ -50,7 +50,7 @@ function renderCardsPage() {
     let portraitHTML;
     if (card.portrait_file) {
       portraitHTML = `
-        <img class="portrait-img" src="/portraits/${card.portrait_file}" alt="${escapeHtml(card.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <img class="portrait-img" src="portraits/${card.portrait_file}" alt="${escapeHtml(card.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
         <div class="portrait-fallback" style="display:none;">${escapeHtml(initial)}</div>
       `;
     } else {

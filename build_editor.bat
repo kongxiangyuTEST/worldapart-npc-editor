@@ -1,5 +1,6 @@
 @echo off
 chcp 65001 >nul
+setlocal
 echo ============================================
 echo   打包 WorldApartEditor.exe
 echo ============================================
@@ -9,7 +10,7 @@ cd /d "%~dp0"
 
 if not exist ".venv\Scripts\pyinstaller.exe" (
     echo [错误] 找不到 pyinstaller，请先运行 setup.bat
-    pause
+if not defined NO_PAUSE pause
     exit /b 1
 )
 
@@ -31,10 +32,12 @@ echo [2/2] 开始打包...
   --hidden-import pythonnet ^
   --collect-all webview ^
   --collect-all clr_loader ^
+  --hidden-import memory_manager ^
+  --hidden-import config ^
   editor.py
 
 echo.
 echo ============================================
 echo   完成！输出在 dist\WorldApartEditor\
 echo ============================================
-pause
+if not defined NO_PAUSE pause

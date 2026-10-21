@@ -1,4 +1,11 @@
 @echo off
-cd /d H:\llama\models\wa-npc-cards
-H:\llama\models\.venv\Scripts\python.exe editor.py
-pause
+chcp 65001 >nul
+cd /d "%~dp0"
+
+if exist ".venv\Scripts\python.exe" (
+    ".venv\Scripts\python.exe" editor.py
+) else (
+    python editor.py
+)
+
+if errorlevel 1 pause

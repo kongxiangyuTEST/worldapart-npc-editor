@@ -33,7 +33,7 @@ echo [2/3] 升级 pip ...
 
 echo.
 echo [3/3] 安装依赖 ...
-.venv\Scripts\python.exe -m pip install pywebview flask requests unitypy
+.venv\Scripts\python.exe -m pip install pywebview flask requests unitypy pyinstaller
 
 echo.
 echo ========================================

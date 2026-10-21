@@ -52,3 +52,10 @@ tools/filter_headportrait.py
 tools/find_luban_bundle.py
 
 memory/
+
+# ===== 本地工具/会话数据 =====
+.dsh-meow/
+.workbuddy/
+
+# ===== 第三方参考实现（仅本地对比，不随项目发布）=====
+other/

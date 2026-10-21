@@ -7,10 +7,17 @@ import json
 import shutil
 from pathlib import Path
 
-# ==== 改这几个路径 ====
-EXPORT_DIR = Path(r"H:\head_export\assets\res\gui\atlas\headportrait")   # AssetStudio 导出的图在这里
-INDEX_JSON = Path(r"H:\llama\models\wa-npc-cards\portraits_index.json")
-OUTPUT_DIR = Path(r"H:\llama\models\wa-npc-cards\web\portraits")
+# ==== 路径（都相对项目根目录，打包后也成立）====
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+
+EXPORT_DIR = PROJECT_DIR / "_tmp_head_export" / "assets" / "res" / "gui" / "atlas" / "headportrait"
+INDEX_JSON = PROJECT_DIR / "portraits_index.json"
+OUTPUT_DIR = PROJECT_DIR / "web" / "portraits"
+
+# 想用别的导出目录，可以命令行指定：python rebuild_portraits.py <导出目录>
+import sys
+if len(sys.argv) > 1:
+    EXPORT_DIR = Path(sys.argv[1])
 # =====================
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
