@@ -23,6 +23,7 @@ async function init() {
     ['initServicesPage', initServicesPage],
     ['initLogsPage', initLogsPage],
     ['initPromptsPage', initPromptsPage],
+    ['initMemoryPage', initMemoryPage],
   ];
 
   // 加载游戏目录显示
@@ -67,6 +68,10 @@ function switchPage(name) {
     loadGameDirDisplay();
   }
 }
+
+  if (name === 'memory' && typeof initMemoryPage === 'function') {
+    initMemoryPage();
+  }
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c =>

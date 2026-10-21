@@ -17,6 +17,7 @@
     <div class="nav-group-label">编辑</div>
     <div class="nav-item active" data-page="cards">人物卡</div>
     <div class="nav-item" data-page="prompts">AI 提示词</div>
+    <div class="nav-item" data-page="memory">长期记忆</div>
     <div class="nav-item" data-page="tools">工具</div>
 
     <div class="nav-group-label" style="margin-top:16px;">服务</div>
@@ -100,6 +101,36 @@
         <div id="prompts-main"></div>
       </div>
     </div>
+
+<!-- ========== 长期记忆 ========== -->
+<div class="page" id="page-memory">
+    <div class="page-header">
+        <h2>长期记忆</h2>
+        <div class="count">自动生成与老化</div>
+    </div>
+    <div class="page-subtitle">每个角色独立的对话记忆，在游戏中由 core_proxy 自动注入。</div>
+
+    <div style="display: flex; height: calc(100vh - 180px); margin-top: 20px; gap: 20px;">
+        <!-- 左侧：角色列表 -->
+        <div style="width: 260px; display: flex; flex-direction: column; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div style="padding: 15px; border-bottom: 1px solid #eee; background: #fcfcfc;">
+                <input type="text" class="form-input" placeholder="搜索角色..." style="width:100%; box-sizing:border-box; padding:8px 12px; border:1px solid #ddd; border-radius:4px;">
+            </div>
+            <div id="memory-list" style="flex: 1; overflow-y: auto; padding: 10px;">
+                <!-- 列表项由 JS 渲染 -->
+            </div>
+        </div>
+        
+        <!-- 右侧：记忆详情 -->
+        <div style="flex: 1; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; overflow-y: auto; padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+            <div id="memory-detail">
+                <div style="color:#aaa; text-align:center; margin-top:100px; font-size:15px;">
+                    👈 请在左侧选择一个角色查看其记忆
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- ========== 工具 ========== -->
     <div class="page" id="page-tools">
@@ -340,5 +371,6 @@
 <script src="tools.js"></script>
 <script src="prompts.js"></script>
 <script src="app.js"></script>
+<script src="memory.js"></script>
 </body>
 </html>

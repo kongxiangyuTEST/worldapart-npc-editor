@@ -4,6 +4,7 @@ import re
 import json
 import shutil
 import time
+import memory_manager
 import threading
 from datetime import datetime
 from config import CARDS_DIR, WEB_DIR, IGNORED_FILES, CARD_NAME_PREFIX_RE
@@ -469,6 +470,127 @@ class Api:
             return {"ok": True, "data": data}
         except Exception as e:
             return {"ok": False, "msg": f"读取失败: {e}"}
+        
+        # --- 长期记忆 ---
+    def get_memory_list(self):
+        import os
+        mem_dir = memory_manager.MEMORY_DIR
+        files = []
+        if os.path.exists(mem_dir):
+            for f in os.listdir(mem_dir):
+                if f.endswith(".json"):
+                    files.append(f.replace(".json", ""))
+        return {"ok": True, "list": files}
+
+    def get_memory(self, npc_id, npc_name):
+        data = memory_manager.load_memory(int(npc_id), npc_name)
+        return {"ok": True, "data": data}
+
+    def save_memory(self, npc_id, npc_name, data):
+        success = memory_manager.save_memory(int(npc_id), npc_name, data)
+        return {"ok": success}
+
+    def trigger_memory_merge(self, npc_id, npc_name):
+        import memory_manager
+        import json
+        import os
+        import requests
+        
+        # 1. 确定本地模型地址
+        upstream = "http://127.0.0.1:8080/v1/chat/completions"
+        fallback_key = ""
+        try:
+            if os.path.isfile("ai_config.json"):
+                with open("ai_config.json", "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    upstream = cfg.get("upstream", upstream)
+                    fallback_key = cfg.get("fallback_key", "")
+        except:
+            pass
+            
+        data = memory_manager.load_memory(int(npc_id), npc_name)
+        logs = "\n\n".join(data.get("recent_logs", []))
+        
+        # 给点测试数据，免得你还没聊过，没东西总结
+        if not logs:
+            logs = "玩家：你好。\nAI：你好。"
+
+        prompt = f"""
+你是一个擅长总结的助手。请阅读以下对话，总结出“故事早期梗概”（只增不减）、“最近剧情”（滚动更新），并提取出“事实条目”。
+【当前数据】：
+早期梗概：{data.get('early_gist', '')}
+最近剧情：{data.get('long_summary', '')}
+
+【最近对话】：
+{logs}
+
+【输出格式】：
+请严格输出 JSON 格式，不要包含任何 markdown 标记：
+{{
+  "early_gist": "更新后的早期梗概（≤150字）",
+  "long_summary": "更新后的最近剧情（≤650字）",
+  "new_facts": [
+    {{"category": "赠物/承诺/关系里程碑/重要事件", "text": "事实内容", "importance": 1-5的数字}}
+  ]
+}}
+"""
+        headers = {"Content-Type": "application/json"}
+        if fallback_key: headers["Authorization"] = "Bearer " + fallback_key
+        
+        body = {
+            "model": "local-model",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3,
+            "max_tokens": 1000
+        }
+        
+        print(f"[记忆总结] 正在请求 {upstream} ...", flush=True)
+        
+        # 2. 发请求（这次我们不用线程，直接同步等待，如果出错了直接把错误扔给网页）
+        try:
+            res = requests.post(upstream, json=body, headers=headers, timeout=60)
+            if res.status_code != 200:
+                return {"ok": False, "msg": f"模型报错: HTTP {res.status_code}"}
+                
+            text = res.json()["choices"][0]["message"]["content"]
+            # 暴力清理各种可能的大模型废话
+            text = text.strip()
+            if text.startswith("```json"): text = text[7:]
+            if text.startswith("```"): text = text[3:]
+            if text.endswith("```"): text = text[:-3]
+            text = text.strip()
+            
+            res_data = json.loads(text)
+            
+            if res_data.get("early_gist"):
+                data["early_gist"] = res_data["early_gist"]
+            if res_data.get("long_summary"):
+                data["long_summary"] = res_data["long_summary"]
+                
+            for fact in res_data.get("new_facts", []):
+                cat = fact.get("category", "重要事件")
+                if cat not in memory_manager.FACT_CATEGORIES: cat = "重要事件"
+                data["facts"][cat].append({
+                    "text": fact.get("text", ""),
+                    "importance": int(fact.get("importance", 3)),
+                    "age_count": 0
+                })
+                
+            data["recent_logs"] = [] # 成功合并后清空
+            memory_manager.save_memory(int(npc_id), npc_name, data)
+            return {"ok": True, "msg": "AI总结成功！"}
+            
+        except requests.exceptions.ConnectionError:
+            return {"ok": False, "msg": "连接失败！请确认本地模型(8080)是否开启。"}
+        except json.JSONDecodeError:
+            return {"ok": False, "msg": "模型返回的不是纯 JSON 格式，解析失败！"}
+        except Exception as e:
+            return {"ok": False, "msg": f"发生异常: {e}"}
+
+        
+    def clear_memory(self, npc_id, npc_name):
+        success = memory_manager.clear_memory(int(npc_id), npc_name)
+        return {"ok": success}
     # --- 卡片 ---
     def get_cards_list(self):
         return list_cards()
@@ -761,6 +883,10 @@ class Api:
         with LOG_LOCK:
             LOG_BUFFER.clear()
         return {"ok": True}
+
+
+
+
 
 
 # ==================== 启动 ====================

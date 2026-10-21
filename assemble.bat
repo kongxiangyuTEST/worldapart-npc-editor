@@ -43,7 +43,6 @@ if not exist "%OUTPUT%\tools" mkdir "%OUTPUT%\tools"
 copy /Y "tools\parse_npc_cards.py" "%OUTPUT%\tools\" >nul
 copy /Y "tools\rebuild_portraits.py" "%OUTPUT%\tools\" >nul
 
-
 echo [6/7] 复制配置文件...
 copy /Y "ai_config.example.json" "%OUTPUT%\" >nul
 copy /Y "prompt_fragments.json" "%OUTPUT%\" >nul

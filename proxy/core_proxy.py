@@ -20,6 +20,8 @@ from pathlib import Path
 import requests
 from flask import Flask, request, Response
 
+CURRENT_NPC_NAME = None
+
 # ============================================================
 # 动态路径（打包/开发环境通用）
 # ============================================================
@@ -30,6 +32,9 @@ if getattr(sys, 'frozen', False):
     PROJECT_DIR = Path(sys.executable).parent.parent   # 打包后：exe 在 proxy\ 里
 else:
     PROJECT_DIR = Path(__file__).parent.parent          # 开发环境：proxy\ 的上一级
+
+sys.path.insert(0, str(PROJECT_DIR))
+import memory_manager
 
 
 def _load_game_dir():
@@ -314,10 +319,32 @@ def inject_user_card(req_json):
     if not messages:
         return 0
 
+    # 1. 先尝试用原版逻辑提取名字
     npc_name = extract_npc_name(messages)
+    
+    # # 2. 如果原版提取不到（或者提取错了），用暴力搜索兜底
+    # if not npc_name or npc_name == "活人 不是":
+    #     all_text = "".join([str(m.get("content", "")) for m in messages])
+    #     try:
+    #         import config
+    #         import os
+    #         for f in os.listdir(config.CARDS_DIR):
+    #             if f.endswith(".md"):
+    #                 parts = f.replace(".md", "").split("-")
+    #                 if len(parts) >= 2:
+    #                     c_name = parts[1]
+    #                     if c_name in all_text:
+    #                         npc_name = c_name
+    #                         break
+    #     except Exception:
+    #         pass
+
     if not npc_name:
         print("[名片] 未提取到 NPC 名字，跳过注入", flush=True)
         return 0
+    
+    global CURRENT_NPC_NAME
+    CURRENT_NPC_NAME = npc_name
 
     user_card = load_user_card_for_npc(npc_name)
     if not user_card:
@@ -357,7 +384,6 @@ def inject_user_card(req_json):
         return len(user_card)
 
     return 0
-
 
 # ============================================================
 # 六、工具函数（原有）
@@ -671,6 +697,133 @@ def rewrite_messages(req_json):
 
     return rules_applied
 
+# ==================== 长期记忆核心注入 ====================
+def inject_memory_to_messages(req_json):
+    """将长期记忆注入到 system 提示词中"""
+    messages = req_json.get("messages") or []
+    if not messages: return None, None
+    
+    global CURRENT_NPC_NAME
+    npc_name = None
+    npc_id = None
+    
+    # 优先使用名片模块抓到的精准名字
+    if CURRENT_NPC_NAME:
+        npc_name = CURRENT_NPC_NAME
+        try:
+            import config
+            import os
+            for f in os.listdir(config.CARDS_DIR):
+                if f.endswith(f"-{npc_name}.md"):
+                    npc_id = int(f.split("-")[0])
+                    break
+        except Exception:
+            pass
+            
+    # 如果没抓到，再用暴力扫描兜底
+    if not npc_id:
+        all_text = "".join([str(m.get("content", "")) for m in messages])
+        try:
+            import config
+            import os
+            for f in os.listdir(config.CARDS_DIR):
+                if f.endswith(".md"):
+                    parts = f.replace(".md", "").split("-")
+                    if len(parts) >= 2 and parts[0].isdigit():
+                        c_id = int(parts[0])
+                        c_name = parts[1]
+                        if c_name in all_text:
+                            npc_name = c_name
+                            npc_id = c_id
+                            break
+        except Exception as e:
+            print(f"[记忆] 扫描出错: {e}", flush=True)
+
+    if not npc_id:
+        return None, None
+        
+    print(f"[记忆] 成功锁定角色: {npc_name}({npc_id})", flush=True)
+    
+    # 加载记忆并拼装
+    data = memory_manager.load_memory(npc_id, npc_name)
+    memory_text = memory_manager.build_injection_text(data, budget_chars=2000)
+    
+    if not memory_text.strip():
+        return npc_id, npc_name
+        
+    mem_block = f"\n\n【长期记忆（请自然带入）】\n{memory_text}\n"
+    
+    # 注入到 system 提示词
+    sys_content = ""
+    for m in messages:
+        if m.get("role") == "system":
+            sys_content = m.get("content", "")
+            break
+            
+    if sys_content:
+        messages[0]["content"] = sys_content + mem_block
+    else:
+        messages.insert(0, {"role": "system", "content": mem_block})
+        
+    req_json["messages"] = messages
+    return npc_id, npc_name
+
+
+def update_memory_after_chat(npc_id, npc_name, user_text, ai_text):
+    """对话后更新记忆（老化 + 12轮自动合并）"""
+    if not npc_id or not npc_name: return
+    data = memory_manager.load_memory(npc_id, npc_name)
+    
+    # 1. 防降级：如果本轮用户提到了某事实，清零老化
+    memory_manager.reset_fact_age(data, user_text)
+    
+    # 2. 老化处理（24轮降级/48轮删除）
+    data, changed = memory_manager.process_aging(npc_id, npc_name, data)
+    
+    # 3. 轮次记录与12轮合并触发
+    if "recent_logs" not in data: data["recent_logs"] = []
+    data["recent_logs"].append(f"玩家: {user_text}\nAI: {ai_text}")
+    
+    if len(data["recent_logs"]) >= 12:
+        logs_str = "\n\n".join(data["recent_logs"])
+        # 开个线程去请求AI，不卡游戏运行
+        import threading
+        # 从配置文件读取真实的上游地址和 Key
+        import json, os
+        upstream_url = UPSTREAM_BASE + "/v1/chat/completions"
+        f_key = FALLBACK_KEY
+        try:
+            if os.path.isfile("ai_config.json"):
+                with open("ai_config.json", "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    upstream_url = cfg.get("upstream", upstream_url)
+                    f_key = cfg.get("fallback_key", f_key)
+        except:
+            pass
+
+        threading.Thread(
+            target=memory_manager.do_auto_merge, 
+            args=(npc_id, npc_name, logs_str, upstream_url, f_key)
+        ).start()
+        data["recent_logs"] = [] # 清空队列
+        print(f"[记忆] {npc_name} 已满12轮，正在后台自动合并剧情...", flush=True)
+        
+    # 4. 保存回文件
+    memory_manager.save_memory(npc_id, npc_name, data)
+# =========================================================
+    """对话后更新记忆（老化+提到了清零）"""
+    if not npc_id or not npc_name: return
+    data = memory_manager.load_memory(npc_id, npc_name)
+    
+    # 1. 防降级：如果本轮用户提到了某事实，清零老化
+    memory_manager.reset_fact_age(data, user_text)
+    
+    # 2. 老化处理（24轮降级/48轮删除）
+    data, changed = memory_manager.process_aging(npc_id, npc_name, data)
+    
+    # 3. 保存回文件
+    memory_manager.save_memory(npc_id, npc_name, data)
+
 
 # ============================================================
 # 八、转发
@@ -732,6 +885,12 @@ def chat_completions():
         print(traceback.format_exc(), flush=True)
 
     rules_applied = rewrite_messages(req_json)
+
+    # 注入长期记忆
+    active_npc_id, active_npc_name = inject_memory_to_messages(req_json)
+    if active_npc_id:
+        print(f"[记忆] 已注入角色 {active_npc_name}({active_npc_id}) 的长期记忆")
+
 
     req_json["chat_template_kwargs"] = {"enable_thinking": False}
 
@@ -838,6 +997,22 @@ def chat_completions():
     }
 
     elapsed_ms = int((time.time() - t0) * 1000)
+
+    # 提取本轮用户说的话
+    user_say = ""
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            user_say = m.get("content", "")
+            break
+            
+    # 更新记忆（老化等逻辑）
+    if active_npc_id:
+        try:
+            update_memory_after_chat(active_npc_id, active_npc_name, user_say, clean_text)
+            print(f"[记忆] 已更新角色 {active_npc_name} 的记忆")
+        except Exception as e:
+            print(f"[记忆] 更新失败: {e}")
+
     print(f"[OK ] 耗时={elapsed_ms}ms, 回复={len(clean_text)}字")
 
     return Response(json.dumps(outer, ensure_ascii=False),

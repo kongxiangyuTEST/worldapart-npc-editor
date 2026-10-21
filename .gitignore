@@ -50,3 +50,5 @@ web/portraits_backup/
 tools/test_unitypy.py
 tools/filter_headportrait.py
 tools/find_luban_bundle.py
+
+memory/
