@@ -132,7 +132,7 @@ async function refreshUpstreamLive() {
   try {
     const res = await pywebview.api.get_upstream_status();
     if (!res.ok) {
-      box.innerHTML = `⚠ <span style="color:#c33;">core_proxy 未运行</span>，无法读取实时上游`;
+      box.innerHTML = `⚠ <span style="color:var(--cl-error);">core_proxy 未运行</span>，无法读取实时上游`;
       return;
     }
     const url = res.upstream || '';
@@ -140,7 +140,7 @@ async function refreshUpstreamLive() {
     if (isLocal) {
       box.innerHTML = `✅ 当前 core_proxy 实际使用：<code>${escapeHtml(url)}</code>（本地）`;
     } else {
-      box.innerHTML = `⚠ 当前 core_proxy 实际使用：<code style="color:#e67e22;">${escapeHtml(url)}</code>（第三方）`;
+      box.innerHTML = `⚠ 当前 core_proxy 实际使用：<code style="color:var(--cl-warning);">${escapeHtml(url)}</code>（第三方）`;
     }
   } catch (e) {
     box.textContent = '状态读取失败';

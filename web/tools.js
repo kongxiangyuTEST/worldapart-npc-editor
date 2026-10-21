@@ -55,7 +55,7 @@ function renderPortraitTab() {
     <div class="ai-tab-note" style="margin-bottom:14px;">
       <p>从游戏资源里提取全部 NPC 头像。需要你提前下载 <strong>AssetStudioModCLI</strong>，并把它的 <code>.exe</code> 路径填在下面。</p>
       <p>下载地址：<code>https://github.com/aelurum/AssetStudio/releases</code>（找文件名带 <code>CLI</code> 的压缩包）</p>
-      <p style="color:#886;background:#fffbea;border:1px solid #f0e0a0;padding:8px 12px;border-radius:4px;margin-top:8px;">
+      <p style="color:var(--cl-muted);background:var(--cl-surface-soft);border:1px solid var(--cl-hairline);padding:8px 12px;border-radius:4px;margin-top:8px;">
         ⏱ <strong>提取时间提示：</strong>提取过程会扫描游戏全部资源，耗时取决于你的电脑性能，一般需要 <strong>几分钟</strong>。请耐心等待，不要关闭编辑器。进度可以切到左侧"日志"页查看。
       </p>
     </div>
@@ -63,7 +63,7 @@ function renderPortraitTab() {
     <div class="field">
       <label>AssetStudioModCLI.exe 路径</label>
       <div style="display:flex;gap:8px;">
-        <input id="tools-cli-path" value="${escapeHtml(cli)}" placeholder="例如 E:\\Tools\\AssetStudioModCLI.exe" style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-family:inherit;font-size:13px;">
+        <input id="tools-cli-path" value="${escapeHtml(cli)}" placeholder="例如 E:\\Tools\\AssetStudioModCLI.exe" style="flex:1;padding:6px 10px;border:1px solid var(--cl-hairline);border-radius:3px;font-family:inherit;font-size:13px;">
         <button class="secondary" onclick="pickCli()">选择文件</button>
       </div>
     </div>
@@ -71,14 +71,14 @@ function renderPortraitTab() {
     <div class="field">
       <label>游戏根目录（WorldApart.exe 所在目录）</label>
       <div style="display:flex;gap:8px;">
-        <input id="tools-game-dir" value="${escapeHtml(gameDir)}" placeholder="例如 H:\\SteamLibrary\\steamapps\\common\\A1" style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-family:inherit;font-size:13px;">
+        <input id="tools-game-dir" value="${escapeHtml(gameDir)}" placeholder="例如 H:\\SteamLibrary\\steamapps\\common\\A1" style="flex:1;padding:6px 10px;border:1px solid var(--cl-hairline);border-radius:3px;font-family:inherit;font-size:13px;">
         <button class="secondary" onclick="pickGameDir()">选择文件夹</button>
       </div>
     </div>
 
     <div class="inject-footer" style="margin-top:20px;">
       <div style="display:flex;align-items:center;gap:20px;">
-        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;font-size:12px;color:#555;cursor:pointer;">
+        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;font-size:12px;color:var(--cl-body);cursor:pointer;">
           <input type="checkbox" id="tools-keep-tmp" ${keepTmp ? 'checked' : ''}>
           保留中间文件（调试用）
         </label>
@@ -195,7 +195,7 @@ function renderCardsTab() {
   return `
     <div class="ai-tab-note" style="margin-bottom:14px;">
       <p>从游戏本体直接解析 NPC 角色卡，<strong>不依赖 Mod</strong>。生成的卡片会放到项目内的 <code>editor_cards\\</code> 目录，跟 Mod 生成的卡片分开存放，方便以后对比和合并。</p>
-      <p style="color:#886;background:#fffbea;border:1px solid #f0e0a0;padding:8px 12px;border-radius:4px;margin-top:8px;">
+      <p style="color:var(--cl-muted);background:var(--cl-surface-soft);border:1px solid var(--cl-hairline);padding:8px 12px;border-radius:4px;margin-top:8px;">
         ⏱ <strong>提取时间提示：</strong>导出需要扫描游戏全部 TextAsset 资源，一般需要 <strong>几分钟</strong>。进度可以切到左侧"日志"页查看。
       </p>
     </div>
@@ -203,7 +203,7 @@ function renderCardsTab() {
     <div class="field">
       <label>AssetStudioModCLI.exe 路径</label>
       <div style="display:flex;gap:8px;">
-        <input id="cards-cli-path" value="${escapeHtml(cli)}" placeholder="例如 E:\\Tools\\AssetStudioModCLI.exe" style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-family:inherit;font-size:13px;">
+        <input id="cards-cli-path" value="${escapeHtml(cli)}" placeholder="例如 E:\\Tools\\AssetStudioModCLI.exe" style="flex:1;padding:6px 10px;border:1px solid var(--cl-hairline);border-radius:3px;font-family:inherit;font-size:13px;">
         <button class="secondary" onclick="pickCardsCli()">选择文件</button>
       </div>
     </div>
@@ -211,7 +211,7 @@ function renderCardsTab() {
     <div class="field">
       <label>游戏根目录（WorldApart.exe 所在目录）</label>
       <div style="display:flex;gap:8px;">
-        <input id="cards-game-dir" value="${escapeHtml(gameDir)}" placeholder="例如 H:\\SteamLibrary\\steamapps\\common\\A1" style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-family:inherit;font-size:13px;">
+        <input id="cards-game-dir" value="${escapeHtml(gameDir)}" placeholder="例如 H:\\SteamLibrary\\steamapps\\common\\A1" style="flex:1;padding:6px 10px;border:1px solid var(--cl-hairline);border-radius:3px;font-family:inherit;font-size:13px;">
         <button class="secondary" onclick="pickCardsGameDir()">选择文件夹</button>
       </div>
     </div>
@@ -226,7 +226,7 @@ function renderCardsTab() {
 
     <div class="inject-footer" style="margin-top:20px;">
       <div style="display:flex;align-items:center;gap:20px;">
-        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;font-size:12px;color:#555;cursor:pointer;">
+        <label style="display:flex;align-items:center;gap:6px;margin:0;font-weight:normal;font-size:12px;color:var(--cl-body);cursor:pointer;">
           <input type="checkbox" id="cards-keep-tmp" ${keepTmp ? 'checked' : ''}>
           保留中间文件（调试用）
         </label>
@@ -348,13 +348,13 @@ function renderDiffTab() {
     <div class="diff-tab-wrapper">
       <div class="ai-tab-note" style="margin-bottom:10px;">
         <p style="margin:4px 0;">对比"上次备份"和"当前卡片"，看游戏更新后哪些 NPC 新增 / 改动 / 删除。</p>
-        <p style="color:#666;font-size:12px;margin:4px 0;">每次点"导出角色卡"时，编辑器会<strong>自动备份</strong>上一次的卡片。这里选一份备份来对比。</p>
+        <p style="color:var(--cl-body);font-size:12px;margin:4px 0;">每次点"导出角色卡"时，编辑器会<strong>自动备份</strong>上一次的卡片。这里选一份备份来对比。</p>
       </div>
 
       <div class="field" style="margin-bottom:10px;">
-        <label style="display:block;margin-bottom:6px;color:#555;font-size:12px;font-weight:bold;">选择要对比的备份</label>
+        <label style="display:block;margin-bottom:6px;color:var(--cl-body);font-size:12px;font-weight:bold;">选择要对比的备份</label>
         <div style="display:flex;gap:10px;align-items:center;">
-          <select id="diff-backup-select" style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-size:13px;">
+          <select id="diff-backup-select" style="flex:1;padding:6px 10px;border:1px solid var(--cl-hairline);border-radius:3px;font-size:13px;">
             <option value="">加载中...</option>
           </select>
           <button class="primary" onclick="runDiff()" style="white-space:nowrap;">开始对比</button>
@@ -363,8 +363,8 @@ function renderDiffTab() {
 
       <div id="diff-result" class="diff-result-box"></div>
 
-      <div id="diff-actions" style="display:none;margin-top:12px;padding:12px 16px;background:#fffbea;border:1px solid #f0e0a0;border-radius:4px;flex-shrink:0;">
-        <div style="font-size:12px;color:#886;margin-bottom:8px;">
+      <div id="diff-actions" style="display:none;margin-top:12px;padding:12px 16px;background:var(--cl-surface-soft);border:1px solid var(--cl-hairline);border-radius:4px;flex-shrink:0;">
+        <div style="font-size:12px;color:var(--cl-muted);margin-bottom:8px;">
           ⚠ "应用改动"会把新数据合并进当前卡片（游戏字段用新版，用户名片保留）。
           合并前会自动备份当前卡片到 <code>editor_cards_backup\\</code>。
         </div>
@@ -407,7 +407,7 @@ async function runDiff() {
   try {
     const res = await pywebview.api.diff_cards(sel.value);
     if (!res.ok) {
-      box.innerHTML = `<div class="diff-empty" style="color:#c33;">✗ ${escapeHtml(res.msg || '失败')}</div>`;
+      box.innerHTML = `<div class="diff-empty" style="color:var(--cl-error);">✗ ${escapeHtml(res.msg || '失败')}</div>`;
       return;
     }
 
@@ -496,7 +496,7 @@ async function runDiff() {
       actions.style.display = hasDiff ? 'block' : 'none';
     }
   } catch (e) {
-    box.innerHTML = `<div class="diff-empty" style="color:#c33;">✗ ${escapeHtml(String(e))}</div>`;
+    box.innerHTML = `<div class="diff-empty" style="color:var(--cl-error);">✗ ${escapeHtml(String(e))}</div>`;
   }
 }
 
@@ -511,7 +511,7 @@ async function applyDiff() {
   try {
     const res = await pywebview.api.merge_cards(sel.value);
     if (res.ok) {
-      box.innerHTML = `<div class="diff-empty" style="color:#388e3c;">✓ 合并完成：新增 ${res.added}，改动 ${res.changed}，删除保留 ${res.removed}，没变 ${res.unchanged}</div>`;
+      box.innerHTML = `<div class="diff-empty" style="color:var(--cl-success);">✓ 合并完成：新增 ${res.added}，改动 ${res.changed}，删除保留 ${res.removed}，没变 ${res.unchanged}</div>`;
       if (typeof allCards !== 'undefined' && pywebview.api) {
         allCards = await pywebview.api.get_cards_list();
         if (typeof cardsRef !== 'undefined') cardsRef = allCards;
@@ -519,10 +519,10 @@ async function applyDiff() {
         document.getElementById('header-status').textContent = `共 ${allCards.length} 张卡片`;
       }
     } else {
-      box.innerHTML = `<div class="diff-empty" style="color:#c33;">✗ ${escapeHtml(res.msg || '失败')}</div>`;
+      box.innerHTML = `<div class="diff-empty" style="color:var(--cl-error);">✗ ${escapeHtml(res.msg || '失败')}</div>`;
     }
   } catch (e) {
-    box.innerHTML = `<div class="diff-empty" style="color:#c33;">✗ ${escapeHtml(String(e))}</div>`;
+    box.innerHTML = `<div class="diff-empty" style="color:var(--cl-error);">✗ ${escapeHtml(String(e))}</div>`;
   }
 }
 

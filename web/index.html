@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>WorldApart · 人物卡编辑器</title>
 <link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="theme-claude.css?v=1">
 </head>
 <body>
 
@@ -30,7 +31,7 @@
     <div class="nav-spacer"></div>
     <div id="nav-footer">
       <div><span class="dot-on">●</span> 配置保存在编辑器项目</div>
-      <div style="color:#bbb;">core_proxy 读取它</div>
+      <div style="color:var(--cl-muted-soft);">core_proxy 读取它</div>
     </div>
   </div>
 
@@ -106,31 +107,32 @@
 <div class="page" id="page-memory">
        <div class="page-header">
         <h2>长期记忆</h2>
-        <!-- 加一个刷新按钮 -->
-        <button class="primary" onclick="initMemoryPage()" style="margin-left: auto; padding: 5px 12px; border-radius: 4px; font-size: 13px; cursor:pointer; background:#0056b3; color:#fff; border:none;">🔄 刷新列表</button>
-        <div class="count" style="margin-left: 10px;">自动生成与老化</div>
+        <div class="header-right">
+          <div class="count">自动生成与老化</div>
+          <button class="primary" onclick="initMemoryPage()">🔄 刷新列表</button>
+        </div>
     </div>
     <div class="page-subtitle">每个角色独立的对话记忆，在游戏中由 core_proxy 自动注入。</div>
 
-    <div style="display: flex; height: calc(100vh - 180px); margin-top: 20px; gap: 20px;">
+    <div class="memory-body">
         <!-- 左侧：角色列表 -->
-        <div style="width: 260px; display: flex; flex-direction: column; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-            <div style="padding: 15px; border-bottom: 1px solid #eee; background: #fcfcfc;">
+        <div style="width: 260px; display: flex; flex-direction: column; background: #faf9f5; border: 1px solid #e6dfd8; border-radius: 12px; overflow: hidden;">
+            <div style="padding: 15px; border-bottom: 1px solid #e6dfd8; background: #f5f0e8;">
                 <input type="text" id="memory-search" class="form-input" placeholder="搜索角色..." style="width:100%; box-sizing:border-box; padding:8px 12px; border:1px solid #ddd; border-radius:4px;">
             </div>
             <div id="memory-list" style="flex: 1; overflow-y: auto; padding: 10px;">
                 <!-- 列表项由 JS 渲染 -->
             </div>
-            <div style="padding:8px 10px; border-top:1px solid #eee; background:#fcfcfc; font-size:11px; color:#999; display:flex; align-items:center; gap:6px;">
+            <div style="padding:8px 10px; border-top:1px solid #e6dfd8; background:#f5f0e8; font-size:11px; color:#8e8b82; display:flex; align-items:center; gap:6px;">
                 <span id="memory-dir-path" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="">记忆目录：—</span>
-                <span class="link" style="cursor:pointer; color:#4a90e2; flex:none;" onclick="openMemoryDir()">打开</span>
+                <span class="link" style="cursor:pointer; color:var(--cl-coral); flex:none;" onclick="openMemoryDir()">打开</span>
             </div>
         </div>
         
         <!-- 右侧：记忆详情 -->
-        <div style="flex: 1; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; overflow-y: auto; padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+        <div style="flex: 1; background: #faf9f5; border: 1px solid #e6dfd8; border-radius: 12px; overflow-y: auto; padding: 25px;">
             <div id="memory-detail">
-                <div style="color:#aaa; text-align:center; margin-top:100px; font-size:15px;">
+                <div style="color:var(--cl-muted-soft); text-align:center; margin-top:100px; font-size:15px;">
                     👈 请在左侧选择一个角色查看其记忆
                 </div>
             </div>
@@ -168,14 +170,14 @@
         </div>
         <div class="page-subtitle">这两个服务是游戏 AI 对话的中转层。关闭编辑器时会自动停止。</div>
         
-                <div class="upstream-box" style="background:#f9fbff;border-color:#d0e0f0;margin-bottom:16px;">
-          <h3 style="margin:0 0 10px;font-size:14px;color:#333;">游戏目录</h3>
-          <div style="font-size:12px;color:#888;margin-bottom:8px;">
+                <div class="upstream-box" style="margin-bottom:16px;">
+          <h3 style="margin:0 0 10px;font-size:14px;color:var(--cl-ink);">游戏目录</h3>
+          <div style="font-size:12px;color:var(--cl-muted);margin-bottom:8px;">
             编辑器通过这个路径读取 NPC 卡片。如果游戏换位置了，可以在这里重新指定。
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <input id="game-dir-display" type="text" readonly
-                   style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-family:Consolas,monospace;font-size:12px;background:#fafafa;">
+                   style="flex:1;padding:8px 12px;border:1px solid #e6dfd8;border-radius:8px;font-family:Consolas,monospace;font-size:12px;background:#f5f0e8;color:#3d3d3a;">
             <button class="secondary" onclick="onChangeGameDir()">修改</button>
           </div>
         </div>
@@ -222,39 +224,39 @@
         <div class="service-tip">
           <strong>提示：</strong>游戏里 AI 对话正常前，先确保 <code>llama-server</code>（8080）已经用 LlamaCPP GUI 启动。
         </div>
-  <div class="upstream-box" style="background:#ffffff;border-color:#e0e0e0;">
-          <h3 style="margin:0 0 10px;font-size:14px;color:#333;">游戏接口地址</h3>
-          <div style="font-size:12px;color:#888;margin-bottom:8px;">
+  <div class="upstream-box">
+          <h3 style="margin:0 0 10px;font-size:14px;color:var(--cl-ink);">游戏接口地址</h3>
+          <div style="font-size:12px;color:var(--cl-muted);margin-bottom:8px;">
             在游戏的"自定义 AI 模型"设置里，把接口地址填成下面这个：
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <input id="game-api-url" type="text" readonly value="http://127.0.0.1:8788/v1/chat/completions"
-                   style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-family:Consolas,monospace;font-size:13px;background:#fafafa;">
+                   style="flex:1;padding:8px 12px;border:1px solid #e6dfd8;border-radius:8px;font-family:Consolas,monospace;font-size:13px;background:#f5f0e8;color:#3d3d3a;">
             <button class="secondary" onclick="copyGameApiUrl()">复制</button>
           </div>
-          <div style="font-size:12px;color:#666;margin-top:8px;">
+          <div style="font-size:12px;color:var(--cl-body);margin-top:8px;">
             API Key、模型名称、上下文长度按你实际使用的上游填。
           </div>
         </div>
         <div class="upstream-box">
-          <h3 style="margin:0 0 10px;font-size:14px;color:#333;">上游地址（core_proxy 转发目标）</h3>
+          <h3 style="margin:0 0 10px;font-size:14px;color:var(--cl-ink);">上游地址（core_proxy 转发目标）</h3>
           
-          <div style="font-size:12px;color:#888;margin-bottom:8px;">
+          <div style="font-size:12px;color:var(--cl-muted);margin-bottom:8px;">
             默认填你本地的 <code>http://127.0.0.1:8080/</code>；想接第三方 API，就填对方的 base_url（如 <code>https://api.deepseek.com/</code>）。
           </div>
           <div style="display:flex;gap:8px;margin-bottom:10px;">
             <input id="upstream-url" type="text" placeholder="http://127.0.0.1:8080/"
-                   style="flex:1;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-family:inherit;font-size:13px;">
+                   style="flex:1;padding:8px 12px;border:1px solid #e6dfd8;border-radius:8px;font-family:inherit;font-size:14px;background:#faf9f5;">
           </div>
 
-          <div id="upstream-live-status" style="font-size:12px;color:#666;margin-bottom:8px;">正在读取当前状态...</div>
-          <div style="margin-bottom:10px;font-size:12px;color:#666;">
+          <div id="upstream-live-status" style="font-size:12px;color:var(--cl-body);margin-bottom:8px;">正在读取当前状态...</div>
+          <div style="margin-bottom:10px;font-size:12px;color:var(--cl-body);">
             快捷：
             <span class="link" onclick="setUpstream('http://127.0.0.1:8080/')">本地 8080</span>
             <span class="link" onclick="setUpstream('https://api.deepseek.com/')">DeepSeek</span>
             <span class="link" onclick="setUpstream('https://api.openai.com/')">OpenAI</span>
           </div>
-          <div style="font-size:12px;color:#e67e22;margin-bottom:10px;">
+          <div style="font-size:12px;color:var(--cl-warning);margin-bottom:10px;">
             ⚠ 修改后需要重启 core_proxy 才能生效。
           </div>
           <div style="display:flex;gap:10px;">
@@ -290,9 +292,9 @@
     <div class="page" id="page-about">
       <div id="about-page">
         <div class="about-header">
-          <div class="about-icon">ℹ️</div>
+          <div class="about-icon">W</div>
           <h1>WorldApart 人物卡编辑器</h1>
-                    <div class="about-version">版本 0.2</div>
+                    <div class="about-version">版本 0.3</div>
         </div>
 
         <div class="about-card">
@@ -308,14 +310,17 @@
             <div class="about-item-text">
               · 编辑 NPC 人物卡（用户名片、预设资料、原游戏背景）<br>
               · 用户名片注入，影响游戏里 NPC 的回复<br>
-              · 撤销 / 恢复原版，改动随时回退<br>
-              · 查看游戏实际发给 AI 的完整 prompt<br>
-              · AI 提示词管理（INJECT 注入 + REPLACE 替换规则）<br>
+              · 长期记忆：自动总结剧情、重要度分级、按轮次老化遗忘<br>
+              · 记忆按预算注入，关系里程碑永远优先保留<br>
+              · 提示词预览：改完规则立刻看到最终 system 与命中条数<br>
+              · AI 提示词管理（INJECT 注入 + REPLACE 替换规则），存盘即生效<br>
+              · 查看游戏实际发给 AI 的完整 prompt（真实对话样本）<br>
               · 内置 Caddy + core_proxy 启停和日志<br>
               · 从游戏直接导出角色卡（不依赖 Mod）<br>
               · 从游戏资源里提取 NPC 头像<br>
               · 卡片对比（游戏更新后看新增 / 改动 / 删除）<br>
               · 合并改动（游戏字段用新版，用户名片保留）<br>
+              · 撤销 / 恢复原版，改动随时回退<br>
               · 上游地址切换（本地大模型 / 第三方 API）
             </div>
           </div>
@@ -323,7 +328,16 @@
           <div class="about-item">
             <div class="about-item-title">工作原理</div>
             <div class="about-item-text">
-              游戏发对话请求 → Caddy 8788 转发 → core_proxy 8789 拦截 → 提取 NPC 名字、读取对应 .md 卡片、把"用户名片"注入 prompt → 转发给上游（本地 8080 或第三方 API）→ AI 回复 → 游戏显示。
+              游戏发对话请求 → Caddy 8788 转发 → core_proxy 8789 拦截 → 从「角色设定」里解析 NPC 名字 → 读取 <code>.md</code> 卡片与长期记忆 → 依次执行替换规则、注入用户名片、注入记忆 → 转发给上游（本地 8080 或第三方 API）→ AI 回复 → 游戏显示。<br>
+              回复到达后，本轮对话会写进该角色的记忆队列；积累到一定轮数由 AI 自动总结成剧情摘要，过时的事实按重要度逐级降级、最终遗忘。
+            </div>
+          </div>
+
+          <div class="about-item">
+            <div class="about-item-title">数据存放</div>
+            <div class="about-item-text">
+              <code>editor_cards\</code> NPC 卡片 · <code>memory\</code> 长期记忆 · <code>prompt_samples\</code> 真实对话样本 · <code>originals\</code> 原版备份<br>
+              全部在程序同级目录，换电脑或分享给别人时各存各的，不会互相串。记忆页左下角会显示当前实际路径。
             </div>
           </div>
 
@@ -331,6 +345,19 @@
             <div class="about-item-title">卡片来源</div>
             <div class="about-item-text">
               编辑器从游戏本体的 <code>assets/luban/data/tbnpcbasecfg.json</code> 等表里解析出 NPC 数据，生成卡片到 <code>editor_cards\</code>。整个过程不依赖游戏侧的 Mod，纯编辑器本地操作。
+            </div>
+          </div>
+
+          <div class="about-item">
+            <div class="about-item-title">0.3 更新</div>
+            <div class="about-item-text">
+              · 修复替换规则长期不生效（此前只对玩家发言做替换，而原文写在 system 里）<br>
+              · 规则匹配增加兜底，配置存盘即生效，不用再重启 core_proxy<br>
+              · 新增提示词预览：看到命中几条、注入了多少字、最终 system 长什么样<br>
+              · 长期记忆重做注入预算，摘要不再被腰斩，关系里程碑受保护<br>
+              · 记忆读写加锁 + 写盘前自动备份，避免后台总结覆盖正常记录<br>
+              · 修复服务残留进程抢端口，导致状态一直显示"未运行"、日志空白<br>
+              · 界面全面换新，路径全部跟随程序目录，可直接分享
             </div>
           </div>
 
@@ -347,7 +374,7 @@
             <div class="about-item-title">反馈与交流</div>
             <div class="about-item-text">
               使用中遇到问题、想提建议（比较懒，做完这个现在累了，压榨了几个大肥鱼所得），可以来 B 站找我：<br>
-              <a href="https://space.bilibili.com/2134959" target="_blank" style="color:#4a90e2;">Nannl(bilibili)</a>
+              <a href="https://space.bilibili.com/2134959" target="_blank" style="color:var(--cl-coral);">Nannl(bilibili)</a>
             </div>
           </div>
           <div class="about-item">

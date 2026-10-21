@@ -1,6 +1,6 @@
 // ===== 卡片列表页 =====
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 10;
 let currentPage = 1;
 let filteredCards = [];
 let cardsRef = null;

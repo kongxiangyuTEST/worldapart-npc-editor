@@ -213,11 +213,11 @@ function presetFieldHTML(key, value) {
   return `
     <div class="field">
       <label>
-        <span>${key}${locked ? ' <span style="color:#bbb;font-weight:normal;font-size:11px;">（暂未支持）</span>' : ''}</span>
+        <span>${key}${locked ? ' <span style="color:var(--cl-muted-soft);font-weight:normal;font-size:11px;">（暂未支持）</span>' : ''}</span>
         ${locked ? '' : fieldActionsHTML('preset.' + key)}
       </label>
       <input id="f-preset-${key}" value="${escapeHtml(value)}"
-             ${locked ? 'readonly style="background:#f5f5f5;color:#aaa;cursor:not-allowed;" placeholder="（游戏运行时数据，暂无法读取）"' : ''}>
+             ${locked ? 'readonly style="background:var(--cl-surface-soft);color:var(--cl-muted-soft);cursor:not-allowed;" placeholder="（游戏运行时数据，暂无法读取）"' : ''}>
     </div>
   `;
 }
@@ -343,7 +343,7 @@ async function showGamePrompt(npcName) {
           <span class="prompt-modal-close" onclick="closePromptModal()">×</span>
         </div>
         <div class="prompt-modal-body" id="prompt-modal-body">
-          <div style="padding:30px;text-align:center;color:#999;">正在读取样本...</div>
+          <div style="padding:30px;text-align:center;color:var(--cl-muted-soft);">正在读取样本...</div>
         </div>
       </div>
     `;
@@ -352,7 +352,7 @@ async function showGamePrompt(npcName) {
   } else {
     overlay.style.display = 'flex';
     document.getElementById('prompt-modal-title').textContent = '加载中...';
-    document.getElementById('prompt-modal-body').innerHTML = '<div style="padding:30px;text-align:center;color:#999;">正在读取样本...</div>';
+    document.getElementById('prompt-modal-body').innerHTML = '<div style="padding:30px;text-align:center;color:var(--cl-muted-soft);">正在读取样本...</div>';
   }
 
   // 调 API
@@ -360,7 +360,7 @@ async function showGamePrompt(npcName) {
   if (!res.ok) {
     document.getElementById('prompt-modal-title').textContent = npcName + ' 的游戏 prompt';
     document.getElementById('prompt-modal-body').innerHTML =
-      `<div style="padding:30px;text-align:center;color:#c33;">${escapeHtml(res.msg || '读取失败')}</div>`;
+      `<div style="padding:30px;text-align:center;color:var(--cl-error);">${escapeHtml(res.msg || '读取失败')}</div>`;
     return;
   }
 
@@ -389,7 +389,7 @@ async function showGamePrompt(npcName) {
   });
 
   if (messages.length === 0) {
-    html = '<div style="padding:30px;text-align:center;color:#999;">样本里没有 messages</div>';
+    html = '<div style="padding:30px;text-align:center;color:var(--cl-muted-soft);">样本里没有 messages</div>';
   }
 
   document.getElementById('prompt-modal-body').innerHTML = html;

@@ -1,0 +1,853 @@
+/* ==========================================================================
+   theme-claude.css —— 参照 Claude DESIGN.md 的主题层
+   在 style.css 之后加载，只做覆盖，不改结构。
+   令牌来源：VoltAgent/awesome-design-md → design-md/claude/DESIGN.md
+   想回退：删掉 index.html 里这一行 <link> 即可。
+   ========================================================================== */
+
+:root {
+  /* 表面 */
+  --cl-canvas: #faf9f5;
+  --cl-surface-soft: #f5f0e8;
+  --cl-card: #efe9de;
+  --cl-card-strong: #e8e0d2;
+  --cl-dark: #181715;
+  --cl-dark-elevated: #252320;
+  --cl-dark-soft: #1f1e1b;
+
+  /* 描边 */
+  --cl-hairline: #e6dfd8;
+  --cl-hairline-soft: #ebe6df;
+
+  /* 文字 */
+  --cl-ink: #141413;
+  --cl-body-strong: #252523;
+  --cl-body: #3d3d3a;
+  --cl-muted: #6c6a64;
+  --cl-muted-soft: #8e8b82;
+  --cl-on-dark: #faf9f5;
+  --cl-on-dark-soft: #a09d96;
+
+  /* 强调 */
+  --cl-coral: #cc785c;
+  --cl-coral-active: #a9583e;
+  --cl-teal: #5db8a6;
+  --cl-amber: #e8a55a;
+  --cl-success: #5db872;
+  --cl-warning: #d4a017;
+  --cl-error: #c64545;
+
+  /* 字体 */
+  --cl-serif: "Copernicus", "Tiempos Headline", "Source Han Serif SC",
+              "Noto Serif SC", "Songti SC", Georgia, serif;
+  --cl-sans: "StyreneB", Inter, -apple-system, BlinkMacSystemFont,
+             "Segoe UI", "Microsoft YaHei", sans-serif;
+  --cl-mono: "JetBrains Mono", ui-monospace, Consolas, "Courier New", monospace;
+
+  /* 圆角 */
+  --cl-r-xs: 4px;
+  --cl-r-sm: 6px;
+  --cl-r-md: 8px;
+  --cl-r-lg: 12px;
+  --cl-r-pill: 9999px;
+
+  --cl-ring: 0 0 0 3px rgba(204, 120, 92, 0.15);
+  --cl-shadow: 0 1px 3px rgba(20, 20, 19, 0.08);
+}
+
+/* ==================== 基础 ==================== */
+
+body {
+  font-family: var(--cl-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  background: var(--cl-canvas);
+  color: var(--cl-body);
+}
+
+::selection { background: rgba(204, 120, 92, 0.18); }
+
+/* 细滚动条，避免默认灰条破坏奶油底 */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #ddd5c8;
+  border-radius: var(--cl-r-pill);
+  border: 3px solid var(--cl-canvas);
+}
+::-webkit-scrollbar-thumb:hover { background: #cfc6b6; }
+
+/* ==================== 顶栏 ==================== */
+
+header {
+  height: 64px;
+  padding: 0 28px;
+  background: var(--cl-canvas);
+  border-bottom: 1px solid var(--cl-hairline);
+}
+
+header .title {
+  font-family: var(--cl-serif);
+  font-size: 21px;
+  font-weight: 400;
+  letter-spacing: -0.3px;
+  color: var(--cl-ink);
+}
+
+header .title .sub {
+  font-family: var(--cl-sans);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--cl-muted);
+  margin-left: 10px;
+}
+
+header .status {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cl-muted-soft);
+}
+
+/* ==================== 侧边导航 ==================== */
+
+#nav {
+  width: 176px;
+  background: var(--cl-canvas);
+  border-right: 1px solid var(--cl-hairline);
+  padding: 14px 12px 10px;
+}
+
+#nav .nav-group-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--cl-muted-soft);
+  padding: 0 10px;
+  margin: 14px 0 6px;
+}
+
+#nav .nav-group-label:first-child { margin-top: 0; }
+
+.nav-item {
+  padding: 9px 12px;
+  margin-bottom: 2px;
+  border-left: none;
+  border-radius: var(--cl-r-md);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--cl-body);
+  transition: background 0.12s;
+}
+
+.nav-item:hover { background: var(--cl-surface-soft); }
+
+.nav-item.active {
+  background: var(--cl-card);
+  color: var(--cl-ink);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+#nav-footer {
+  border-top: 1px solid var(--cl-hairline-soft);
+  padding: 12px 10px 4px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--cl-muted-soft);
+}
+
+#nav-footer .dot-on { color: var(--cl-success); }
+
+/* ==================== 内容区 ==================== */
+
+.page { background: var(--cl-canvas); }
+
+.page-header { align-items: center; }
+
+.page-header h2 {
+  font-family: var(--cl-serif);
+  font-size: 27px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+  color: var(--cl-ink);
+}
+
+.page-header .count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cl-muted);
+  background: var(--cl-card);
+  border-radius: var(--cl-r-pill);
+  padding: 3px 12px;
+  white-space: nowrap;
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: var(--cl-muted);
+  margin: 6px 0 18px;
+}
+
+/* ==================== 按钮 ==================== */
+
+button {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--cl-r-md);
+  font-family: var(--cl-sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+button.primary {
+  background: var(--cl-coral);
+  color: #ffffff;
+  border-color: var(--cl-coral);
+}
+button.primary:hover { background: var(--cl-coral-active); border-color: var(--cl-coral-active); }
+
+button.secondary {
+  background: var(--cl-canvas);
+  color: var(--cl-ink);
+  border-color: var(--cl-hairline);
+}
+button.secondary:hover { background: var(--cl-surface-soft); }
+
+button:disabled {
+  background: var(--cl-card);
+  border-color: var(--cl-card);
+  color: var(--cl-muted);
+  opacity: 1;
+  cursor: default;
+}
+
+/* ==================== 输入控件 ==================== */
+
+input[type="text"],
+input[type="number"],
+input[type="password"],
+textarea,
+select {
+  font-family: var(--cl-sans);
+  font-size: 14px;
+  color: var(--cl-ink);
+  background: var(--cl-canvas);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-md);
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--cl-coral);
+  box-shadow: var(--cl-ring);
+}
+
+input::placeholder, textarea::placeholder { color: var(--cl-muted-soft); }
+
+input[readonly] { background: var(--cl-surface-soft); color: var(--cl-muted); }
+
+input[type="checkbox"] { accent-color: var(--cl-coral); }
+
+/* ==================== 首页：人物卡 ==================== */
+
+#npc-page, #cards-page { padding: 24px 28px; }
+
+.toolbar { margin-bottom: 18px; }
+
+.toolbar input[type="text"] { width: 340px; }
+
+#card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+  padding-bottom: 10px;
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+
+/* 一页固定 10 张（2 行 × 5 列），头像区高度在下方统一设为 206px */
+
+.npc-card {
+  background: var(--cl-canvas);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-lg);
+  transition: box-shadow 0.14s, border-color 0.14s;
+}
+
+.npc-card:hover {
+  border-color: #d9d2c7;
+  box-shadow: var(--cl-shadow);
+}
+
+.npc-card .portrait {
+  /* 一页 10 张 = 2 行，头像区压到 206px 才能两行整好放下不滚动 */
+  height: 206px;
+  background: var(--cl-card);
+  color: #b9ab92;
+  font-family: var(--cl-serif);
+  font-size: 40px;
+  font-weight: 400;
+}
+
+.npc-card .portrait .no-img-label {
+  font-family: var(--cl-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: var(--cl-muted-soft);
+  bottom: 8px;
+}
+
+/* 有真实头像时，ID 标签改成右上角小药丸，避免压住脸 */
+.npc-card .portrait:has(.portrait-img) .no-img-label {
+  left: auto;
+  right: 8px;
+  top: 8px;
+  bottom: auto;
+  padding: 3px 9px;
+  border-radius: var(--cl-r-pill);
+  background: rgba(24, 23, 21, 0.55);
+  color: var(--cl-on-dark);
+  font-size: 10.5px;
+  letter-spacing: 0.4px;
+  backdrop-filter: saturate(1.1) blur(2px);
+}
+
+.npc-card .info {
+  padding: 10px 12px;
+  border-top: 1px solid var(--cl-hairline-soft);
+}
+
+.npc-card .name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--cl-ink);
+}
+
+.npc-card .title {
+  font-size: 11.5px;
+  color: var(--cl-muted-soft);
+  margin-top: 3px;
+}
+
+.npc-card .changed-badge {
+  color: var(--cl-coral);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* 分页 */
+.pager {
+  border-top: 1px solid var(--cl-hairline-soft);
+  padding-top: 12px;
+  font-size: 12.5px;
+  color: var(--cl-muted);
+}
+
+.pager button {
+  height: 30px;
+  padding: 0 14px;
+  background: var(--cl-canvas);
+  color: var(--cl-ink);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-md);
+}
+
+.pager button:hover:not(:disabled) { background: var(--cl-surface-soft); }
+
+/* ==================== 页脚 ==================== */
+
+footer {
+  background: var(--cl-dark);
+  border-top: none;
+  height: 46px;
+  padding: 0 28px;
+  font-size: 12px;
+  color: var(--cl-on-dark-soft);
+}
+
+footer .foot-left { color: var(--cl-on-dark-soft); }
+
+footer button.secondary {
+  background: var(--cl-dark-elevated);
+  border-color: transparent;
+  color: var(--cl-on-dark);
+}
+footer button.secondary:hover { background: #302d29; }
+
+footer button.primary {
+  background: var(--cl-coral);
+  border-color: var(--cl-coral);
+  color: #ffffff;
+}
+
+/* ==================== 标签页 / 日志 / 服务 ==================== */
+
+.log-box {
+  background: var(--cl-dark);
+  border: none;
+  border-radius: var(--cl-r-lg);
+  font-family: var(--cl-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--cl-on-dark);
+}
+
+.log-time { color: var(--cl-muted-soft); }
+.log-name { color: var(--cl-amber); }
+.log-text { color: var(--cl-on-dark); }
+.log-line.log-caddy .log-name { color: var(--cl-teal); }
+.log-line.log-core_proxy .log-name { color: var(--cl-amber); }
+
+.service-item {
+  background: var(--cl-canvas);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-lg);
+}
+
+.service-name { font-size: 15px; font-weight: 500; color: var(--cl-ink); }
+
+.status-dot.running { background: var(--cl-success); }
+.status-dot.stopped { background: #b4b2a9; }
+.status-dot.exited { background: var(--cl-warning); }
+
+.upstream-box {
+  border-radius: var(--cl-r-lg);
+  border: 1px solid var(--cl-hairline);
+  background: var(--cl-surface-soft);
+}
+
+.upstream-box .link { color: var(--cl-coral); }
+
+/* ==================== 提示 / 开关 / 标签页 ==================== */
+
+.service-tip {
+  background: var(--cl-surface-soft);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-lg);
+  color: var(--cl-body);
+  font-size: 12.5px;
+  padding: 14px 16px;
+}
+
+.service-tip code {
+  background: var(--cl-card);
+  border-radius: var(--cl-r-xs);
+  padding: 1px 5px;
+  font-family: var(--cl-mono);
+  color: var(--cl-ink);
+}
+
+.inject-toggle {
+  background: var(--cl-surface-soft);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-lg);
+  padding: 14px 16px;
+}
+
+.inject-toggle label {
+  color: var(--cl-ink);
+  font-weight: 500;
+}
+
+.inject-toggle .inject-toggle-hint { color: var(--cl-muted); }
+
+.ai-tabs {
+  border-bottom: 1px solid var(--cl-hairline);
+  gap: 2px;
+}
+
+.ai-tab {
+  padding: 8px 14px;
+  border-radius: var(--cl-r-md) var(--cl-r-md) 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--cl-muted);
+  border-bottom: 2px solid transparent;
+}
+
+.ai-tab.active {
+  background: var(--cl-card);
+  color: var(--cl-ink);
+  font-weight: 500;
+  border-bottom-color: transparent;
+}
+
+.ai-tab:hover:not(.active) {
+  background: var(--cl-surface-soft);
+  color: var(--cl-coral);
+}
+
+/* 卡片少时 grid 会把行纵向拉伸 → 固定行高，只按内容排 */
+/* 编辑页右侧画布（原来是冷白 #fdfdfd） */
+#edit-main { background: var(--cl-canvas); }
+
+#page-memory { padding: 24px 28px; overflow: hidden; }
+
+.memory-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 20px;
+  margin-top: 18px;
+}
+
+/* 页头右侧操作区：药丸 + 按钮统一贴右 */
+.header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 记忆列表复用角色列表的头像结构 */
+.memory-list-item .mini-portrait {
+  background: var(--cl-card);
+  color: #b9ab92;
+  border-radius: var(--cl-r-sm);
+}
+
+.memory-list-item .mini-name span {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--cl-ink);
+}
+
+.memory-list-item .mini-title { color: var(--cl-muted-soft); }
+
+/* ==================== 关于页 ==================== */
+
+.about-header { margin-bottom: 32px; }
+
+.about-icon {
+  font-family: var(--cl-serif);
+  font-size: 44px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--cl-coral);
+  margin-bottom: 14px;
+}
+
+.about-header h1 {
+  font-family: var(--cl-serif);
+  font-size: 32px;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+  color: var(--cl-ink);
+}
+
+.about-version {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 3px 12px;
+  border-radius: var(--cl-r-pill);
+  background: var(--cl-card);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cl-muted);
+}
+
+.about-card {
+  max-width: 720px;
+  background: var(--cl-canvas);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-lg);
+}
+
+.about-item { border-bottom: 1px solid var(--cl-hairline-soft); }
+
+.about-item-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--cl-ink);
+  margin-bottom: 8px;
+}
+
+.about-item-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--cl-body);
+}
+
+.about-item-text a { color: var(--cl-coral); }
+
+/* ==================== 编辑页 ==================== */
+
+#edit-sidebar {
+  background: var(--cl-canvas);
+  border-right: 1px solid var(--cl-hairline);
+}
+
+.edit-list-item {
+  border-radius: var(--cl-r-md);
+  border-bottom: 1px solid var(--cl-hairline-soft);
+}
+
+.edit-list-item:hover { background: var(--cl-surface-soft); }
+
+.edit-list-item.active {
+  background: var(--cl-card);
+  border-left: 3px solid var(--cl-coral);
+  padding-left: 11px;
+}
+
+.section-title {
+  font-family: var(--cl-serif);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.2px;
+  color: var(--cl-ink);
+  border-bottom: 1px solid var(--cl-hairline);
+  padding-bottom: 6px;
+}
+
+.edit-field-footer .link { color: var(--cl-coral); }
+
+/* ==================== 固定段落 / 其它列表 ==================== */
+
+.prompt-item {
+  border-bottom: 1px solid var(--cl-hairline-soft);
+  border-radius: var(--cl-r-sm);
+}
+
+.prompt-item:hover { background: var(--cl-surface-soft); }
+
+.prompt-item.active {
+  background: var(--cl-card);
+  border-left: 3px solid var(--cl-coral);
+}
+
+.prompt-item-title { color: var(--cl-ink); font-weight: 500; }
+
+.editor-cards-count strong { color: var(--cl-ink); }
+
+.about-item-text a {
+  color: var(--cl-coral);
+  border-bottom: 1px dashed rgba(204, 120, 92, 0.45);
+}
+
+/* ==================== 细节 ==================== */
+
+.inject-status.success { color: var(--cl-success); }
+.inject-status.error { color: var(--cl-error); }
+
+a { color: var(--cl-coral); }
+
+/* 编辑页返回链接（原来是蓝色） */
+#edit-sidebar .back-link { color: var(--cl-coral); font-weight: 500; }
+
+/* 记忆页里 JS 生成的蓝色标题，统一到墨色 */
+#memory-detail h3 { color: var(--cl-ink) !important; font-family: var(--cl-serif); font-weight: 400 !important; }
+
+/* ==================== 查看游戏 prompt 弹层 ==================== */
+.prompt-overlay {
+  background: rgba(24, 23, 21, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.prompt-modal {
+  background: var(--cl-canvas);
+  border: 1px solid var(--cl-hairline);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(20, 20, 19, 0.24);
+  overflow: hidden;
+}
+
+.prompt-modal-header {
+  background: var(--cl-surface-soft);
+  border-bottom: 1px solid var(--cl-hairline);
+  padding: 14px 20px;
+  font-family: var(--cl-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cl-body);
+  letter-spacing: 0.2px;
+}
+
+.prompt-modal-close {
+  color: var(--cl-muted-soft);
+  font-size: 22px;
+  transition: color 0.15s;
+}
+
+.prompt-modal-close:hover { color: var(--cl-ink); }
+
+.prompt-modal-body {
+  background: var(--cl-surface-soft);
+  padding: 16px 20px;
+}
+
+.prompt-msg {
+  background: var(--cl-canvas);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-md);
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(20, 20, 19, 0.04);
+}
+
+.prompt-msg-header {
+  background: transparent;
+  border-bottom: 1px solid var(--cl-hairline-soft);
+  padding: 9px 14px;
+}
+
+.prompt-msg-role {
+  font-family: var(--cl-sans);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+}
+
+/* 角色标记：只用低饱和底色区分，不抢视觉 */
+.prompt-role-system {
+  background: var(--cl-card);
+  color: var(--cl-body);
+  border-color: var(--cl-hairline);
+}
+
+.prompt-role-user {
+  background: rgba(93, 184, 166, 0.14);
+  color: #2f7a6b;
+  border-color: rgba(93, 184, 166, 0.3);
+}
+
+.prompt-role-assistant {
+  background: rgba(232, 165, 90, 0.16);
+  color: #8a5a1c;
+  border-color: rgba(232, 165, 90, 0.32);
+}
+
+.prompt-msg-len {
+  font-family: var(--cl-sans);
+  font-size: 11px;
+  color: var(--cl-muted-soft);
+}
+
+.prompt-msg-content {
+  font-family: var(--cl-mono);
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--cl-body);
+  background: var(--cl-canvas);
+  padding: 14px 16px;
+}
+
+/* 弹层里的滚动条也换成暖色 */
+.prompt-modal-body::-webkit-scrollbar,
+.prompt-msg-content::-webkit-scrollbar { width: 8px; }
+.prompt-modal-body::-webkit-scrollbar-thumb,
+.prompt-msg-content::-webkit-scrollbar-thumb {
+  background: var(--cl-card-strong);
+  border-radius: 9999px;
+}
+
+/* ==================== 系统 prompt 替换：规则行 ==================== */
+/* 左框=原文，右框=替换结果。取消红/绿底色：
+   原文用白，替换结果用卡片底（与页面上的药丸徽章同色） */
+.rule-row {
+  background: transparent;
+  border: 1px solid var(--cl-hairline);
+  border-radius: 10px;
+  padding: 8px;
+  gap: 8px;
+}
+
+.rule-row textarea {
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-sm);
+  background: #fff;
+  color: var(--cl-body);
+  font-family: var(--cl-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.rule-row .rule-old { background: #fff; }
+
+.rule-row .rule-new {
+  background: var(--cl-card);
+  color: var(--cl-body-strong);
+}
+
+.rule-row textarea:focus {
+  outline: none;
+  border-color: var(--cl-coral);
+  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.15);
+}
+
+.rule-row .rule-arrow {
+  color: var(--cl-muted-soft);
+  font-size: 15px;
+}
+
+/* 删除按钮：常态中性，悬停才提示危险 */
+.rule-row .rule-del {
+  background: var(--cl-canvas);
+  color: var(--cl-muted-soft);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-sm);
+  font-size: 15px;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.rule-row .rule-del:hover {
+  background: rgba(198, 69, 69, 0.08);
+  color: var(--cl-error);
+  border-color: rgba(198, 69, 69, 0.28);
+}
+
+/* ==================== AI 提示词页：字段与底部操作栏 ==================== */
+#inject-main .field label {
+  color: var(--cl-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  margin-bottom: 6px;
+}
+
+#inject-main .field textarea,
+#inject-main .field input {
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-sm);
+  background: var(--cl-canvas);
+  color: var(--cl-body);
+  font-family: var(--cl-mono);
+}
+
+#inject-main .field textarea:focus,
+#inject-main .field input:focus {
+  outline: none;
+  border-color: var(--cl-coral);
+  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.15);
+}
+
+.inject-footer {
+  border-top: 1px solid var(--cl-hairline);
+}
+
+.field-hint {
+  color: var(--cl-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.field-actions .link { color: var(--cl-muted); }
+.field-actions .link:hover { color: var(--cl-ink); }
+
+.inject-status { color: var(--cl-muted); }

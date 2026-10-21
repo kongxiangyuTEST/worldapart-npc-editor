@@ -479,6 +479,7 @@ class Api:
                         "name": npc_name,
                         "filename": fname,
                         "mtime": mtime,
+                        "portrait": get_portrait_filename(int(npc_id)),
                     })
             items.sort(key=lambda x: (-x["mtime"], x["id"]))
             return {"ok": True, "items": items, "debug_path": mem_dir}

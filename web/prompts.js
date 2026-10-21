@@ -140,8 +140,8 @@ function renderPreviewTab() {
     <div style="display:flex;gap:10px;align-items:center;margin:12px 0;flex-wrap:wrap;">
       <input id="preview-npc" type="text" placeholder="NPC 名字（留空 = 最新样本）"
              value="${escapeHtml(previewNpc)}"
-             style="width:220px;padding:6px 10px;border:1px solid #ccc;border-radius:3px;font-size:13px;">
-      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:4px;">
+             style="width:220px;padding:6px 10px;border:1px solid var(--cl-hairline);border-radius:3px;font-size:13px;">
+      <label style="font-size:12px;color:var(--cl-body);display:flex;align-items:center;gap:4px;">
         <input type="checkbox" id="preview-memory" ${previewWithMemory ? 'checked' : ''}> 带长期记忆
       </label>
       <button class="primary" onclick="runPreview()">跑一次</button>
@@ -191,7 +191,7 @@ function renderPreviewResult(res) {
 
   box.innerHTML = `
     ${warn}
-    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#555;margin-bottom:8px;align-items:center;">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--cl-body);margin-bottom:8px;align-items:center;">
       <span>样本：<code>${escapeHtml(res.sample || '')}</code></span>
       <span>规则命中：<b>${s.rules_hit || 0}</b> 条</span>
       <span>注入语：<b>${s.inject_chars || 0}</b> 字</span>
@@ -199,7 +199,7 @@ function renderPreviewResult(res) {
       <span>记忆：<b>${s.memory_chars || 0}</b> 字</span>
       <span>system 总长：<b>${s.system_chars || 0}</b> 字</span>
     </div>
-    <div style="font-size:12px;color:#888;margin-bottom:6px;">角色顺序：${escapeHtml(roleText)}</div>
+    <div style="font-size:12px;color:var(--cl-muted);margin-bottom:6px;">角色顺序：${escapeHtml(roleText)}</div>
     <pre style="max-height:420px;overflow:auto;background:#fafafa;border:1px solid #eee;border-radius:6px;padding:12px;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${escapeHtml(res.system || '')}</pre>
   `;
 }
