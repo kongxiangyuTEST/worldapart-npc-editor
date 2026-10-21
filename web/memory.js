@@ -4,6 +4,12 @@ let memoryItems = [];
 let memoryCurrentId = null;
 let memorySearchBound = false;
 
+// 列表自动刷新：游戏每聊一句 core_proxy 都会写记忆，
+// 所以进这一页之后定时重读列表；签名没变就不重绘，避免闪烁、抢滚动位置。
+let memorySig = '';
+let memoryPollTimer = null;
+const MEMORY_POLL_MS = 4000;
+
 const MEMORY_EMPTY_DETAIL =
   '<div style="color:var(--cl-muted-soft); text-align:center; margin-top:100px; font-size:15px;">👈 请在左侧选择一个角色查看其记忆</div>';
 
@@ -42,6 +48,44 @@ function bindMemorySearch() {
 
 // ==================== 列表 ====================
 
+function memoryListSignature(items) {
+  return (items || [])
+    .map(it => `${it.id}:${it.mtime || ''}:${it.name || ''}`)
+    .join('|');
+}
+
+async function refreshMemoryListSilently() {
+  const page = document.getElementById('page-memory');
+  if (!page || !page.classList.contains('active')) return;   // 不在这一页就不动
+  let res;
+  try {
+    res = await pywebview.api.get_memory_list();
+  } catch (e) {
+    return;
+  }
+  if (!res || res.ok === false) return;
+
+  const items = res.items || [];
+  const sig = memoryListSignature(items);
+  if (sig === memorySig) return;      // 没变化，保持原样
+  memorySig = sig;
+  memoryItems = items;
+  setMemoryDirPath(res.debug_path || '');
+  renderMemoryList(items, res.debug_path || '');
+
+  const detail = document.getElementById('memory-detail');
+  const stillThere = items.some(it => String(it.id) === String(memoryCurrentId));
+  if (detail && memoryCurrentId && !stillThere) {
+    memoryCurrentId = null;
+    detail.innerHTML = MEMORY_EMPTY_DETAIL;
+  }
+}
+
+function startMemoryAutoRefresh() {
+  if (memoryPollTimer) return;
+  memoryPollTimer = setInterval(refreshMemoryListSilently, MEMORY_POLL_MS);
+}
+
 async function initMemoryPage() {
   const listContainer = document.getElementById('memory-list');
   if (!listContainer) return;
@@ -78,8 +122,10 @@ async function initMemoryPage() {
   }
 
   memoryItems = res.items || [];
+  memorySig = memoryListSignature(memoryItems);
   setMemoryDirPath(res.debug_path || '');
   renderMemoryList(memoryItems, res.debug_path || '');
+  startMemoryAutoRefresh();
 
   const detail = document.getElementById('memory-detail');
   const stillThere = memoryItems.some(it => String(it.id) === String(memoryCurrentId));

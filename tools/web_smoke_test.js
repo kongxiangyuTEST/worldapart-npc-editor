@@ -26,10 +26,10 @@ const ok = (msg) => console.log('  ✓ ' + msg);
 // ---------- 假 DOM ----------
 const els = new Map();
 function makeEl(id) {
-  return {
+  const el = {
     id,
     className: '',
-    innerHTML: '',
+    _html: '',
     textContent: '',
     value: '',
     disabled: false,
@@ -51,8 +51,20 @@ function makeEl(id) {
     clientHeight: 0,
     scrollHeight: 0,
   };
+  return el;
 }
-const getEl = (id) => { if (!els.has(id)) els.set(id, makeEl(id)); return els.get(id); };
+// 真浏览器里 innerHTML 一赋值就会清空子节点，假 DOM 也得这样，
+// 否则"重绘"看起来像是把行一直往后追加
+function makeElWithInnerHTML(id) {
+  const el = makeEl(id);
+  Object.defineProperty(el, 'innerHTML', {
+    get() { return el._html; },
+    set(v) { el._html = String(v); el.children.length = 0; },
+    configurable: true,
+  });
+  return el;
+}
+const getEl = (id) => { if (!els.has(id)) els.set(id, makeElWithInnerHTML(id)); return els.get(id); };
 
 const timers = [];
 const ctx = {
@@ -110,6 +122,8 @@ const sampleMemory = {
     { id: 100111, name: '纪澜之', filename: '100111-纪澜之.json', mtime: 1 },
   ],
 };
+// 自动刷新测试要能改这份数据
+const memoryStore = { items: sampleMemory.items.slice() };
 
 ctx.pywebview = {
   api: {
@@ -120,7 +134,7 @@ ctx.pywebview = {
     get_upstream_status: async () => ({ ok: true, upstream: 'http://127.0.0.1:8080/' }),
     get_prompt_fragments: async () => ({ ok: true, data: { fixed_sections: {} } }),
     get_ai_config: async () => ({ ok: true, data: { inject: '', rules: [] } }),
-    get_memory_list: async () => sampleMemory,
+    get_memory_list: async () => ({ ok: true, debug_path: 'memory', items: memoryStore.items.slice() }),
     get_memory: async () => ({
       ok: true,
       data: {
@@ -174,6 +188,27 @@ for (const name of STEPS) {
   const rows = getEl('memory-list').children.length;
   if (rows === 3) ok('列表渲染 3 项');
   else fail('列表渲染异常，实际 ' + rows + ' 项；innerHTML=' + String(listHtml).slice(0, 120));
+
+  // ---------- 5. 列表自动刷新 ----------
+  console.log('列表自动刷新：');
+  try {
+    const pageEl = getEl('page-memory');
+    pageEl.classList = { _s: new Set(['active']), contains(c) { return this._s.has(c); },
+                         add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); } };
+    memoryStore.items.unshift({ id: 999999, name: '新角色', filename: '999999-新角色.json', mtime: 4 });
+    await ctx.refreshMemoryListSilently();
+    const n = getEl('memory-list').children.length;
+    if (n === 4) ok('新增一条后自动变成 4 项');
+    else fail('自动刷新没生效，实际 ' + n + ' 项');
+
+    const snapshot = getEl('memory-list').children.map(c => c.textContent).join('|');
+    await ctx.refreshMemoryListSilently();
+    const again = getEl('memory-list').children.map(c => c.textContent).join('|');
+    if (again === snapshot) ok('数据没变时不重绘（不会闪烁）');
+    else fail('数据没变却重绘了');
+  } catch (e) {
+    fail('自动刷新测试抛错 -> ' + e.name + ': ' + e.message);
+  }
 
   const dirText = getEl('memory-dir-path').textContent;
   if (dirText.indexOf('memory') >= 0) ok('记忆目录已显示：' + dirText);
