@@ -882,3 +882,25 @@ a { color: var(--cl-coral); }
   margin-top: 12px;
   flex-wrap: wrap;
 }
+
+/* ==================== 服务管理页 ==================== */
+/* 内容比一屏长（服务列表 + 接口地址 + 上游地址），原来 overflow:hidden 直接截断，
+   现在整页纵向滚动。只看这一页，日志页有自己的滚动区，不跟着改。 */
+#services-page {
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+
+#services-page::-webkit-scrollbar { width: 10px; }
+#services-page::-webkit-scrollbar-thumb {
+  background: var(--cl-card-strong);
+  border-radius: 9999px;
+  border: 2px solid var(--cl-canvas);
+}
+#services-page::-webkit-scrollbar-thumb:hover { background: #d9cfbd; }
+
+/* 只读框（游戏目录、接口地址）：白底，跟可编辑输入框区分开 */
+#services-page input[readonly] {
+  background: #fff;
+  cursor: default;
+}
