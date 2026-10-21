@@ -50,5 +50,8 @@
       "old": "在游戏世界里与玩家自然攀谈。",
       "new": "在游戏世界里自然呈现所见与互动。"
     }
-  ]
+  ],
+  "memory_slot": "past_events",
+  "save_guard": true,
+  "memory_budget": 2000
 }

@@ -162,6 +162,7 @@ async function loadMemoryDetail(npcId, npcName) {
             </div>
         </div>
         <span id="m-msg" style="color:green; font-size:13px; margin-bottom:10px; display:block; text-align:right; font-weight:bold;"></span>
+        ${renderSaveConflict(res.conflict, npcId, npcName)}
 
         <div style="display:grid; grid-template-columns: 1fr; gap: 20px;">
             <div style="background:var(--cl-surface-soft); border:1px solid var(--cl-hairline); padding:15px; border-radius:8px;">
@@ -289,5 +290,40 @@ async function triggerMemoryMerge(npcId, npcName) {
   } else if (msgEl) {
     msgEl.innerText = '❌ 失败：' + ((res && res.msg) || '未知错误');
     msgEl.style.color = 'red';
+  }
+}
+
+// ==================== 存档冲突 ====================
+// 游戏自己也记「过往要事」。换读另一份存档时，那几条会完全变样，
+// 这时若照旧注入，就会把这一档的剧情带进另一档。所以先暂停，等人确认。
+function renderSaveConflict(conflict, npcId, npcName) {
+  if (!conflict || !conflict.pending || !conflict.pending.length) return '';
+  const known = (conflict.known || []).length;
+  const cur = conflict.pending.length;
+  const when = conflict.pending_at ? `（${escapeHtml(conflict.pending_at)}）` : '';
+  return `
+    <div class="save-conflict">
+      <div class="save-conflict-title">这一轮的游戏记录对不上，可能是另一份存档</div>
+      <div class="save-conflict-text">
+        游戏里「过往要事」原本是 ${known} 条，这次一条都对不上（现在是 ${cur} 条）${when}。<br>
+        为避免把这一档的剧情带到另一档，<b>新的对话暂停注入长期记忆</b>。确认一下是哪种情况：
+      </div>
+      <div class="save-conflict-actions">
+        <button class="secondary" onclick="resolveSaveConflict('${escapeHtml(npcId)}', '${escapeHtml(npcName)}', 'keep_old')">还是同一档，继续用现有记忆</button>
+        <button class="primary" onclick="resolveSaveConflict('${escapeHtml(npcId)}', '${escapeHtml(npcName)}', 'accept_new')">确实换了存档，从这一档重新开始</button>
+      </div>
+    </div>`;
+}
+
+async function resolveSaveConflict(npcId, npcName, action) {
+  const ask = action === 'accept_new'
+    ? '现有记忆会整份备份到 memory/_saves/，然后从空白重新记录。确定吗？'
+    : '确认这仍是同一份存档，之后继续注入现有长期记忆。';
+  if (!confirm(ask)) return;
+  const res = await pywebview.api.resolve_save_conflict(npcId, npcName, action);
+  if (res && res.ok) {
+    await loadMemoryDetail(npcId, npcName);
+  } else {
+    alert('处理失败：' + ((res && res.msg) || '未知错误'));
   }
 }

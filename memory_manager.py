@@ -116,6 +116,132 @@ def save_memory(npc_id, npc_name, data):
                 pass
             return False
 
+# ============================================================
+# 存档守卫：游戏本身也记「## 过往要事」，换个存档喂过来的条目会完全变样。
+# 我们不猜"现在读的是哪个档"，只判断"这一轮的游戏记忆还是不是同一档"，
+# 对不上就暂停注入，等用户在记忆页确认，避免把 A 档的剧情塞进 B 档。
+# ============================================================
+ARCHIVE_DIR = os.path.join(MEMORY_DIR, "_saves")
+
+
+def _now_str():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _norm_line(s):
+    return re.sub(r"\s+", " ", str(s)).strip()
+
+
+def check_game_events(npc_id, npc_name, lines, persist=True):
+    """把本轮游戏侧记忆条目和上次记下的对比。
+
+    返回 {"status": init|same|grew|mismatch, "kept": 命中旧条目数,
+          "total": 旧条目数, "ratio": 命中率, "blocked": bool}
+    """
+    cur = [_norm_line(x) for x in (lines or []) if _norm_line(x)]
+
+    with LOCK:
+        data = load_memory(npc_id, npc_name)
+        stored = [_norm_line(x) for x in (data.get("game_events") or []) if _norm_line(x)]
+
+        # 第一次见到这角色：直接把当前条目记为基线
+        if not stored:
+            if cur and persist:
+                data["game_events"] = cur
+                data["game_events_at"] = _now_str()
+                save_memory(npc_id, npc_name, data)
+            return {"status": "init", "kept": 0, "total": 0, "ratio": 1.0, "blocked": False}
+
+        kept = sum(1 for s in stored if s in cur)
+        ratio = kept / len(stored)
+
+        # 正常推进：游戏侧的条目只增不减，旧的基本都还在
+        normal = (ratio >= 0.4) or len(stored) < 2
+        if normal:
+            if cur != stored and persist:
+                data["game_events"] = cur
+                data["game_events_at"] = _now_str()
+                data.pop("game_events_pending", None)
+                save_memory(npc_id, npc_name, data)
+            return {
+                "status": "grew" if cur != stored else "same",
+                "kept": kept, "total": len(stored), "ratio": ratio, "blocked": False,
+            }
+
+        # 疑似另一份存档：记下待确认的条目，但不动原基线
+        if data.get("game_events_pending") != cur and persist:
+            data["game_events_pending"] = cur
+            data["game_events_pending_at"] = _now_str()
+            save_memory(npc_id, npc_name, data)
+        return {
+            "status": "mismatch", "kept": kept,
+            "total": len(stored), "ratio": ratio, "blocked": True,
+        }
+
+
+def get_game_conflict(npc_id, npc_name):
+    """读当前挂起的存档冲突（没有就返回 None）"""
+    with LOCK:
+        data = load_memory(npc_id, npc_name)
+        pending = data.get("game_events_pending")
+        if not pending:
+            return None
+        return {
+            "pending": pending,
+            "pending_at": data.get("game_events_pending_at", ""),
+            "known": data.get("game_events") or [],
+        }
+
+
+def resolve_game_conflict(npc_id, npc_name, action):
+    """处理存档冲突。
+
+    accept_new：确实是另一份存档 → 把当前记忆整份归档到 memory/_saves/，
+                再以新档的条目为基线、长期记忆从空白重新开始
+    keep_old  ：其实是同一档（或就想沿用旧记忆）→ 清掉冲突，继续注入
+    """
+    with LOCK:
+        data = load_memory(npc_id, npc_name)
+        pending = data.get("game_events_pending")
+        if not pending:
+            return {"ok": False, "msg": "没有待处理的冲突"}
+
+        if action == "keep_old":
+            data.pop("game_events_pending", None)
+            data.pop("game_events_pending_at", None)
+            save_memory(npc_id, npc_name, data)
+            return {"ok": True, "action": "keep_old"}
+
+        if action != "accept_new":
+            return {"ok": False, "msg": f"未知操作: {action}"}
+
+        # 先归档旧记忆，再清空
+        archived = ""
+        path = get_memory_path(npc_id, npc_name)
+        try:
+            if os.path.isfile(path):
+                os.makedirs(ARCHIVE_DIR, exist_ok=True)
+                ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+                archived = os.path.join(ARCHIVE_DIR, f"{npc_id}-{npc_name}.{ts}.json")
+                shutil.copy2(path, archived)
+        except Exception as e:
+            print(f"归档记忆失败: {e}")
+            return {"ok": False, "msg": f"归档失败: {e}"}
+
+        fresh = {
+            "npc_id": npc_id,
+            "npc_name": npc_name,
+            "time_location": "",
+            "early_gist": "",
+            "long_summary": "",
+            "facts": {cat: [] for cat in FACT_CATEGORIES},
+            "game_events": list(pending),
+            "game_events_at": _now_str(),
+        }
+        save_memory(npc_id, npc_name, fresh)
+        return {"ok": True, "action": "accept_new", "archived": archived}
+
+
 def log_forget(npc_id, npc_name, fact):
     """记录被遗忘的事实到日志"""
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

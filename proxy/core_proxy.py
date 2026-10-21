@@ -94,6 +94,8 @@ _AI = {
     "inject_user_card": True,
     "memory_budget": 2000,   # 每轮记忆注入预算（字）
     "memory_hint": True,     # 低重要度事实是否只在玩家发言命中时注入
+    "memory_slot": "past_events",  # past_events=写进游戏自带的「## 过往要事」；append=贴 system 末尾
+    "save_guard": True,      # 换存档保护：游戏侧记忆完全对不上时暂停注入
 }
 
 
@@ -132,10 +134,16 @@ def load_ai_config(force=False):
         print(f"[配置] memory_budget 不是数字，回落 2000")
         _AI["memory_budget"] = 2000
     _AI["memory_hint"] = bool(conf.get("memory_hint", True))
+
+    slot = str(conf.get("memory_slot", "past_events")).strip().lower()
+    _AI["memory_slot"] = slot if slot in ("past_events", "append") else "past_events"
+    _AI["save_guard"] = bool(conf.get("save_guard", True))
+
     _AI["mtime"] = mtime
     print(f"[配置] ai_config.json 已加载：注入 {len(_AI['inject'])} 字，"
           f"替换 {len(new_rules)} 条，名片注入 {_AI['inject_user_card']}，"
-          f"记忆预算 {_AI['memory_budget']} 字", flush=True)
+          f"记忆预算 {_AI['memory_budget']} 字，记忆落位 {_AI['memory_slot']}，"
+          f"换档保护 {'开' if _AI['save_guard'] else '关'}", flush=True)
     return _AI
 
 # ============================================================
@@ -779,16 +787,97 @@ def rewrite_messages(req_json):
     return 0
 
 # ==================== 长期记忆核心注入 ====================
-def inject_memory_to_messages(req_json, npc_name=None):
+# 游戏自己也记「## 过往要事」，形如：
+#   ## 过往要事
+#   鱼你 在你这儿做过 3 笔买卖，算是老主顾了。
+#   鱼你 前后送过你 1 件东西。
+# 每个角色几条，只增不减。我们把长期记忆写进这一节，
+# 这样 system 里只留下一处记忆，位置也从末尾挪到中段。
+PAST_EVENTS_RE = re.compile(
+    r"^##[ \t]*过往要事[^\r\n]*\r?\n(.*?)(?=\r?\n##[ \t]|\Z)", re.M | re.S
+)
+
+
+def parse_game_events(messages):
+    """取出游戏侧记忆（「## 过往要事」里的条目）。没有这一节就返回 []。"""
+    lines = []
+    for m in messages or []:
+        if m.get("role") != "system":
+            continue
+        c = m.get("content")
+        if not isinstance(c, str) or "过往要事" not in c:
+            continue
+        mm = PAST_EVENTS_RE.search(c)
+        if not mm:
+            continue
+        for ln in re.split(r"\r?\n", mm.group(1)):
+            ln = ln.strip()
+            if ln:
+                lines.append(ln)
+    return lines
+
+
+def _place_into_past_events(messages, memory_text):
+    """把记忆块写进「## 过往要事」那一节，游戏原有条目保留。
+    找不到这一节返回 False（调用方退回 system 末尾追加）。"""
+    for m in messages:
+        if m.get("role") != "system":
+            continue
+        c = m.get("content")
+        if not isinstance(c, str) or "过往要事" not in c:
+            continue
+        mm = PAST_EVENTS_RE.search(c)
+        if not mm:
+            continue
+        sep = "\r\n" if "\r\n" in c else "\n"
+        body = mm.group(1).strip()
+        block = f"【长期记忆（请自然带入）】{sep}{memory_text}"
+        new_body = f"{body}{sep}{sep}{block}" if body else block
+        a, b = mm.span(1)
+        m["content"] = c[:a] + new_body + sep + c[b:]
+        return True
+    return False
+
+
+def has_past_events_section(messages):
+    """游戏这次到底有没有给「## 过往要事」这一节。
+    没有（游戏改版 / 该角色还没有过往）≠ 换了存档，不能当成换档处理。"""
+    for m in messages or []:
+        if m.get("role") != "system":
+            continue
+        c = m.get("content")
+        if isinstance(c, str) and "过往要事" in c and PAST_EVENTS_RE.search(c):
+            return True
+    return False
+
+
+def check_save_guard(npc_id, npc_name, messages, persist=True):
+    """换档保护：比对本轮游戏侧记忆与上次记下的基线。
+    只有旧条目几乎全对不上时才判"另一份存档"，避免正常推进误伤。"""
+    if not _AI.get("save_guard", True):
+        return {"status": "off", "blocked": False, "kept": 0, "total": 0, "ratio": 1.0}
+    if not has_past_events_section(messages):
+        # 连这一节都没有，谈不上换档；交给落位逻辑回落到末尾追加
+        return {"status": "no_section", "blocked": False, "kept": 0, "total": 0, "ratio": 1.0}
+    try:
+        lines = parse_game_events(messages)
+        return memory_manager.check_game_events(npc_id, npc_name, lines, persist=persist)
+    except Exception as e:
+        print(f"[存档] 检查失败，本轮照常注入: {e}", flush=True)
+        return {"status": "error", "blocked": False, "kept": 0, "total": 0, "ratio": 1.0}
+
+
+def inject_memory_to_messages(req_json, npc_name=None, persist=True):
     """把长期记忆注入到 system 提示词。
 
-    npc_name 由 prepare_messages() 在改写前解析好后传进来；
-    不传则就地解析（兜底）。
-    返回 (npc_id, npc_name, 注入字数)
+    npc_name 由 prepare_messages() 在改写前解析好后传进来；不传则就地解析（兜底）。
+    persist=False 表示只预览、不写盘（/_preview 用）。
+    返回 dict：npc_id / npc_name / chars / slot / guard
     """
+    empty = {"npc_id": None, "npc_name": None, "chars": 0, "slot": "", "guard": "skip"}
     messages = req_json.get("messages") or []
     if not messages:
-        return None, None, 0
+        return empty
 
     global CURRENT_NPC_NAME
 
@@ -798,18 +887,27 @@ def inject_memory_to_messages(req_json, npc_name=None):
 
     if not npc_name:
         print("[记忆] 本轮未提取到 NPC 名字，跳过注入", flush=True)
-        return None, None, 0
+        return empty
 
     card_files = find_card_files(npc_name)
     if not card_files:
         print(f"[记忆] 卡片目录里找不到 {npc_name}，跳过注入", flush=True)
-        return None, None, 0
+        return empty
 
     try:
         npc_id = int(card_files[0].name.split("-", 1)[0])
     except (ValueError, IndexError):
         print(f"[记忆] 无法解析 {npc_name} 的 ID，跳过注入", flush=True)
-        return None, None, 0
+        return empty
+
+    # 先过换档保护：这一轮的游戏侧记忆还是不是上次那一档
+    guard = check_save_guard(npc_id, npc_name, messages, persist)
+    if guard.get("blocked"):
+        print(f"[存档] 游戏侧记忆只剩 {guard['kept']}/{guard['total']} 条对得上，"
+              f"疑似切到了另一份存档 → 本轮不注入长期记忆。"
+              f"到「长期记忆」页确认后即可恢复。", flush=True)
+        return {"npc_id": npc_id, "npc_name": npc_name, "chars": 0,
+                "slot": "", "guard": "blocked"}
 
     # 加载记忆并拼装（预算从 ai_config.json 读，默认 2000 字）
     data = memory_manager.load_memory(npc_id, npc_name)
@@ -826,24 +924,34 @@ def inject_memory_to_messages(req_json, npc_name=None):
     )
 
     if not memory_text.strip():
-        return npc_id, npc_name, 0
+        return {"npc_id": npc_id, "npc_name": npc_name, "chars": 0,
+                "slot": "", "guard": guard["status"]}
 
-    mem_block = f"\n\n【长期记忆（请自然带入）】\n{memory_text}\n"
+    slot = "append"
+    placed = False
+    if _AI.get("memory_slot") == "past_events":
+        try:
+            placed = _place_into_past_events(messages, memory_text)
+        except Exception as e:
+            print(f"[记忆] 写入「过往要事」失败，改用末尾追加: {e}", flush=True)
+        if placed:
+            slot = "past_events"
 
-    # 注入到 system 提示词
-    sys_content = ""
-    for m in messages:
-        if m.get("role") == "system":
-            sys_content = m.get("content", "")
-            break
+    if not placed:
+        mem_block = f"\n\n【长期记忆（请自然带入）】\n{memory_text}\n"
+        sys_content = ""
+        for m in messages:
+            if m.get("role") == "system":
+                sys_content = m.get("content", "")
+                break
+        if sys_content:
+            messages[0]["content"] = sys_content + mem_block
+        else:
+            messages.insert(0, {"role": "system", "content": mem_block})
+        req_json["messages"] = messages
 
-    if sys_content:
-        messages[0]["content"] = sys_content + mem_block
-    else:
-        messages.insert(0, {"role": "system", "content": mem_block})
-
-    req_json["messages"] = messages
-    return npc_id, npc_name, len(memory_text)
+    return {"npc_id": npc_id, "npc_name": npc_name, "chars": len(memory_text),
+            "slot": slot, "guard": guard["status"]}
 def update_memory_after_chat(npc_id, npc_name, user_text, ai_text):
     # 后台合并线程可能同时在读写同一个记忆文件，整段加锁
     with memory_manager.LOCK:
@@ -891,7 +999,7 @@ def _update_memory_locked(npc_id, npc_name, user_text, ai_text):
 # 八、提示词组装（转发和预览共用同一条流水线）
 # ============================================================
 
-def prepare_messages(req_json, with_memory=True, with_card=True):
+def prepare_messages(req_json, with_memory=True, with_card=True, dry_run=False):
     """把游戏原始 messages 加工成最终发给模型的 messages（原地修改）。
 
     顺序很关键：
@@ -906,6 +1014,32 @@ def prepare_messages(req_json, with_memory=True, with_card=True):
     load_ai_config()          # mtime 变了就重读，改完存盘即生效
 
     messages = req_json.get("messages") or []
+
+    # 游戏内部还有一套自己的记忆系统：它会把"记忆压缩请求"也发到这个接口，
+    # 那种请求的 system 是「你是对话记忆压缩器…」，没有「## 角色设定」。
+    # 对它注入「你是活人，不是 AI」或套替换规则，会直接破坏压缩任务
+    # （实测：注入语把"不超过 150 字"顶成了"通常回复 150 字以上"）。
+    # 所以非对话请求一律原样放行，一个字节都不改。
+    is_dialogue = any(
+        m.get("role") == "system"
+        and isinstance(m.get("content"), str)
+        and "角色设定" in m["content"]
+        for m in messages
+    )
+    if not is_dialogue:
+        print("[跳过] 非对话请求（system 里没有「## 角色设定」），原样转发", flush=True)
+        sys_len = 0
+        if messages and messages[0].get("role") == "system":
+            c0 = messages[0].get("content")
+            sys_len = len(c0) if isinstance(c0, str) else 0
+        return {
+            "npc_name": None, "npc_id": None,
+            "rules_hit": 0, "rules_detail": [],
+            "inject_chars": 0, "card_chars": 0, "memory_chars": 0,
+            "system_chars": sys_len, "messages": len(messages),
+            "passthrough": True,
+        }
+
     npc_name = extract_npc_name(messages)
 
     rules_hit, rule_detail = apply_rules_to_messages(messages)
@@ -924,10 +1058,13 @@ def prepare_messages(req_json, with_memory=True, with_card=True):
     rewrite_messages(req_json)
 
     npc_id, npc_label, mem_len = (None, None, 0)
+    mem_slot, guard_status = "", ""
     if with_memory:
-        npc_id, npc_label, mem_len = inject_memory_to_messages(req_json, npc_name)
-        if npc_id:
-            print(f"[记忆] 已注入 {npc_label}({npc_id}) 的长期记忆（{mem_len} 字）", flush=True)
+        r = inject_memory_to_messages(req_json, npc_name, persist=not dry_run)
+        npc_id, npc_label, mem_len = r["npc_id"], r["npc_name"] or npc_name, r["chars"]
+        mem_slot, guard_status = r["slot"], r["guard"]
+        if npc_id and mem_len:
+            print(f"[记忆] 已注入 {npc_label}({npc_id}) 的长期记忆（{mem_len} 字）→ {mem_slot}", flush=True)
     else:
         npc_label = npc_name
 
@@ -942,6 +1079,8 @@ def prepare_messages(req_json, with_memory=True, with_card=True):
         "inject_chars": len(_AI["inject"]),
         "card_chars": card_len,
         "memory_chars": mem_len,
+        "memory_slot": mem_slot,
+        "save_guard": guard_status,
         "system_chars": sys_len,
         "messages": len(final_messages),
     }
@@ -1146,6 +1285,8 @@ def _status():
         "inject_chars": len(_AI["inject"]),
         "rules": len(_AI["rules"]),
         "memory_budget": _AI["memory_budget"],
+        "memory_slot": _AI.get("memory_slot"),
+        "save_guard": _AI.get("save_guard"),
         "config_mtime": _AI["mtime"],
     })
 
@@ -1175,7 +1316,7 @@ def _preview():
     with_card = bool(body.get("with_card", True))
 
     try:
-        stats = prepare_messages(req, with_memory=with_memory, with_card=with_card)
+        stats = prepare_messages(req, with_memory=with_memory, with_card=with_card, dry_run=True)
     except Exception as e:
         import traceback
         return Response(json.dumps({"ok": False, "msg": f"组装失败: {e}",

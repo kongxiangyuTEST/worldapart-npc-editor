@@ -250,15 +250,33 @@ def find_latest_sample(npc_name):
     if not matched:
         return None
 
-    # 取最新
+    # 取最新，但要跳过"非对话"样本。
+    # 游戏自己也有一套记忆系统，它会把"记忆压缩请求"发到同一个接口，
+    # 这种样本的 system 是「你是对话记忆压缩器…」，没有「## 角色设定」。
+    # 只按时间取最新会挑到它，导致"预览效果"跑错对象、命中 0 条规则。
     matched.sort(reverse=True)
-    mtime, fname, path = matched[0]
+    picked = None
+    for mtime, fname, path in matched:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            continue
+        msgs = data.get("messages") or []
+        is_dialogue = any(
+            m.get("role") == "system"
+            and isinstance(m.get("content"), str)
+            and "角色设定" in m["content"]
+            for m in msgs
+        )
+        if is_dialogue:
+            picked = (mtime, fname, data)
+            break
 
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception as e:
-        return {"filename": fname, "error": str(e)}
+    if picked is None:
+        return None
+
+    mtime, fname, data = picked
 
     return {
         "filename": fname,
@@ -494,9 +512,21 @@ class Api:
     def get_memory(self, npc_id, npc_name):
         try:
             data = memory_manager.load_memory(int(npc_id), npc_name)
-            return {"ok": True, "data": data}
+            conflict = memory_manager.get_game_conflict(int(npc_id), npc_name)
+            return {"ok": True, "data": data, "conflict": conflict}
         except Exception as e:
             return {"ok": False, "msg": f"读取记忆失败: {e}"}
+
+    def resolve_save_conflict(self, npc_id, npc_name, action):
+        """处理"疑似换到另一份存档"的冲突。
+
+        accept_new：确实换了档 → 旧记忆整份归档到 memory/_saves/，从空白重来
+        keep_old  ：还是同一档 → 清掉冲突，继续用现在的记忆
+        """
+        try:
+            return memory_manager.resolve_game_conflict(int(npc_id), npc_name, action)
+        except Exception as e:
+            return {"ok": False, "msg": f"处理失败: {e}"}
 
     def save_memory(self, npc_id, npc_name, data):
         try:
