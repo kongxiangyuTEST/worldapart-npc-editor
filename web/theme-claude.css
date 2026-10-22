@@ -1045,3 +1045,20 @@ a { color: var(--cl-coral); }
 }
 
 .frag-hint { padding-top: 2px; }
+
+/* 固定段落顶部块：整块宽度收到和四张数字卡一致（494–1208），
+   文字再对齐到卡片里的数字（494 + 卡片内边距 12 = 506）。
+   之前只对齐了文字，提示条的底色框还是占满整列，看起来比卡片宽一圈。 */
+.frag-inuse {
+  margin-left: 15px;
+  margin-right: 15px;
+  padding: 10px 12px;
+}
+
+.frag-hint,
+#frag-opt-status {
+  margin-left: 15px;
+  margin-right: 15px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
