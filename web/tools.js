@@ -63,7 +63,7 @@ function renderExtractTab() {
          <code>editor_cards\\</code>，跟 Mod 生成的卡片分开存放。已有的「用户名片」会保留。</p>`
     : `<p>从游戏资源里提取全部 NPC 头像。需要提前下载 <strong>AssetStudioModCLI</strong>，
          把它的 <code>.exe</code> 路径填在下面。</p>
-       <p>下载地址：<code>https://github.com/aelurum/AssetStudio/releases</code>（找文件名带 <code>CLI</code> 的压缩包）</p>`;
+       <p>下载地址：<code>https://github.com/aelurum/AssetStudio/releases</code><button class="copy-btn" onclick="copyAssetstudioUrl(this)">复制</button>（找文件名带 <code>CLI</code> 的压缩包）</p>`;
 
   return `
     <div class="extract-switch">
@@ -146,6 +146,37 @@ function bindExtractTab() {
   cliInput.oninput = persist;
   gameInput.oninput = persist;
   keepInput.onchange = persist;
+}
+
+// 通用复制：WebView 有时不给剪贴板权限，退回 execCommand
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e2) {
+      return false;
+    }
+  }
+}
+
+async function copyAssetstudioUrl(btn) {
+  const url = 'https://github.com/aelurum/AssetStudio/releases';
+  const ok = await copyText(url);
+  if (!btn) return;
+  const old = btn.textContent;
+  btn.textContent = ok ? '✓ 已复制' : '✗ 失败';
+  setTimeout(() => { btn.textContent = old; }, 1500);
 }
 
 async function pickCli() {

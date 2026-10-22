@@ -1228,3 +1228,21 @@ a { color: var(--cl-coral); }
   height: auto;
   margin-bottom: 16px;
 }
+
+/* 工具页：链接旁的复制小按钮 */
+.copy-btn {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 9px;
+  font-size: 11px;
+  font-family: inherit;
+  line-height: 1.7;
+  color: var(--cl-muted);
+  background: var(--cl-surface-soft);
+  border: 1px solid var(--cl-hairline);
+  border-radius: 9999px;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+
+.copy-btn:hover { color: var(--cl-ink); background: var(--cl-card); }
