@@ -155,22 +155,28 @@ function renderEditMain() {
       ${presetFieldHTML('兴趣', card.preset['兴趣'] || '')}
     </div>
 
-    <div class="section-title">用户名片（注入为「角色演绎要求」）</div>
-    <div class="field tall">
-      <label>
-        <span>写"怎么演"，别只写形容词：口吻 / 行为逻辑 / 绝不说 / 示例台词</span>
-        <span class="field-actions">
+    <div class="card-block">
+      <div class="card-block-head">
+        <div>
+          <h3 class="card-block-title">用户名片</h3>
+          <p class="card-block-sub">注入为「角色演绎要求」，优先级高于上面的属性描述</p>
+        </div>
+        <div class="card-block-actions">
           <span class="link" onclick="insertCardTemplate()">插入结构模板</span>
-          <span class="link" onclick="revertField('user_card')">撤销此项修改</span>
-          <span class="link" onclick="restoreFieldOriginal('user_card')">恢复此字段原版</span>
+          <span class="link" onclick="revertField('user_card')">撤销修改</span>
+          <span class="link" onclick="restoreFieldOriginal('user_card')">恢复原版</span>
           <span class="link" onclick="showGamePrompt('${escapeHtml(card.name)}')">查看游戏 prompt</span>
-        </span>
-      </label>
-      <div class="field-hint" style="margin:-2px 0 8px;">
-        「示例台词」最关键：写 2~3 句她会说的话，比写 200 字形容词管用。
-        「绝不说」用来压掉 AI 腔（不复述、不总结情绪、不排比）。
+        </div>
       </div>
-      <textarea id="f-user_card" style="min-height:260px;">${escapeHtml(card.user_card)}</textarea>
+
+      <div class="card-block-tips">
+        <span class="card-tip"><b>口吻</b> · 她怎么说话</span>
+        <span class="card-tip"><b>行为逻辑</b> · 当… → 则…</span>
+        <span class="card-tip"><b>绝不说</b> · 压掉 AI 腔</span>
+        <span class="card-tip"><b>示例台词</b> · 2~3 句最有效</span>
+      </div>
+
+      <textarea id="f-user_card" spellcheck="false">${escapeHtml(card.user_card)}</textarea>
     </div>
 
     <div class="section-title">原游戏背景</div>

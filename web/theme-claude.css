@@ -1088,3 +1088,91 @@ a { color: var(--cl-coral); }
   padding-top: 6px;
   padding-bottom: 6px;
 }
+
+/* ==================== 编辑页：用户名片区块 ==================== */
+/* 原来标题、说明、4 个链接全挤在一行，看着脏。
+   改成卡片块：标题行（左标题+副标题 / 右操作）+ 四个要点胶囊 + 输入框 */
+#edit-main .card-block {
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-md);
+  background: var(--cl-canvas);
+  padding: 14px 16px 16px;
+  margin-bottom: 22px;
+}
+
+#edit-main .card-block-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--cl-hairline-soft);
+  margin-bottom: 12px;
+}
+
+#edit-main .card-block-title {
+  margin: 0 0 3px;
+  font-family: var(--cl-serif);
+  font-weight: 400;
+  font-size: 18px;
+  color: var(--cl-ink);
+}
+
+#edit-main .card-block-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--cl-muted);
+}
+
+#edit-main .card-block-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+#edit-main .card-block-actions .link { color: var(--cl-muted); }
+#edit-main .card-block-actions .link:hover { color: var(--cl-ink); }
+
+#edit-main .card-block-tips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+#edit-main .card-tip {
+  font-size: 11px;
+  color: var(--cl-muted);
+  background: var(--cl-surface-soft);
+  border: 1px solid var(--cl-hairline);
+  border-radius: 9999px;
+  padding: 3px 10px;
+}
+
+#edit-main .card-tip b {
+  color: var(--cl-body-strong);
+  font-weight: 500;
+}
+
+#edit-main .card-block textarea {
+  width: 100%;
+  min-height: 280px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-sm);
+  background: #fff;
+  font-family: var(--cl-sans);
+  font-size: 13.5px;
+  line-height: 1.85;
+  color: var(--cl-body);
+  resize: vertical;
+}
+
+#edit-main .card-block textarea:focus {
+  outline: none;
+  border-color: var(--cl-coral);
+  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.15);
+}
