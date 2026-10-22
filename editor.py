@@ -797,6 +797,194 @@ class Api:
         except Exception as e:
             return {"ok": False, "msg": f"保存失败: {e}"}
 
+    def ai_fill_user_card(self, filename, user_hint="", use_samples=True,
+                          use_memory=True):
+        """用 AI 给某张卡的「用户名片」生成内容（只生成，不写盘）。
+
+        资料来源（都可关）：
+          1. 卡片自带：预设资料 + 原游戏背景
+          2. prompt_samples\ 里该 NPC 的最新游戏 prompt（场景 / 关系 / 当前状态）
+          3. memory\ 里该 NPC 的长期记忆（早期梗概 / 最近剧情 / 事实）
+
+        返回 {ok, markdown, sources:[...], chars} 或 {ok:False, msg}
+        """
+        import json
+        import os
+        import re
+
+        card = self.get_card(filename)
+        if not card:
+            return {"ok": False, "msg": "读不到卡片：" + str(filename)}
+
+        name = card.get("name") or ""
+        preset = card.get("preset") or {}
+        background = (card.get("background") or "").strip()
+        existing = (card.get("user_card") or "").strip()
+        sources = ["卡片预设资料 + 原游戏背景"]
+
+        # --- 资料 2：最新的游戏 prompt ---
+        game_ctx = ""
+        if use_samples:
+            try:
+                smp = find_latest_sample(name)
+            except Exception:
+                smp = None
+            if smp and isinstance(smp.get("content"), str):
+                sys_txt = smp["content"]
+                keep = []
+                for sec in ("当前场景", "本轮会话状态", "角色设定", "任务"):
+                    m = re.search(r'^##[ \t]*' + sec + r'[^\n]*\n(.*?)(?=^##[ \t]|\Z)',
+                                  sys_txt, re.S | re.M)
+                    if m:
+                        body = m.group(1).strip()
+                        if body:
+                            keep.append(f"【{sec}】\n{body[:600]}")
+                if keep:
+                    game_ctx = "\n\n".join(keep)[:1800]
+                    sources.append(f"游戏 prompt 样本（{smp.get('filename', '')}）")
+
+        # --- 资料 3：长期记忆 ---
+        mem_ctx = ""
+        if use_memory:
+            try:
+                npc_id = None
+                m = re.search(r'(\d+)', os.path.splitext(str(filename))[0])
+                if m:
+                    npc_id = int(m.group(1))
+                if npc_id:
+                    data = memory_manager.load_memory(npc_id, name)
+                    parts = []
+                    if data.get("time_location"):
+                        parts.append("时间地点：" + str(data["time_location"]))
+                    if data.get("early_gist"):
+                        parts.append("早期梗概：" + str(data["early_gist"])[:300])
+                    if data.get("long_summary"):
+                        parts.append("最近剧情：" + str(data["long_summary"])[:500])
+                    for cat, arr in (data.get("facts") or {}).items():
+                        for f in arr[:6]:
+                            txt = (f or {}).get("text") if isinstance(f, dict) else f
+                            if txt:
+                                parts.append(f"事实[{cat}]：{txt}")
+                    if parts:
+                        mem_ctx = "\n".join(parts)[:1400]
+                        sources.append("长期记忆（剧情摘要与事实）")
+            except Exception as e:
+                print(f"[AI补全] 读记忆失败: {e}", flush=True)
+
+        # --- 上游：优先本地（memory_merge_url） ---
+        upstream, fallback_key = "", ""
+        try:
+            with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as f:
+                acfg = json.load(f)
+            upstream = (acfg.get("memory_merge_url") or "").strip()
+        except Exception:
+            upstream = ""
+        if not upstream:
+            conf_path = os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json")
+            upstream = "http://127.0.0.1:8080/v1/chat/completions"
+            try:
+                with open(conf_path, "r", encoding="utf-8") as f:
+                    ccfg = json.load(f)
+                    base = (ccfg.get("upstream_base_url") or "http://127.0.0.1:8080/").rstrip("/")
+                    upstream = base + "/v1/chat/completions"
+                    fallback_key = ccfg.get("api_key") or ""
+            except Exception:
+                pass
+
+        hint = (user_hint or "").strip()
+        prompt = (
+            "你在给一个游戏 NPC 写「角色演绎要求」。下面给出这个角色的资料，"
+            "请据此写出她怎么说话、怎么反应。\n\n"
+            "【硬性规则】\n"
+            "1. 只依据给定资料推断，不要编造资料里没有的身世、门派、剧情。\n"
+            "2. 不要写露骨内容，只写语气、习惯、反应方式。\n"
+            "3. 示例台词只示范语气，不要复述资料里的剧情原文。\n"
+            "4. 输出严格 JSON，不要 markdown 代码块：\n"
+            '{"tone":"整体语气基调","rhythm":"句长节奏","self_ref":"她怎么自称",'
+            '"address":"她怎么称呼玩家","catch":["口头禅1","口头禅2","口头禅3"],'
+            '"habits":["小动作1","小动作2","小动作3"],'
+            '"rules":["当…→则…","当…→则…","当…→则…","当…→则…","当…→则…"],'
+            '"lines":["示例台词1","示例台词2","示例台词3"]}\n\n'
+            "【参考范例：冷静强硬型的宗主怎么写】\n"
+            '{"tone":"短、硬、命令式，很少用问号","rhythm":"极短句，一句一断，很少超过 20 字",'
+            '"self_ref":"对外「本座」，独处或私下「我」",'
+            '"address":"一律「你」，极少叫名字；正式场合加「阁下」",'
+            '"catch":["不必","就这样","说完了"],'
+            '"habits":["说话时不看人，视线落在别处","动怒前先把袖子拢好","抬手止住对方话头"],'
+            '"rules":["当被质疑 → 不解释，直接给结论或反问",'
+            '"当对方示弱 → 不安慰，改用行动（递东西、挡在前面）",'
+            '"当有外人在场 → 话更少，只下指令",'
+            '"当被说中心事 → 沉默一息，然后换话题",'
+            '"当受伤 → 只说「无碍」，不让人靠近"],'
+            '"lines":["「不必。你且站着。」","「要走，现在就走。」","「……知道了。」（把茶推过去，别过头）"]}\n\n'
+            "【要描写的角色】\n"
+            f"姓名：{name}\n性别：{preset.get('性别', '')}\n年龄：{preset.get('年龄', '')}\n"
+            f"个性：{preset.get('个性', '')}\n兴趣：{preset.get('兴趣', '')}\n"
+            f"\n【原游戏背景】\n{background or '（无）'}\n"
+        )
+        if game_ctx:
+            prompt += f"\n【游戏里的当前状态】\n{game_ctx}\n"
+        if mem_ctx:
+            prompt += f"\n【她与玩家已经经历过的事】\n{mem_ctx}\n"
+        if hint:
+            prompt += f"\n【玩家补充的人设原稿（最高优先级，按它来写）】\n{hint}\n"
+        if existing:
+            prompt += f"\n【现有的名片内容（可参考，不满意就重写）】\n{existing[:600]}\n"
+
+        headers = {"Content-Type": "application/json"}
+        if fallback_key:
+            headers["Authorization"] = "Bearer " + fallback_key
+        body = {
+            "model": "local-model",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.5,
+            "max_tokens": 4000,
+            "thinking": {"type": "disabled"},
+        }
+
+        try:
+            import requests
+            r = requests.post(upstream, json=body, headers=headers, timeout=180)
+        except Exception as e:
+            return {"ok": False, "msg": f"请求失败（{upstream}）: {e}"}
+        if r.status_code != 200:
+            return {"ok": False,
+                    "msg": f"模型报错: HTTP {r.status_code}（{upstream}）"}
+
+        try:
+            raw = r.json()["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            return {"ok": False, "msg": f"响应格式异常: {e}"}
+
+        a, b = raw.find("{"), raw.rfind("}")
+        if a < 0 or b <= a:
+            return {"ok": False, "msg": "模型没有返回 JSON（可能被拒答），前 60 字：" + raw[:60]}
+        try:
+            d = json.loads(raw[a:b + 1])
+        except Exception as e:
+            return {"ok": False, "msg": f"JSON 解析失败: {e}"}
+
+        lines = ["### 口吻",
+                 f"- 基调：{d.get('tone', '')}",
+                 f"- 句长：{d.get('rhythm', '')}",
+                 f"- 自称：{d.get('self_ref', '')}",
+                 f"- 称谓：{d.get('address', '')}",
+                 f"- 口头禅：{' / '.join(d.get('catch') or [])}",
+                 f"- 小动作：{'；'.join(d.get('habits') or [])}",
+                 "", "### 行为逻辑"]
+        lines += [f'- {x}' for x in (d.get('rules') or [])]
+        lines += ["", "### 绝不说",
+                 '- 不用「作为一个…」这类自我指涉',
+                 '- 不复述玩家刚说过的话',
+                 '- 不总结对方的情绪（如「我理解你的感受」）',
+                 '- 不排比抒情，不用感叹号堆情绪',
+                 "", "### 示例台词"]
+        lines += [f'{i}. {x}' for i, x in enumerate(d.get('lines') or [], 1)]
+        markdown = "\n".join(lines)
+
+        return {"ok": True, "markdown": markdown, "sources": sources,
+                "chars": len(markdown), "name": name}
+
     def optimize_fragment(self, title, text):
         """让模型精简一段固定的 system 段落，只给建议、不自动改配置。
 

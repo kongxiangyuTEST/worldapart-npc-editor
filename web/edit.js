@@ -163,6 +163,7 @@ function renderEditMain() {
         </div>
         <div class="card-block-actions">
           <span class="link" onclick="insertCardTemplate()">插入结构模板</span>
+          <span class="link" onclick="openAiFillDialog()">AI 补全名片</span>
           <span class="link" onclick="revertField('user_card')">撤销修改</span>
           <span class="link" onclick="restoreFieldOriginal('user_card')">恢复原版</span>
           <span class="link" onclick="showGamePrompt('${escapeHtml(card.name)}')">查看游戏 prompt</span>
@@ -239,6 +240,103 @@ const CARD_TEMPLATE = `### 口吻
 1. 
 2. 
 3. `;
+
+// ==================== AI 补全名片 ====================
+// 读三类资料：卡片自带（预设+背景）、prompt_samples 里该 NPC 的最新游戏 prompt、
+// memory 里的长期记忆。只生成预览，确认后才填进输入框，不会自动保存。
+function openAiFillDialog() {
+  const root = document.getElementById('ui-modal-root');
+  if (!root) return;
+  const name = (currentCard && currentCard.name) || '';
+
+  const mask = document.createElement('div');
+  mask.className = 'ui-mask';
+  mask.innerHTML = `
+    <div class="ui-dialog ai-fill-dialog">
+      <div class="ai-fill-title">AI 补全名片 · ${escapeHtml(name)}</div>
+      <div class="ai-fill-note">
+        会读取：卡片预设与背景、该角色最近的游戏 prompt（场景/关系/状态）、长期记忆（剧情与事实）。
+        没有聊过的角色就只用卡片自带资料。用本地模型生成，不联网。
+      </div>
+
+      <label class="ai-fill-label">人设原稿（可选，最高优先级）</label>
+      <textarea id="ai-fill-hint" rows="3"
+        placeholder="用你自己的话写一段她该怎么演，例如：外人是板着脸的掌柜，独处时才抱怨累、要人哄。"></textarea>
+
+      <div class="ai-fill-checks">
+        <label><input type="checkbox" id="ai-fill-samples" checked> 读取游戏 prompt 样本</label>
+        <label><input type="checkbox" id="ai-fill-memory" checked> 读取长期记忆</label>
+      </div>
+
+      <div class="ai-fill-status" id="ai-fill-status"></div>
+
+      <div class="ai-fill-result" id="ai-fill-result"></div>
+
+      <div class="ui-dialog-actions">
+        <button class="ui-btn ui-btn-ghost" data-act="cancel">取消</button>
+        <button class="ui-btn ui-btn-primary" data-act="gen">生成</button>
+      </div>
+    </div>`;
+
+  const close = () => { if (mask.parentNode) mask.parentNode.removeChild(mask); };
+  mask.addEventListener('click', e => { if (e.target === mask) close(); });
+  mask.querySelector('[data-act="cancel"]').onclick = close;
+  mask.querySelector('[data-act="gen"]').onclick = () => runAiFill(mask, close);
+  root.appendChild(mask);
+}
+
+async function runAiFill(mask, close) {
+  const status = document.getElementById('ai-fill-status');
+  const result = document.getElementById('ai-fill-result');
+  const genBtn = mask.querySelector('[data-act="gen"]');
+
+  const hint = (document.getElementById('ai-fill-hint') || {}).value || '';
+  const useSamples = (document.getElementById('ai-fill-samples') || {}).checked;
+  const useMemory = (document.getElementById('ai-fill-memory') || {}).checked;
+
+  genBtn.disabled = true;
+  genBtn.textContent = '生成中…';
+  status.textContent = '正在请求模型，长资料要等十几秒…';
+  status.className = 'ai-fill-status running';
+  result.innerHTML = '';
+
+  let res;
+  try {
+    res = await pywebview.api.ai_fill_user_card(
+      currentFilename, hint, useSamples, useMemory);
+  } catch (e) {
+    res = { ok: false, msg: String((e && e.message) || e) };
+  }
+
+  if (!res || !res.ok) {
+    status.textContent = '✗ ' + ((res && res.msg) || '失败');
+    status.className = 'ai-fill-status error';
+    genBtn.disabled = false;
+    genBtn.textContent = '重试';
+    return;
+  }
+
+  status.textContent = `✓ 生成成功 · ${res.chars} 字 · 资料：${(res.sources || []).join('、')}`;
+  status.className = 'ai-fill-status success';
+
+  result.innerHTML = `
+    <label class="ai-fill-label">生成结果（可改，确认后填入名片）</label>
+    <textarea id="ai-fill-md" rows="14" spellcheck="false">${escapeHtml(res.markdown)}</textarea>
+    <div class="ui-dialog-actions" style="margin-top:10px;">
+      <button class="ui-btn ui-btn-ghost" data-act="regen">重新生成</button>
+      <button class="ui-btn ui-btn-primary" data-act="apply">填入名片</button>
+    </div>`;
+
+  result.querySelector('[data-act="regen"]').onclick = () => runAiFill(mask, close);
+  result.querySelector('[data-act="apply"]').onclick = () => {
+    const ta = document.getElementById('f-user_card');
+    if (ta) {
+      ta.value = (document.getElementById('ai-fill-md') || {}).value || '';
+      try { ta.dispatchEvent(new Event('input')); } catch (e) {}
+    }
+    close();
+  };
+}
 
 async function insertCardTemplate() {
   const ta = document.getElementById('f-user_card');

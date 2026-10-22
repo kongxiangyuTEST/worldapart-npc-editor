@@ -1355,3 +1355,77 @@ a { color: var(--cl-coral); }
 }
 
 .mem-todo-actions { margin-left: auto; }
+
+/* ==================== 编辑页：AI 补全名片弹窗 ==================== */
+.ai-fill-dialog { width: min(680px, 100%); }
+
+.ai-fill-title {
+  font-family: var(--cl-serif);
+  font-size: 19px;
+  color: var(--cl-ink);
+  margin-bottom: 8px;
+}
+
+.ai-fill-note {
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--cl-muted);
+  margin-bottom: 14px;
+}
+
+.ai-fill-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cl-body);
+  margin-bottom: 6px;
+}
+
+.ai-fill-dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-sm);
+  background: #fff;
+  color: var(--cl-body);
+  font-family: var(--cl-sans);
+  font-size: 13px;
+  line-height: 1.75;
+  resize: vertical;
+}
+
+.ai-fill-dialog textarea:focus {
+  outline: none;
+  border-color: var(--cl-coral);
+  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.15);
+}
+
+.ai-fill-checks {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 12px 0 4px;
+  font-size: 12px;
+  color: var(--cl-body);
+}
+
+.ai-fill-checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.ai-fill-status {
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 10px 0 0;
+  min-height: 18px;
+}
+
+.ai-fill-status.running { color: var(--cl-muted); }
+.ai-fill-status.success { color: #2f7a45; }
+.ai-fill-status.error { color: var(--cl-error); }
+
+.ai-fill-result { margin-top: 6px; }
