@@ -338,7 +338,7 @@ def build_injection_text(data, budget_chars=2000, hint="", priority=None):
 
     items = []   # [(kind, text, protected)]
 
-    time_loc = str(data.get("time_location") or "未知").strip()
+    time_loc = str(data.get("time_location") or "").strip() or "未记录"
     if time_loc:
         items.append(("time", f"【当前时间地点】{time_loc}", True))
 
@@ -469,12 +469,20 @@ def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key,
 【输出格式】：
 请严格输出 JSON 格式，不要包含任何 markdown 标记：
 {{
+  "time_location": "这段对话发生的地点与时段，例如：焚天宗大殿·夜；判断不出就填空字符串",
   "early_gist": "更新后的早期梗概（≤150字）",
   "long_summary": "更新后的最近剧情（≤650字）",
   "new_facts": [
     {{"category": "赠物/承诺/关系里程碑/重要事件", "text": "事实内容", "importance": 1-5的数字}}
   ]
 }}
+
+★ 压缩纪律（不遵守会让角色开始复读）：
+1. 同一件事只写一遍，不要在不同字段里重复描述。
+2. 不要把对话原文整句照抄进摘要或事实，用你自己的话概括。
+3. new_facts 只写【真正值得记的事实】：赠物/承诺/关系里程碑/重要事件。
+   一次调情、一句闲话不要记；没有就返回空数组。
+4. 已有事实里已经写过的内容，不要重复输出。
 """
     import requests
     import json
@@ -523,15 +531,44 @@ def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key,
             if res_data.get("long_summary"):
                 data["long_summary"] = res_data["long_summary"]
                 
-            # 2. 插入新事实
+            # 1.5 时间地点（以前没人写这个字段，界面里永远是空的）
+            tl = str(res_data.get("time_location") or "").strip()
+            if tl:
+                data["time_location"] = tl[:60]
+
+            # 2. 插入新事实（按文本去重：同一事实只留一条，重要度取高的、老化清零。
+            #    不去重的话，模型每轮重复输出同一条就会越积越多，
+            #    注入时同一件事出现 N 遍 → 角色开始复读）
+            seen = {}
+            for cat in FACT_CATEGORIES:
+                for f in data["facts"].get(cat, []):
+                    key = re.sub(r"\s+", "", str(f.get("text", "")))
+                    if key:
+                        seen[key] = f
+
+            added = 0
             for fact in res_data.get("new_facts", []):
                 cat = fact.get("category", "重要事件")
                 if cat not in FACT_CATEGORIES: cat = "重要事件"
-                data["facts"][cat].append({
-                    "text": fact.get("text", ""),
-                    "importance": int(fact.get("importance", 3)),
-                    "age_count": 0
-                })
+                text = str(fact.get("text") or "").strip()
+                if not text:
+                    continue
+                try:
+                    imp = int(fact.get("importance", 3))
+                except (TypeError, ValueError):
+                    imp = 3
+                imp = min(5, max(1, imp))
+
+                key = re.sub(r"\s+", "", text)
+                if key in seen:
+                    old = seen[key]
+                    old["importance"] = min(5, max(int(old.get("importance", 3) or 3), imp))
+                    old["age_count"] = 0
+                    continue
+
+                data["facts"][cat].append({"text": text, "importance": imp, "age_count": 0})
+                seen[key] = data["facts"][cat][-1]
+                added += 1
                 
             data.pop("merge_backlog", None)
             data.pop("merge_fail_count", None)

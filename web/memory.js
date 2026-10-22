@@ -275,7 +275,9 @@ async function loadMemoryDetail(npcId, npcName) {
         <div style="display:grid; grid-template-columns: 1fr; gap: 20px;">
             <div style="background:var(--cl-surface-soft); border:1px solid var(--cl-hairline); padding:15px; border-radius:8px;">
                 <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--cl-muted);">📍 当前时间地点</label>
-                <input type="text" id="m-tl" value="${escapeHtml(data.time_location || '')}" style="width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--cl-hairline); border-radius:6px; outline:none;">
+                <input type="text" id="m-tl" value="${escapeHtml(data.time_location || '')}" placeholder="例如：焚天宗大殿 · 夜"
+                       style="width:100%; box-sizing:border-box; padding:10px; border:1px solid var(--cl-hairline); border-radius:6px; outline:none;">
+                <div class="field-hint" style="margin-top:6px;">每次「AI 总结」时会从对话里自动判断并填写，也可以自己改。</div>
             </div>
 
             <div style="display:flex; gap:20px; flex-wrap:wrap;">

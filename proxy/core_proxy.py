@@ -419,24 +419,16 @@ def inject_user_card(req_json, npc_name=None):
 
         # 构造注入文本。
         # 标题写成"要求"而不是"补充"：模型对"补充"会当成可有可无的附注，
-        # 对"要求"才会当约束执行。放在「角色设定」之后而不是「说话习惯」之后，
-        # 位置更靠前、权重更高。
-        inject_text = f"\n\n## 角色演绎要求（优先于上面的属性描述）\n{user_card}\n"
-
-        # 优先插在「## 角色设定」这一节之后；没有就退回角色背景 / 说话习惯
-        insert_at = None
-        for anchor in ("## 角色设定", "## 角色背景", "## 说话习惯"):
-            idx = content.find(anchor)
-            if idx < 0:
-                continue
-            nxt = content.find("\n## ", idx + len(anchor))
-            insert_at = nxt if nxt >= 0 else len(content)
-            break
-
-        if insert_at is None:
-            new_content = content + inject_text
-        else:
-            new_content = content[:insert_at] + inject_text + content[insert_at:]
+        # 对"要求"才会当约束执行。
+        # 位置放在 system 末尾：游戏的「任务 / 输出格式 / 本轮状态」都在后面，
+        # 插在「角色设定」旁边会被后面这些指令盖住；放末尾既离生成位置最近，
+        # 也不影响前面的前缀缓存（前面一字不改）。
+        inject_text = (
+            "\n\n## 角色演绎要求（优先于以上所有属性与场景描述）\n"
+            + user_card
+            + "\n\n以上每条都是硬性要求，回复时逐条遵守，不要用套话敷衍。\n"
+        )
+        new_content = content + inject_text
 
         m["content"] = new_content
         print(f"[名片] 已注入 {npc_name} 的用户名片（{len(user_card)} 字符）", flush=True)
@@ -1196,17 +1188,8 @@ def prepare_messages(req_json, with_memory=True, with_card=True, dry_run=False):
 
     rules_hit, rule_detail = apply_rules_to_messages(messages)
 
-    card_len = 0
-    if with_card and _AI["inject_user_card"]:
-        try:
-            card_len = inject_user_card(req_json, npc_name)
-        except Exception as e:
-            import traceback
-            print(f"[名片] 注入失败: {e}", flush=True)
-            print(traceback.format_exc(), flush=True)
-    elif not _AI["inject_user_card"]:
-        print("[名片] 用户名片注入已关闭，跳过", flush=True)
-
+    # 先注入长期记忆，再注入角色卡：两块都追加在 system 末尾，
+    # 名片放最后，离生成位置最近，权重最高（游戏的任务/输出格式盖不住它）
     rewrite_messages(req_json)
 
     npc_id, npc_label, mem_len = (None, None, 0)
@@ -1219,6 +1202,17 @@ def prepare_messages(req_json, with_memory=True, with_card=True, dry_run=False):
             print(f"[记忆] 已注入 {npc_label}({npc_id}) 的长期记忆（{mem_len} 字）→ {mem_slot}", flush=True)
     else:
         npc_label = npc_name
+
+    card_len = 0
+    if with_card and _AI["inject_user_card"]:
+        try:
+            card_len = inject_user_card(req_json, npc_name)
+        except Exception as e:
+            import traceback
+            print(f"[名片] 注入失败: {e}", flush=True)
+            print(traceback.format_exc(), flush=True)
+    elif not _AI["inject_user_card"]:
+        print("[名片] 用户名片注入已关闭，跳过", flush=True)
 
     final_messages = req_json.get("messages") or []
     sys_len = len(final_messages[0]["content"]) if final_messages and final_messages[0].get("role") == "system" else 0

@@ -601,8 +601,12 @@ class Api:
             upstream = upstream_base + "/v1/chat/completions"
             
         data = memory_manager.load_memory(int(npc_id), npc_name)
+        # 上次总结失败退回的对话也要一起合并，否则那批内容永远补不回来
+        backlog = str(data.get("merge_backlog") or "").strip()
         logs = "\n\n".join(data.get("recent_logs", []))
-        
+        if backlog:
+            logs = (logs + "\n\n" + backlog).strip()
+
         # 给点测试数据，免得你还没聊过，没东西总结
         if not logs:
             logs = "玩家：你好。\nAI：你好。"
@@ -619,12 +623,19 @@ class Api:
 【输出格式】：
 请严格输出 JSON 格式，不要包含任何 markdown 标记：
 {{
+  "time_location": "这段对话发生的地点与时段，例如：焚天宗大殿·夜；判断不出就填空字符串",
   "early_gist": "更新后的早期梗概（≤150字）",
   "long_summary": "更新后的最近剧情（≤650字）",
   "new_facts": [
     {{"category": "赠物/承诺/关系里程碑/重要事件", "text": "事实内容", "importance": 1-5的数字}}
   ]
 }}
+
+★ 压缩纪律（不遵守会让角色开始复读）：
+1. 同一件事只写一遍，不要在不同字段里重复描述。
+2. 不要把对话原文整句照抄进摘要或事实，用你自己的话概括。
+3. new_facts 只写真正值得记的事实（赠物/承诺/关系里程碑/重要事件），一次调情一句闲话不要记。
+4. 已有事实里写过的内容不要重复输出。
 """
         headers = {"Content-Type": "application/json"}
         if fallback_key: headers["Authorization"] = "Bearer " + fallback_key
@@ -633,7 +644,8 @@ class Api:
             "model": "local-model",
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.3,
-            "max_tokens": 1000
+            "max_tokens": 4000,
+            "thinking": {"type": "disabled"},
         }
         
         print(f"[记忆总结] 正在请求 {upstream} ...", flush=True)
@@ -645,30 +657,58 @@ class Api:
                 return {"ok": False, "msg": f"模型报错: HTTP {res.status_code}"}
                 
             text = res.json()["choices"][0]["message"]["content"]
-            # 暴力清理各种可能的大模型废话
+            # 暴力清理各种可能的大模型废话；再退一步：只取第一个 { 到最后一个 }
             text = text.strip()
             if text.startswith("```json"): text = text[7:]
             if text.startswith("```"): text = text[3:]
             if text.endswith("```"): text = text[:-3]
             text = text.strip()
-            
+            _a, _b = text.find("{"), text.rfind("}")
+            if _a >= 0 and _b > _a:
+                text = text[_a:_b + 1]
+
             res_data = json.loads(text)
-            
+
             if res_data.get("early_gist"):
                 data["early_gist"] = res_data["early_gist"]
             if res_data.get("long_summary"):
                 data["long_summary"] = res_data["long_summary"]
-                
+            tl = str(res_data.get("time_location") or "").strip()
+            if tl:
+                data["time_location"] = tl[:60]
+
+            # 事实按文本去重：同一事实只留一条，重要度取高的
+            import re as _re
+            seen = {}
+            for cat in memory_manager.FACT_CATEGORIES:
+                for f in data["facts"].get(cat, []):
+                    key = _re.sub(r"\s+", "", str(f.get("text", "")))
+                    if key:
+                        seen[key] = f
+
             for fact in res_data.get("new_facts", []):
                 cat = fact.get("category", "重要事件")
                 if cat not in memory_manager.FACT_CATEGORIES: cat = "重要事件"
-                data["facts"][cat].append({
-                    "text": fact.get("text", ""),
-                    "importance": int(fact.get("importance", 3)),
-                    "age_count": 0
-                })
-                
-            data["recent_logs"] = [] # 成功合并后清空
+                ftext = str(fact.get("text") or "").strip()
+                if not ftext:
+                    continue
+                try:
+                    imp = min(5, max(1, int(fact.get("importance", 3))))
+                except (TypeError, ValueError):
+                    imp = 3
+                key = _re.sub(r"\s+", "", ftext)
+                if key in seen:
+                    old = seen[key]
+                    old["importance"] = min(5, max(int(old.get("importance", 3) or 3), imp))
+                    old["age_count"] = 0
+                    continue
+                data["facts"][cat].append({"text": ftext, "importance": imp, "age_count": 0})
+                seen[key] = data["facts"][cat][-1]
+
+            data["recent_logs"] = []      # 成功合并后清空
+            data.pop("merge_backlog", None)
+            data.pop("merge_fail_count", None)
+            data.pop("merge_last_error", None)
             memory_manager.save_memory(int(npc_id), npc_name, data)
             return {"ok": True, "msg": "AI总结成功！"}
             
