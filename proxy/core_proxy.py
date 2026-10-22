@@ -1007,11 +1007,9 @@ def update_memory_after_chat(npc_id, npc_name, user_text, ai_text):
 
 
 def _update_memory_locked(npc_id, npc_name, user_text, ai_text):
-
-    print(f"[记忆调试] 当前实际写入路径: {memory_manager.MEMORY_DIR}", flush=True)
-    
-    """对话后更新记忆（老化 + 12轮自动合并）"""
-    if not npc_id or not npc_name: return
+    """对话后更新记忆（老化 + 12 轮自动合并）"""
+    if not npc_id or not npc_name:
+        return
     data = memory_manager.load_memory(npc_id, npc_name)
     
     # 1. 防降级：如果本轮用户提到了某事实，清零老化
