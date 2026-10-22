@@ -921,7 +921,7 @@ a { color: var(--cl-coral); }
 .frag-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;      /* 标题块（两行）和按钮组上下居中对齐 */
   gap: 12px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--cl-hairline);
