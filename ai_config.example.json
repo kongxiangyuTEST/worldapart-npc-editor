@@ -53,5 +53,6 @@
   ],
   "memory_slot": "past_events",
   "save_guard": true,
-  "memory_budget": 2000
+  "memory_budget": 2000,
+  "memory_merge_url": ""
 }

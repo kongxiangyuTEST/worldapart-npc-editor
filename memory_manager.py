@@ -419,6 +419,36 @@ def build_injection_text(data, budget_chars=2000, hint="", priority=None):
         text = text[:budget_chars] + "\n（记忆过长，已截断）"
     return text
 
+# 第三方 API 会因为内容审核拒答、只给一段道歉、或干脆返回非 JSON。
+# 这种情况下绝不能把"抱歉我无法协助"写进记忆，更不能把原始对话丢掉。
+REFUSAL_HINTS = ("抱歉", "无法协助", "无法提供", "不能协助", "不能提供",
+                 "i can't", "i cannot", "i'm sorry", "as an ai")
+
+
+def _looks_refusal(text):
+    """粗判模型是不是在拒答（返回里没有任何 JSON 结构时才判）。"""
+    if "{" in text:
+        return False
+    low = text.lower()
+    return any(h in low for h in REFUSAL_HINTS)
+
+
+def _restore_merge_backlog(npc_id, npc_name, logs, reason):
+    """总结失败：把这批对话原样塞回待合并队列，下一轮继续试，不丢数据。"""
+    with LOCK:
+        try:
+            data = load_memory(npc_id, npc_name)
+            old = str(data.get("merge_backlog") or "").strip()
+            data["merge_backlog"] = (logs.strip() + ("\n\n" + old if old else ""))
+            data["merge_fail_count"] = int(data.get("merge_fail_count") or 0) + 1
+            data["merge_last_error"] = reason
+            save_memory(npc_id, npc_name, data)
+            print(f"[记忆合并] 已把 {len(logs)} 字对话退回待合并队列（累计失败 "
+                  f"{data['merge_fail_count']} 次），下轮重试", flush=True)
+        except Exception as e:
+            print(f"[记忆合并] 退回失败，这批对话可能丢失: {e}", flush=True)
+
+
 def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key):
     """每12轮触发：让 AI 总结剧情并提取事实"""
     if not recent_logs: return
@@ -466,7 +496,7 @@ def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key):
         
         if res.status_code == 200:
             text = res.json()["choices"][0]["message"]["content"]
-            print(f"[记忆合并] 模型的原始回复(前50字): {text[:50]}...", flush=True)
+            print(f"[记忆合并] 模型回复 {len(text)} 字，前 20 字: {text[:20]!r}", flush=True)
             
             # 清理多余标记
             text = text.strip("`").replace("json\n", "").replace("json", "")
@@ -474,7 +504,9 @@ def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key):
             try:
                 res_data = json.loads(text)
             except json.JSONDecodeError as e:
-                print(f"[记忆合并] JSON解析失败！模型返回的不是合法的JSON格式。错误: {e}", flush=True)
+                why = "拒答/非JSON" if _looks_refusal(text) else "JSON解析失败"
+                print(f"[记忆合并] {why}：{e}；模型回复前 40 字: {text[:40]!r}", flush=True)
+                _restore_merge_backlog(npc_id, npc_name, recent_logs, f"{why}: {e}")
                 return
             
             # 1. 更新梗概
@@ -493,12 +525,17 @@ def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key):
                     "age_count": 0
                 })
                 
+            data.pop("merge_backlog", None)
+            data.pop("merge_fail_count", None)
+            data.pop("merge_last_error", None)
             save_memory(npc_id, npc_name, data)
             print(f"[记忆合并] ✅ {npc_name} 的剧情与事实已成功更新保存！\n", flush=True)
         else:
-            print(f"[记忆合并] ❌ 请求失败，报错信息: {res.text}\n", flush=True)
+            print(f"[记忆合并] ❌ 请求失败（HTTP {res.status_code}），报错信息: {res.text[:200]}\n", flush=True)
+            _restore_merge_backlog(npc_id, npc_name, recent_logs, f"HTTP {res.status_code}")
     except Exception as e:
-        print(f"[记忆合并] ❌ 发生致命异常: {e}\n", flush=True)
+        print(f"[记忆合并] ❌ 发生异常: {e}\n", flush=True)
+        _restore_merge_backlog(npc_id, npc_name, recent_logs, str(e))
 
 def clear_memory(npc_id, npc_name):
     """清空某个角色的所有长期记忆"""

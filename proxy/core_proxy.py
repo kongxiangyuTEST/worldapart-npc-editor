@@ -97,6 +97,7 @@ _AI = {
     "memory_hint": True,     # 低重要度事实是否只在玩家发言命中时注入
     "memory_slot": "past_events",  # past_events=写进游戏自带的「## 过往要事」；append=贴 system 末尾
     "save_guard": True,      # 换存档保护：游戏侧记忆完全对不上时暂停注入
+    "memory_merge_url": "",  # 记忆总结单独走哪个地址（空=用上游；填本地可避开 API 审核）
 }
 
 
@@ -139,6 +140,7 @@ def load_ai_config(force=False):
     slot = str(conf.get("memory_slot", "past_events")).strip().lower()
     _AI["memory_slot"] = slot if slot in ("past_events", "append") else "past_events"
     _AI["save_guard"] = bool(conf.get("save_guard", True))
+    _AI["memory_merge_url"] = str(conf.get("memory_merge_url") or "").strip()
 
     _AI["mtime"] = mtime
     print(f"[配置] ai_config.json 已加载：注入 {len(_AI['inject'])} 字，"
@@ -1023,19 +1025,23 @@ def _update_memory_locked(npc_id, npc_name, user_text, ai_text):
     data["recent_logs"].append(f"玩家: {user_text}\nAI: {ai_text}")
     
     if len(data["recent_logs"]) >= 12:
-        logs_str = "\n\n".join(data["recent_logs"])
-        # 开个线程去请求AI，不卡游戏运行
+        # 上次总结失败退回的对话也要一起合并，否则永远补不上
+        backlog = str(data.get("merge_backlog") or "").strip()
+        logs_str = ("\n\n".join(data["recent_logs"]) + ("\n\n" + backlog if backlog else ""))
+
         import threading
-        # 上游地址与 Key 统一以 core_proxy_config.json 为准（启动时已读入）
-        upstream_url = UPSTREAM_BASE + "/v1/chat/completions"
+        # 总结默认走上游；配置了 memory_merge_url 就单独走那个地址
+        # （接第三方 API 时可以把总结固定到本地模型，避免审核影响记忆质量）
+        upstream_url = _AI.get("memory_merge_url") or (UPSTREAM_BASE + "/v1/chat/completions")
         f_key = FALLBACK_KEY
 
         threading.Thread(
-            target=memory_manager.do_auto_merge, 
+            target=memory_manager.do_auto_merge,
             args=(npc_id, npc_name, logs_str, upstream_url, f_key)
         ).start()
-        data["recent_logs"] = [] # 清空队列
-        print(f"[记忆] {npc_name} 已满12轮，正在后台自动合并剧情...", flush=True)
+        data["recent_logs"] = []   # 清空队列；失败时 do_auto_merge 会退回 merge_backlog
+        data.pop("merge_backlog", None)
+        print(f"[记忆] {npc_name} 已满12轮，正在后台合并剧情（{len(logs_str)} 字）...", flush=True)
         
     # 4. 保存回文件
     memory_manager.save_memory(npc_id, npc_name, data)
@@ -1333,6 +1339,7 @@ def _status():
         "memory_budget": _AI["memory_budget"],
         "memory_slot": _AI.get("memory_slot"),
         "save_guard": _AI.get("save_guard"),
+        "memory_merge_url": _AI.get("memory_merge_url") or "(跟随上游)",
         "config_mtime": _AI["mtime"],
     })
 
