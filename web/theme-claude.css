@@ -1522,3 +1522,13 @@ a { color: var(--cl-coral); }
   border-color: var(--cl-hairline);
   color: var(--cl-error);
 }
+
+/* 名片头部：去掉分隔细线；操作组推到最右，和卡片右边缘对齐 */
+#edit-main .card-block-head {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+#edit-main .card-block-actions {
+  margin-left: auto;
+}
