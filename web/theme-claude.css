@@ -1062,3 +1062,21 @@ a { color: var(--cl-coral); }
   padding-left: 12px;
   padding-right: 12px;
 }
+
+/* 固定段落：标题行、分区标签、原文框也统一到 494–1208 这条线，
+   和提示条 / 数字卡左右对齐（标题文字落在 494，按钮右边缘落在 1208） */
+.frag-head {
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+/* 分区标签已有 margin 15（外框 494–1208），再加 padding 会双重缩进，这里归零 */
+.frag-section-label {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+#prompts-content .prompt-detail-content {
+  margin-left: 15px;
+  margin-right: 15px;
+}
