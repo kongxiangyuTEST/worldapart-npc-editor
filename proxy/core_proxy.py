@@ -417,23 +417,26 @@ def inject_user_card(req_json, npc_name=None):
         if "角色设定" not in content:
             continue
 
-        # 构造注入文本
-        inject_text = f"\n\n## 用户补充\n{user_card}\n"
+        # 构造注入文本。
+        # 标题写成"要求"而不是"补充"：模型对"补充"会当成可有可无的附注，
+        # 对"要求"才会当约束执行。放在「角色设定」之后而不是「说话习惯」之后，
+        # 位置更靠前、权重更高。
+        inject_text = f"\n\n## 角色演绎要求（优先于上面的属性描述）\n{user_card}\n"
 
-        # 找到"## 角色背景"或"## 说话习惯"的结尾，在"## 当前场景"之前插入
-        # 简单做法：把"## 用户补充"插到 "## 说话习惯" 那段的末尾
-        # 找"## 说话习惯"的下一段"## " 或消息结尾
-        idx = content.find("## 说话习惯")
-        if idx >= 0:
-            # 找"## 说话习惯"之后的下一个"## "（下一个段落开始）
-            next_idx = content.find("## ", idx + 5)
-            if next_idx >= 0:
-                new_content = content[:next_idx] + inject_text + content[next_idx:]
-            else:
-                new_content = content + inject_text
-        else:
-            # 没有"说话习惯"，就追加到末尾
+        # 优先插在「## 角色设定」这一节之后；没有就退回角色背景 / 说话习惯
+        insert_at = None
+        for anchor in ("## 角色设定", "## 角色背景", "## 说话习惯"):
+            idx = content.find(anchor)
+            if idx < 0:
+                continue
+            nxt = content.find("\n## ", idx + len(anchor))
+            insert_at = nxt if nxt >= 0 else len(content)
+            break
+
+        if insert_at is None:
             new_content = content + inject_text
+        else:
+            new_content = content[:insert_at] + inject_text + content[insert_at:]
 
         m["content"] = new_content
         print(f"[名片] 已注入 {npc_name} 的用户名片（{len(user_card)} 字符）", flush=True)

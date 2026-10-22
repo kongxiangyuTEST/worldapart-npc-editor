@@ -155,17 +155,22 @@ function renderEditMain() {
       ${presetFieldHTML('兴趣', card.preset['兴趣'] || '')}
     </div>
 
-    <div class="section-title">用户名片（优先读取）</div>
+    <div class="section-title">用户名片（注入为「角色演绎要求」）</div>
     <div class="field tall">
       <label>
-        <span>在此填写说话习惯、身世、目标、与玩家的约定等</span>
+        <span>写"怎么演"，别只写形容词：口吻 / 行为逻辑 / 绝不说 / 示例台词</span>
         <span class="field-actions">
+          <span class="link" onclick="insertCardTemplate()">插入结构模板</span>
           <span class="link" onclick="revertField('user_card')">撤销此项修改</span>
           <span class="link" onclick="restoreFieldOriginal('user_card')">恢复此字段原版</span>
           <span class="link" onclick="showGamePrompt('${escapeHtml(card.name)}')">查看游戏 prompt</span>
         </span>
       </label>
-      <textarea id="f-user_card">${escapeHtml(card.user_card)}</textarea>
+      <div class="field-hint" style="margin:-2px 0 8px;">
+        「示例台词」最关键：写 2~3 句她会说的话，比写 200 字形容词管用。
+        「绝不说」用来压掉 AI 腔（不复述、不总结情绪、不排比）。
+      </div>
+      <textarea id="f-user_card" style="min-height:260px;">${escapeHtml(card.user_card)}</textarea>
     </div>
 
     <div class="section-title">原游戏背景</div>
@@ -205,6 +210,40 @@ function renderEditMain() {
   };
 
   setFootLeft('就绪');
+}
+
+// 用户名片的结构模板：给"怎么演"提供骨架，空段不会被注入（注入时按整段文本）
+const CARD_TEMPLATE = `### 口吻
+- 自称：
+- 句长：
+- 称谓：
+- 口头禅：
+- 小动作：
+
+### 行为逻辑
+- 当… → 则…
+
+### 绝不说
+- 不用「作为一个…」这类自我指涉
+- 不复述玩家刚说过的话
+- 不总结对方的情绪（如「我理解你的感受」）
+- 不排比抒情，不用感叹号堆情绪
+
+### 示例台词
+1. 
+2. 
+3. `;
+
+function insertCardTemplate() {
+  const ta = document.getElementById('f-user_card');
+  if (!ta) return;
+  const cur = (ta.value || '').trim();
+  if (cur && !confirm('当前名片已有内容，模板会追加到末尾。继续？')) return;
+  ta.value = (cur ? cur + '\n\n' : '') + CARD_TEMPLATE;
+  try {
+    ta.dispatchEvent(new Event('input'));
+  } catch (e) { /* 假 DOM 没有 Event，忽略 */ }
+  ta.focus();
 }
 
 function presetFieldHTML(key, value) {
