@@ -200,7 +200,7 @@ def build_card_file(card):
 # ==================== 备份 ====================
 
 def ensure_original_backup(filename):
-    """确保 originals\ 里有这张卡片的原始备份"""
+    r"""确保 originals\ 里有这张卡片的原始备份"""
     src = os.path.join(CARDS_DIR, filename)
     dst = os.path.join(ORIGINALS_DIR, filename)
     if not os.path.exists(dst) and os.path.isfile(src):
@@ -212,7 +212,7 @@ def ensure_original_backup(filename):
 
 
 def ensure_last_saved_backup(filename):
-    """确保 last_saved\ 里有这张卡片的备份（首次直接复制当前文件）"""
+    r"""确保 last_saved\ 里有这张卡片的备份（首次直接复制当前文件）"""
     src = os.path.join(CARDS_DIR, filename)
     dst = os.path.join(LAST_SAVED_DIR, filename)
     if not os.path.exists(dst) and os.path.isfile(src):
@@ -225,7 +225,7 @@ def ensure_last_saved_backup(filename):
 # ==================== 样本查询 ====================
 
 def find_latest_sample(npc_name):
-    """
+    r"""
     在 prompt_samples\ 里找"含该 NPC 名字"的最新样本。
     返回：{"filename": ..., "mtime": ..., "content": ...} 或 None
     """
@@ -395,7 +395,7 @@ def delete_card(filename):
 
 
 def get_original_card(filename):
-    """读取 originals\ 里的原始卡片"""
+    r"""读取 originals\ 里的原始卡片"""
     path = os.path.join(ORIGINALS_DIR, filename)
     if not os.path.isfile(path):
         return None
@@ -403,7 +403,7 @@ def get_original_card(filename):
 
 
 def get_last_saved_card(filename):
-    """读取 last_saved\ 里的卡片"""
+    r"""读取 last_saved\ 里的卡片"""
     path = os.path.join(LAST_SAVED_DIR, filename)
     if not os.path.isfile(path):
         return None

@@ -110,6 +110,47 @@ def index_by_id(rows):
     return out
 
 
+# 「用户名片」是唯一由人写、又要注入给游戏的内容。
+# 导出角色卡时游戏字段全部重建，但名片必须原样搬过来，
+# 否则每次导出都会把用户写的东西清空（历史问题，踩过一次就找不回来）。
+CARD_USER_SECTION = re.compile(
+    r'(^##[ \t]*用户名片[^\n]*\n)(.*?)(?=^##[ \t]|\Z)', re.S | re.M
+)
+
+
+def _user_card_body(text):
+    """取一张卡片里「用户名片」的正文（去掉 HTML 注释），空则返回空串。"""
+    m = CARD_USER_SECTION.search(text)
+    if not m:
+        return ""
+    return re.sub(r'<!--.*?-->', '', m.group(2), flags=re.S).strip()
+
+
+def preserve_user_card(target, new_content):
+    """把 target 里已有的用户名片搬进新生成的内容；没有就原样返回。"""
+    try:
+        if not target.is_file():
+            return new_content
+        old_text = target.read_text(encoding="utf-8")
+    except Exception:
+        return new_content
+
+    mo = CARD_USER_SECTION.search(old_text)
+    if not mo:
+        return new_content
+    raw_body = mo.group(2)
+    # 只有注释、没有实际内容 → 认为没写过，保持新模板
+    if not re.sub(r'<!--.*?-->', '', raw_body, flags=re.S).strip():
+        return new_content
+
+    mn = CARD_USER_SECTION.search(new_content)
+    if not mn:
+        return new_content
+    # 连注释一起搬，保留"在此填写…"的提示
+    body = raw_body.strip()
+    return new_content[:mn.start(2)] + "\n" + body + "\n\n" + new_content[mn.end(2):]
+
+
 def parse_cards(src, out_dir, log=None):
     """供外部调用。src: Luban 导出目录，out_dir: 输出目录"""
     def _log(msg):
@@ -146,7 +187,9 @@ def parse_cards(src, out_dir, log=None):
             npc_id = str(npc.get("id", ""))
             npc_name = L10n(npc.get("npcName", {}))
             fname = f"{npc_id}-{safe_name(npc_name)}.md"
-            (out_dir / fname).write_text(content, encoding="utf-8")
+            target = out_dir / fname
+            content = preserve_user_card(target, content)
+            target.write_text(content, encoding="utf-8")
             ok += 1
         except Exception as e:
             err += 1

@@ -707,7 +707,7 @@ def diff_editor_cards(old_dir, new_dir, project_dir=None, log=None):
 
 
 def backup_editor_cards(project_dir, log=None):
-    """把 editor_cards\ 备份到 editor_cards_backup\{时间戳}\"""
+    """把 editor_cards\\ 备份到 editor_cards_backup\\{时间戳}\\"""
     from pathlib import Path
     from datetime import datetime
     import shutil

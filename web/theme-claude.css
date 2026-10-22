@@ -904,3 +904,15 @@ a { color: var(--cl-coral); }
   background: #fff;
   cursor: default;
 }
+
+/* 提示词预览页：未命中提示 */
+.preview-warn {
+  background: rgba(212, 160, 23, 0.08);
+  border: 1px solid rgba(212, 160, 23, 0.35);
+  color: var(--cl-body);
+  padding: 9px 12px;
+  border-radius: var(--cl-r-sm);
+  font-size: 12px;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}

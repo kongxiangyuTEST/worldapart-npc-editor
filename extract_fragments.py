@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
+r"""
 extract_fragments.py
 从 prompt_samples\ 里提取"固定段落"，保存到 prompt_fragments.json
 """

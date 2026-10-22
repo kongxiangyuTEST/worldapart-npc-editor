@@ -178,29 +178,48 @@ async function runPreview() {
   renderPreviewResult(res);
 }
 
+// 哪些规则这次没命中（原文可能已随游戏更新变了）
+function missedRules(stats) {
+  const rules = (aiConfig && aiConfig.rules) || [];
+  const hits = (stats && stats.rules_detail) || [];
+  const out = [];
+  rules.forEach((r, i) => {
+    const key = String(r.old || '').trim().slice(0, 30).replace(/\n/g, ' ');
+    if (!key) return;
+    const matched = hits.some(h => String(h).trim() === key || String(h).trim().startsWith(key.slice(0, 12)));
+    if (!matched) out.push(i + 1);
+  });
+  return out;
+}
+
 function renderPreviewResult(res) {
   const box = document.getElementById('preview-result');
   if (!box) return;
   const s = res.stats || {};
   const roleText = (res.roles || []).join(' → ');
 
-  const warn = (s.rules_hit || 0) === 0
-    ? '<div style="background:#fff8e6;border:1px solid #f0d38a;color:#8a6d1f;padding:8px 10px;border-radius:4px;font-size:12px;margin-bottom:8px;">'
-      + '⚠ 没有任何替换规则命中。可能是游戏更新后原文变了，打开"系统prompt替换"对照一下。</div>'
-    : '';
+  const missed = missedRules(s);
+  let warn = '';
+  if ((s.rules_hit || 0) === 0) {
+    warn = '<div class="preview-warn">⚠ 没有任何替换规则命中。可能是游戏更新后原文变了，'
+      + '打开"系统prompt替换"对照一下。</div>';
+  } else if (missed.length) {
+    warn = '<div class="preview-warn">第 ' + missed.join('、') + ' 条没命中：'
+      + '游戏里的原文可能已经改了，这几条不会生效。</div>';
+  }
 
   box.innerHTML = `
     ${warn}
     <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--cl-body);margin-bottom:8px;align-items:center;">
       <span>样本：<code>${escapeHtml(res.sample || '')}</code></span>
-      <span>规则命中：<b>${s.rules_hit || 0}</b> 条</span>
+      <span>规则命中：<b>${s.rules_hit || 0}</b> / ${(aiConfig && aiConfig.rules || []).length} 条</span>
       <span>注入语：<b>${s.inject_chars || 0}</b> 字</span>
       <span>名片：<b>${s.card_chars || 0}</b> 字</span>
       <span>记忆：<b>${s.memory_chars || 0}</b> 字</span>
       <span>system 总长：<b>${s.system_chars || 0}</b> 字</span>
     </div>
     <div style="font-size:12px;color:var(--cl-muted);margin-bottom:6px;">角色顺序：${escapeHtml(roleText)}</div>
-    <pre style="max-height:420px;overflow:auto;background:#fafafa;border:1px solid #eee;border-radius:6px;padding:12px;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${escapeHtml(res.system || '')}</pre>
+    <pre style="max-height:420px;overflow:auto;background:var(--cl-canvas);border:1px solid var(--cl-hairline);border-radius:var(--cl-r-md);padding:12px;font-family:var(--cl-mono);font-size:12px;line-height:1.7;color:var(--cl-body);white-space:pre-wrap;word-break:break-word;">${escapeHtml(res.system || '')}</pre>
   `;
 }
 

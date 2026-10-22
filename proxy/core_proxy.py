@@ -13,6 +13,7 @@ sys.stderr.reconfigure(line_buffering=True)
 import json
 import random
 import re
+import difflib
 import time
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -584,6 +585,47 @@ def normalize_response(raw_body):
     return clean_tail(temp), extra_fields
 
 
+# 逐行模糊匹配：游戏改版时常常只改几个字、或把句子拆成列表项，
+# 精确匹配就静默失效（历史 bug：12 条规则全部不生效）。
+# 这里在"精确 / 去空白 / CRLF"三级兜底之后再加一级：
+# 找相似度最高的一行，够像就整行替换（保留行首的 - 、1. 之类符号）。
+FUZZY_LINE_RATIO = 0.70
+FUZZY_LINE_MIN_LEN = 12
+
+
+def _norm_for_match(s):
+    """归一化：去列表符号、去空白、去常见中英文标点，只留字。"""
+    s = re.sub(r'^\s*(?:[-*•]|\d+[.)])\s*', '', str(s).strip())
+    return re.sub(r'[\s，。、；：！？,.;:!?（）()\[\]「」“”"\'"]', '', s)
+
+
+def _fuzzy_replace_line(text, old, new):
+    """整行近似替换。返回 (新文本, 是否替换)。"""
+    old_n = _norm_for_match(old)
+    if len(old_n) < FUZZY_LINE_MIN_LEN:
+        return text, False
+
+    lines = text.split("\n")
+    best_i, best_r = -1, 0.0
+    for i, ln in enumerate(lines):
+        core = ln.strip()
+        if not core:
+            continue
+        r = difflib.SequenceMatcher(None, old_n, _norm_for_match(core)).ratio()
+        if r > best_r:
+            best_r, best_i = r, i
+
+    if best_i < 0 or best_r < FUZZY_LINE_RATIO:
+        return text, False
+
+    line = lines[best_i]
+    m = re.match(r'^(\s*(?:[-*•]|\d+[.)])\s*)', line)
+    prefix = m.group(1) if m else re.match(r'^(\s*)', line).group(1)
+    lines[best_i] = prefix + new
+    print(f"[规则] 模糊命中（相似度 {best_r:.2f}）: {line.strip()[:24]}…", flush=True)
+    return "\n".join(lines), True
+
+
 def apply_rules(text, rules=None):
     """应用替换规则。
 
@@ -615,6 +657,12 @@ def apply_rules(text, rules=None):
                 hit = old.replace("\n", "\r\n")
 
         if hit is None:
+            # 第四级：整行近似（游戏改了几个字也能替换）
+            text2, done = _fuzzy_replace_line(text, old, new)
+            if done:
+                text = text2
+                count += 1
+                detail.append(old[:30].replace("\n", " "))
             continue
 
         if hit == old:
