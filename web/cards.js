@@ -100,19 +100,19 @@ function openCard(filename) {
 }
 
 async function openCreateDialog() {
-  const idStr = prompt('请输入新卡片的 NPC ID（数字）：');
+  const idStr = await uiPrompt('请输入新卡片的 NPC ID（数字）：', { placeholder: '例如 100001' });
   if (!idStr) return;
   const npcId = parseInt(idStr);
   if (isNaN(npcId)) {
-    alert('ID 必须是数字');
+    await uiConfirm('ID 必须是数字。', { okText: '知道了' });
     return;
   }
-  const name = prompt('请输入新卡片的名字：');
+  const name = await uiPrompt('请输入新卡片的名字：');
   if (!name) return;
 
   const res = await pywebview.api.create_card(npcId, name);
   if (!res.ok) {
-    alert(res.msg || '创建失败');
+    await uiConfirm(res.msg || '创建失败', { okText: '知道了' });
     return;
   }
   allCards = await pywebview.api.get_cards_list();
@@ -121,5 +121,5 @@ async function openCreateDialog() {
   currentPage = 1;
   renderCardsPage();
   document.getElementById('header-status').textContent = `共 ${allCards.length} 张卡片`;
-  alert(`已创建：${res.filename}`);
+  setFootLeft(`已创建：${res.filename}`);
 }

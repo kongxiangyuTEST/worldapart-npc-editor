@@ -6,6 +6,12 @@
    ========================================================================== */
 
 :root {
+  /* only light：声明本应用只有浅色外观。
+     1) select 下拉浮层等原生部件按浅色渲染（不跟随系统深色模式）
+     2) 禁用 WebView2 的自动深色——系统深色模式下它会把个别浅色元素
+        （如工具页的信息条）启发式反色成深底白字，页面 CSS 管不到那层 */
+  color-scheme: only light;
+
   /* 表面 */
   --cl-canvas: #faf9f5;
   --cl-surface-soft: #f5f0e8;
@@ -238,7 +244,7 @@ select {
   font-family: var(--cl-sans);
   font-size: 14px;
   color: var(--cl-ink);
-  background: var(--cl-canvas);
+  background: #fff;
   border: 1px solid var(--cl-hairline);
   border-radius: var(--cl-r-md);
   padding: 8px 12px;
@@ -256,6 +262,9 @@ select:focus {
 }
 
 input::placeholder, textarea::placeholder { color: var(--cl-muted-soft); }
+
+/* 下拉展开后的选项行：默认太挤（约 22px 一行），加内边距到约 34px */
+select option { padding: 7px 10px; font-size: 14px; }
 
 input[readonly] { background: var(--cl-surface-soft); color: var(--cl-muted); }
 
@@ -561,7 +570,7 @@ footer button.primary {
 
 .about-card {
   max-width: 720px;
-  background: var(--cl-canvas);
+  background: #fff;
   border: 1px solid var(--cl-hairline);
   border-radius: var(--cl-r-lg);
 }
@@ -632,6 +641,17 @@ footer button.primary {
 .prompt-item-title { color: var(--cl-ink); font-weight: 500; }
 
 .editor-cards-count strong { color: var(--cl-ink); }
+
+/* 工具页「当前 editor_cards」信息条：原来是蓝色系（#f9fbff/#d0e0f0/#4a90e2），
+   统一到主题：白底 + 细边框，数字用墨色加大 */
+.editor-cards-info {
+  background: #fff;
+  border: 1px solid var(--cl-hairline);
+  color: var(--cl-body);
+}
+
+.editor-cards-label { color: var(--cl-muted-soft); }
+.editor-cards-count { color: var(--cl-body); }
 
 .about-item-text a {
   color: var(--cl-coral);
@@ -781,7 +801,7 @@ a { color: var(--cl-coral); }
 .rule-row .rule-old { background: #fff; }
 
 .rule-row .rule-new {
-  background: var(--cl-card);
+  background: #fff;
   color: var(--cl-body-strong);
 }
 
@@ -825,7 +845,7 @@ a { color: var(--cl-coral); }
 #inject-main .field input {
   border: 1px solid var(--cl-hairline);
   border-radius: var(--cl-r-sm);
-  background: var(--cl-canvas);
+  background: #fff;
   color: var(--cl-body);
   font-family: var(--cl-mono);
 }
@@ -899,9 +919,10 @@ a { color: var(--cl-coral); }
 }
 #services-page::-webkit-scrollbar-thumb:hover { background: #d9cfbd; }
 
-/* 只读框（游戏目录、接口地址）：白底，跟可编辑输入框区分开 */
+/* 只读框（游戏目录、接口地址）：米色底。
+   可编辑输入框已统一改成白色，这里反过来用米色区分"这个不能改" */
 #services-page input[readonly] {
-  background: #fff;
+  background: var(--cl-surface-soft);
   cursor: default;
 }
 
@@ -1070,8 +1091,11 @@ a { color: var(--cl-coral); }
   padding-right: 15px;
 }
 
-/* 分区标签已有 margin 15（外框 494–1208），再加 padding 会双重缩进，这里归零 */
+/* 分区标签与标题行文字对齐（外框 494–1208 那条线）：
+   之前注释说"已有 margin 15"但实际漏加了，标签一直凸在内容区左边缘外面 */
 .frag-section-label {
+  margin-left: 15px;
+  margin-right: 15px;
   padding-left: 0;
   padding-right: 0;
 }
@@ -1079,6 +1103,10 @@ a { color: var(--cl-coral); }
 #prompts-content .prompt-detail-content {
   margin-left: 15px;
   margin-right: 15px;
+  /* 原文文字对齐到说明文字那条线（margin 15 + 内边距 12 = 27px），
+     原来内边距 18px，文字比上方说明凸出 6px */
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 /* 标题行原来只有 padding-bottom:12px，没有上内边距 ——

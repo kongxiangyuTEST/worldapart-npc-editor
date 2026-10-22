@@ -237,3 +237,55 @@ function uiConfirm(message, opts) {
   });
 }
 
+// ==================== 统一输入弹窗 ====================
+// 原生 prompt() 在 WebView 里也是贴顶的老样式，换成主题一致的居中弹窗。
+// 用法：const val = await uiPrompt('请输入…', { placeholder: '…', value: '…' });
+// 确定返回输入内容（去掉首尾空格），取消返回 null；输入为空时确定也返回 null。
+function uiPrompt(message, opts) {
+  return new Promise((resolve) => {
+    const root = document.getElementById('ui-modal-root');
+    if (!root) { resolve(window.prompt(message)); return; }
+
+    const o = opts || {};
+    const okText = o.okText || '确定';
+    const cancelText = o.cancelText || '取消';
+
+    const mask = document.createElement('div');
+    mask.className = 'ui-mask';
+    mask.innerHTML = `
+      <div class="ui-dialog" role="dialog" aria-modal="true">
+        <div class="ui-dialog-msg">${escapeHtml(message).replace(/\n/g, '<br>')}</div>
+        <input class="form-input" type="text" style="width:100%;box-sizing:border-box;margin:0 0 14px;"
+          ${o.placeholder ? `placeholder="${escapeHtml(o.placeholder)}"` : ''}>
+        <div class="ui-dialog-actions">
+          <button class="ui-btn ui-btn-ghost" data-act="cancel">${escapeHtml(cancelText)}</button>
+          <button class="ui-btn ui-btn-primary" data-act="ok">${escapeHtml(okText)}</button>
+        </div>
+      </div>`;
+
+    const input = mask.querySelector('input');
+    if (o.value) input.value = o.value;
+
+    let done = false;
+    const close = (val) => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('keydown', onKey);
+      root.removeChild(mask);
+      resolve(val);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') close(null);
+      if (e.key === 'Enter') close(input.value.trim());
+    };
+    document.addEventListener('keydown', onKey);
+
+    mask.addEventListener('click', (e) => { if (e.target === mask) close(null); });
+    mask.querySelector('[data-act="ok"]').onclick = () => close(input.value.trim());
+    mask.querySelector('[data-act="cancel"]').onclick = () => close(null);
+
+    root.appendChild(mask);
+    input.focus();
+  });
+}
+

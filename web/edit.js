@@ -351,7 +351,7 @@ async function runAiFill(mask, close) {
   result.innerHTML = `
     <label class="ai-fill-label">生成结果（可改，确认后填入名片）</label>
     <textarea id="ai-fill-md" rows="14" spellcheck="false">${escapeHtml(res.markdown)}</textarea>
-    <div class="ui-dialog-actions" style="margin-top:10px;">
+    <div class="ui-dialog-actions" style="margin-top:10px;justify-content:flex-start;">
       <button class="ui-btn ui-btn-ghost" data-act="regen">重新生成</button>
       <button class="ui-btn ui-btn-primary" data-act="apply">填入名片</button>
     </div>`;
