@@ -708,6 +708,80 @@ class Api:
         except Exception as e:
             return {"ok": False, "msg": f"保存失败: {e}"}
 
+    def save_memory_settings(self, merge_url, merge_every, merge_max_tokens):
+        """只改记忆总结相关的三个键，其余配置原样保留。"""
+        try:
+            data = {}
+            if os.path.isfile(AI_CONFIG_PATH):
+                with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as f:
+                    data = json.load(f)
+
+            data["memory_merge_url"] = str(merge_url or "").strip()
+            try:
+                data["memory_merge_every"] = max(4, int(merge_every or 12))
+            except (TypeError, ValueError):
+                return {"ok": False, "msg": "合并频率要填数字（≥4）"}
+            try:
+                data["memory_merge_max_tokens"] = max(500, int(merge_max_tokens or 4000))
+            except (TypeError, ValueError):
+                return {"ok": False, "msg": "输出上限要填数字（≥500）"}
+
+            if os.path.isfile(AI_CONFIG_PATH):
+                shutil.copy2(AI_CONFIG_PATH, AI_CONFIG_PATH + ".bak")
+            with open(AI_CONFIG_PATH, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            return {"ok": True, "data": {
+                "memory_merge_url": data["memory_merge_url"],
+                "memory_merge_every": data["memory_merge_every"],
+                "memory_merge_max_tokens": data["memory_merge_max_tokens"],
+            }}
+        except Exception as e:
+            return {"ok": False, "msg": f"保存失败: {e}"}
+
+    def tidy_memories(self):
+        """本地整理全部记忆：补字段、压摘要、修重要度、去重复。
+
+        不调 AI、不联网，写盘前照常备份到 memory/_backup。
+        """
+        try:
+            mem_dir = memory_manager.MEMORY_DIR
+            if not os.path.isdir(mem_dir):
+                return {"ok": True, "files": 0, "changed": 0, "detail": {}}
+
+            files = sorted([f for f in os.listdir(mem_dir) if f.endswith(".json")])
+            total = {}
+            changed = 0
+            for fname in files:
+                path = os.path.join(mem_dir, fname)
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                except Exception:
+                    continue
+                if not isinstance(data, dict):
+                    continue
+
+                npc_id = data.get("npc_id")
+                npc_name = data.get("npc_name")
+                try:
+                    npc_id = int(npc_id)
+                except (TypeError, ValueError):
+                    continue
+                if not npc_name:
+                    continue
+
+                new_data, rep = memory_manager.tidy_memory(data)
+                if any(rep.values()):
+                    memory_manager.save_memory(npc_id, npc_name, new_data)
+                    changed += 1
+                    for k, v in rep.items():
+                        if v:
+                            total[k] = total.get(k, 0) + v
+
+            return {"ok": True, "files": len(files), "changed": changed, "detail": total}
+        except Exception as e:
+            return {"ok": False, "msg": f"整理失败: {e}"}
+
     def restart_core_proxy(self):
         try:
             service_mgr.stop("core_proxy")

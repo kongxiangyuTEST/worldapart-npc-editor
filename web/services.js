@@ -9,6 +9,7 @@ async function initServicesPage() {
   await refreshServicesStatus();
   setInterval(refreshServicesStatus, 3000);
   await loadUpstream();
+  await loadMemorySettings();
 }
 
 async function refreshServicesStatus() {
@@ -206,4 +207,50 @@ function copyGameApiUrl() {
   const oldText = btn.textContent;
   btn.textContent = '已复制';
   setTimeout(() => { btn.textContent = oldText; }, 1500);
+}
+// ==================== 记忆总结设置 ====================
+// 接第三方 API 时，总结建议走本地模型：对话走 API、记忆留本地。
+function setMergeUrl(url) {
+  const el = document.getElementById('merge-url');
+  if (el) el.value = url || '';
+}
+
+async function loadMemorySettings() {
+  try {
+    const res = await pywebview.api.get_ai_config();
+    if (!res || !res.ok) return;
+    const d = res.data || {};
+    const urlEl = document.getElementById('merge-url');
+    const everyEl = document.getElementById('merge-every');
+    const tokEl = document.getElementById('merge-tokens');
+    if (urlEl) urlEl.value = d.memory_merge_url || '';
+    if (everyEl) everyEl.value = d.memory_merge_every || 12;
+    if (tokEl) tokEl.value = d.memory_merge_max_tokens || 4000;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function saveMemorySettings() {
+  const status = document.getElementById('merge-status');
+  const setMsg = (t, cls) => {
+    if (!status) return;
+    status.textContent = t;
+    status.className = 'inject-status ' + (cls || '');
+  };
+
+  const url = (document.getElementById('merge-url') || {}).value || '';
+  const every = (document.getElementById('merge-every') || {}).value || 12;
+  const tokens = (document.getElementById('merge-tokens') || {}).value || 4000;
+
+  setMsg('保存中...', '');
+  let res;
+  try {
+    res = await pywebview.api.save_memory_settings(url.trim(), every, tokens);
+  } catch (e) {
+    setMsg('✗ ' + ((e && e.message) || e), 'error');
+    return;
+  }
+  if (res && res.ok) setMsg('✓ 已保存，core_proxy 会自动重读', 'success');
+  else setMsg('✗ ' + ((res && res.msg) || '保存失败'), 'error');
 }

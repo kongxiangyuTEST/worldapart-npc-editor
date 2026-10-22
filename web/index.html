@@ -109,6 +109,7 @@
         <h2>长期记忆</h2>
         <div class="header-right">
           <div class="count" id="memory-auto-hint">自动生成与老化 · 列表自动刷新</div>
+          <button class="secondary" onclick="tidyAllMemories()" title="只做本地体检：补字段、压超长摘要、修重要度、去重复。不调用 AI，写盘前自动备份。">整理记忆</button>
         </div>
     </div>
     <div class="page-subtitle">每个角色独立的对话记忆，在游戏中由 core_proxy 自动注入。</div>
@@ -262,6 +263,41 @@
             <button class="secondary" onclick="saveUpstreamOnly()">仅保存</button>
             <button class="primary" onclick="saveAndRestartUpstream()">保存并重启 core_proxy</button>
             <span class="inject-status" id="upstream-status"></span>
+          </div>
+        </div>
+
+        <div class="upstream-box">
+          <h3 style="margin:0 0 10px;font-size:14px;color:var(--cl-ink);">记忆总结</h3>
+          <div style="font-size:12px;color:var(--cl-muted);margin-bottom:10px;line-height:1.7;">
+            每攒够若干轮对话，core_proxy 会让模型把这段剧情总结进长期记忆。<br>
+            接第三方 API 时，建议把这里填成本地地址，总结就不会被对方的审核影响。
+          </div>
+
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+            <input id="merge-url" type="text" placeholder="留空 = 跟随上面的上游地址"
+                   style="flex:1;padding:8px 12px;border:1px solid var(--cl-hairline);border-radius:var(--cl-r-md);font-family:var(--cl-mono);font-size:12px;background:var(--cl-canvas);color:var(--cl-body);">
+            <span class="link" onclick="setMergeUrl('http://127.0.0.1:8080/v1/chat/completions')">用本地 8080</span>
+            <span class="link" onclick="setMergeUrl('')">跟随上游</span>
+          </div>
+
+          <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--cl-muted);display:flex;align-items:center;gap:6px;">
+              合并频率
+              <input id="merge-every" type="number" min="4" max="60" step="1"
+                     style="width:72px;padding:6px 8px;border:1px solid var(--cl-hairline);border-radius:var(--cl-r-sm);font-family:var(--cl-mono);font-size:12px;background:var(--cl-canvas);color:var(--cl-body);">
+              轮
+            </label>
+            <label style="font-size:12px;color:var(--cl-muted);display:flex;align-items:center;gap:6px;">
+              输出上限
+              <input id="merge-tokens" type="number" min="500" max="16000" step="100"
+                     style="width:88px;padding:6px 8px;border:1px solid var(--cl-hairline);border-radius:var(--cl-r-sm);font-family:var(--cl-mono);font-size:12px;background:var(--cl-canvas);color:var(--cl-body);">
+              token
+            </label>
+            <button class="secondary" onclick="saveMemorySettings()">保存</button>
+            <span class="inject-status" id="merge-status"></span>
+          </div>
+          <div style="font-size:12px;color:var(--cl-muted);line-height:1.7;">
+            改完存盘即生效（core_proxy 会自己重读配置）。输出上限太小会导致总结被截断、合并失败，一般 4000 够用。
           </div>
         </div>
 

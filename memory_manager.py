@@ -449,9 +449,11 @@ def _restore_merge_backlog(npc_id, npc_name, logs, reason):
             print(f"[记忆合并] 退回失败，这批对话可能丢失: {e}", flush=True)
 
 
-def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key):
-    """每12轮触发：让 AI 总结剧情并提取事实"""
-    if not recent_logs: return
+def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key,
+                  max_tokens=4000):
+    """让 AI 总结剧情并提取事实。成功返回 True，失败返回 False（失败会把对话退回队列）。"""
+    if not recent_logs:
+        return False
     
     data = load_memory(npc_id, npc_name)
     
@@ -484,7 +486,9 @@ def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key):
         "model": "local-model",
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.3,
-        "max_tokens": 1000
+        "max_tokens": int(max_tokens),
+        # 关掉思考：否则思考内容会把输出预算吃掉，JSON 被截断
+        "thinking": {"type": "disabled"},
     }
     
     print(f"\n[记忆合并] 开始请求本地模型 {upstream_url}...", flush=True)
@@ -501,13 +505,17 @@ def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key):
             # 清理多余标记
             text = text.strip("`").replace("json\n", "").replace("json", "")
             
+            # 模型常在 JSON 前后加一句"好的，以下是总结："，
+            # 直接 loads 会失败；先切出花括号区间再解析
+            _s, _e = text.find("{"), text.rfind("}")
+            candidate = text[_s:_e + 1] if (_s >= 0 and _e > _s) else text
             try:
-                res_data = json.loads(text)
+                res_data = json.loads(candidate)
             except json.JSONDecodeError as e:
                 why = "拒答/非JSON" if _looks_refusal(text) else "JSON解析失败"
                 print(f"[记忆合并] {why}：{e}；模型回复前 40 字: {text[:40]!r}", flush=True)
                 _restore_merge_backlog(npc_id, npc_name, recent_logs, f"{why}: {e}")
-                return
+                return False
             
             # 1. 更新梗概
             if res_data.get("early_gist"):
@@ -530,12 +538,94 @@ def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key):
             data.pop("merge_last_error", None)
             save_memory(npc_id, npc_name, data)
             print(f"[记忆合并] ✅ {npc_name} 的剧情与事实已成功更新保存！\n", flush=True)
+            return True
         else:
             print(f"[记忆合并] ❌ 请求失败（HTTP {res.status_code}），报错信息: {res.text[:200]}\n", flush=True)
             _restore_merge_backlog(npc_id, npc_name, recent_logs, f"HTTP {res.status_code}")
+            return False
     except Exception as e:
         print(f"[记忆合并] ❌ 发生异常: {e}\n", flush=True)
         _restore_merge_backlog(npc_id, npc_name, recent_logs, str(e))
+        return False
+
+def tidy_memory(data, gist_max=GIST_MAX, recent_max=RECENT_MAX):
+    """本地整理一份记忆，不调 AI、不联网。
+
+    做四件事：
+      1. 补缺失字段（facts 四个分类、recent_logs）
+      2. 摘要超长按上限压缩（保留头 60% + 尾 40%，跟注入时同一套逻辑）
+      3. 事实体检：text 空 / importance 越界 / age_count 非法 / 同分类重复
+      4. 顺手清掉合并失败留下的临时字段
+    返回 (整理后的 data, 报告 dict)
+    """
+    rep = {"补字段": 0, "压摘要": 0, "删空事实": 0, "修重要度": 0,
+           "修老化计数": 0, "去重复": 0, "清临时字段": 0}
+
+    facts = data.get("facts")
+    if not isinstance(facts, dict):
+        facts = {}
+        data["facts"] = facts
+        rep["补字段"] += 1
+    for cat in FACT_CATEGORIES:
+        if not isinstance(facts.get(cat), list):
+            facts[cat] = []
+            rep["补字段"] += 1
+
+    if not isinstance(data.get("recent_logs"), list):
+        data["recent_logs"] = []
+        rep["补字段"] += 1
+
+    for key, limit in (("early_gist", gist_max), ("long_summary", recent_max)):
+        v = str(data.get(key) or "").strip()
+        if len(v) > limit:
+            data[key] = _clip(v, limit)
+            rep["压摘要"] += 1
+        else:
+            data[key] = v
+
+    for cat in FACT_CATEGORIES:
+        kept, seen = [], set()
+        for f in facts.get(cat, []):
+            if not isinstance(f, dict):
+                rep["删空事实"] += 1
+                continue
+            text = str(f.get("text") or "").strip()
+            if not text:
+                rep["删空事实"] += 1
+                continue
+
+            try:
+                imp = int(f.get("importance", 3))
+            except (TypeError, ValueError):
+                imp = 3
+            if imp < 1 or imp > 5:
+                rep["修重要度"] += 1
+            imp = min(5, max(1, imp))
+
+            try:
+                age = int(f.get("age_count", 0))
+            except (TypeError, ValueError):
+                age = 0
+            if age < 0:
+                age = 0
+                rep["修老化计数"] += 1
+
+            key = re.sub(r"\s+", "", text)
+            if key in seen:
+                rep["去重复"] += 1
+                continue
+            seen.add(key)
+
+            kept.append({"text": text, "importance": imp, "age_count": age})
+        facts[cat] = kept
+
+    for tmp in ("merge_fail_count", "merge_last_error"):
+        if tmp in data:
+            data.pop(tmp, None)
+            rep["清临时字段"] += 1
+
+    return data, rep
+
 
 def clear_memory(npc_id, npc_name):
     """清空某个角色的所有长期记忆"""

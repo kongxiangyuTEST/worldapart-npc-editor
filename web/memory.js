@@ -373,3 +373,29 @@ async function resolveSaveConflict(npcId, npcName, action) {
     alert('处理失败：' + ((res && res.msg) || '未知错误'));
   }
 }
+
+// ==================== 整理记忆（本地，不调 AI） ====================
+// 对应别家控制台的"一键迁移"里那半截：补字段、压超长摘要、修重要度、去重复。
+// 重评重要度那半截需要模型判断，这里不做。
+async function tidyAllMemories() {
+  if (!confirm('整理全部角色的记忆？\n\n只做本地体检：补缺失字段、压缩超长摘要、修正重要度、去掉重复条目。\n不调用模型，写盘前会自动备份到 memory/_backup。')) {
+    return;
+  }
+  let res;
+  try {
+    res = await pywebview.api.tidy_memories();
+  } catch (e) {
+    alert('整理失败：' + ((e && e.message) || e));
+    return;
+  }
+  if (!res || !res.ok) {
+    alert('整理失败：' + ((res && res.msg) || '未知错误'));
+    return;
+  }
+
+  const detail = res.detail || {};
+  const lines = Object.keys(detail).map(k => `· ${k}：${detail[k]} 处`);
+  const body = lines.length ? lines.join('\n') : '没有需要修的地方。';
+  alert(`整理完成\n\n共扫描 ${res.files} 个角色，改动 ${res.changed} 个。\n\n${body}`);
+  await refreshMemoryListSilently();
+}

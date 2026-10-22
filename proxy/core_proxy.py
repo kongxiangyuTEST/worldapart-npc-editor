@@ -98,6 +98,8 @@ _AI = {
     "memory_slot": "past_events",  # past_events=写进游戏自带的「## 过往要事」；append=贴 system 末尾
     "save_guard": True,      # 换存档保护：游戏侧记忆完全对不上时暂停注入
     "memory_merge_url": "",  # 记忆总结单独走哪个地址（空=用上游；填本地可避开 API 审核）
+    "memory_merge_every": 12,     # 攒够多少轮触发一次总结
+    "memory_merge_max_tokens": 4000,  # 总结输出上限（太小会被截断成非法 JSON）
 }
 
 
@@ -141,6 +143,14 @@ def load_ai_config(force=False):
     _AI["memory_slot"] = slot if slot in ("past_events", "append") else "past_events"
     _AI["save_guard"] = bool(conf.get("save_guard", True))
     _AI["memory_merge_url"] = str(conf.get("memory_merge_url") or "").strip()
+    try:
+        _AI["memory_merge_every"] = max(4, int(conf.get("memory_merge_every", 12)))
+    except (TypeError, ValueError):
+        _AI["memory_merge_every"] = 12
+    try:
+        _AI["memory_merge_max_tokens"] = max(500, int(conf.get("memory_merge_max_tokens", 4000)))
+    except (TypeError, ValueError):
+        _AI["memory_merge_max_tokens"] = 4000
 
     _AI["mtime"] = mtime
     print(f"[配置] ai_config.json 已加载：注入 {len(_AI['inject'])} 字，"
@@ -1008,6 +1018,24 @@ def update_memory_after_chat(npc_id, npc_name, user_text, ai_text):
         return _update_memory_locked(npc_id, npc_name, user_text, ai_text)
 
 
+# 合并失败后先歇一会儿再试，否则 API 一直拒答就会每轮都白烧一次请求
+_merge_backoff = {}          # npc_id -> 可以再次尝试的时间戳
+MERGE_BACKOFF_SEC = 300
+
+
+def _run_merge(npc_id, npc_name, logs_str, url, key):
+    """后台线程里跑一次总结；失败就退避 5 分钟。"""
+    ok = memory_manager.do_auto_merge(
+        npc_id, npc_name, logs_str, url, key,
+        max_tokens=_AI.get("memory_merge_max_tokens", 4000),
+    )
+    if not ok:
+        _merge_backoff[npc_id] = time.time() + MERGE_BACKOFF_SEC
+        print(f"[记忆] {npc_name} 本次总结失败，{MERGE_BACKOFF_SEC // 60} 分钟内不再重试", flush=True)
+    else:
+        _merge_backoff.pop(npc_id, None)
+
+
 def _update_memory_locked(npc_id, npc_name, user_text, ai_text):
     """对话后更新记忆（老化 + 12 轮自动合并）"""
     if not npc_id or not npc_name:
@@ -1024,7 +1052,10 @@ def _update_memory_locked(npc_id, npc_name, user_text, ai_text):
     if "recent_logs" not in data: data["recent_logs"] = []
     data["recent_logs"].append(f"玩家: {user_text}\nAI: {ai_text}")
     
-    if len(data["recent_logs"]) >= 12:
+    merge_every = int(_AI.get("memory_merge_every", 12))
+    cooling = _merge_backoff.get(npc_id, 0) > time.time()
+
+    if len(data["recent_logs"]) >= merge_every and not cooling:
         # 上次总结失败退回的对话也要一起合并，否则永远补不上
         backlog = str(data.get("merge_backlog") or "").strip()
         logs_str = ("\n\n".join(data["recent_logs"]) + ("\n\n" + backlog if backlog else ""))
@@ -1036,12 +1067,13 @@ def _update_memory_locked(npc_id, npc_name, user_text, ai_text):
         f_key = FALLBACK_KEY
 
         threading.Thread(
-            target=memory_manager.do_auto_merge,
-            args=(npc_id, npc_name, logs_str, upstream_url, f_key)
+            target=_run_merge,
+            args=(npc_id, npc_name, logs_str, upstream_url, f_key),
+            daemon=True,
         ).start()
         data["recent_logs"] = []   # 清空队列；失败时 do_auto_merge 会退回 merge_backlog
         data.pop("merge_backlog", None)
-        print(f"[记忆] {npc_name} 已满12轮，正在后台合并剧情（{len(logs_str)} 字）...", flush=True)
+        print(f"[记忆] {npc_name} 攒够 {merge_every} 轮，后台合并剧情（{len(logs_str)} 字）...", flush=True)
         
     # 4. 保存回文件
     memory_manager.save_memory(npc_id, npc_name, data)
@@ -1340,6 +1372,8 @@ def _status():
         "memory_slot": _AI.get("memory_slot"),
         "save_guard": _AI.get("save_guard"),
         "memory_merge_url": _AI.get("memory_merge_url") or "(跟随上游)",
+        "memory_merge_every": _AI.get("memory_merge_every"),
+        "memory_merge_max_tokens": _AI.get("memory_merge_max_tokens"),
         "config_mtime": _AI["mtime"],
     })
 
