@@ -1033,3 +1033,15 @@ a { color: var(--cl-coral); }
 }
 
 .frag-dropped ul { margin: 6px 0 0 18px; }
+
+/* 固定段落顶部信息块（已替换提示 / 说明 / 状态）跟下面结果卡片对齐：
+   两块的外框本来同宽，差的是文字贴边；给上面这块补 15px 内边距，
+   文字就和卡片里的内容左对齐了（外框宽度保持不变） */
+.frag-inuse,
+.frag-hint,
+#frag-opt-status {
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+.frag-hint { padding-top: 2px; }
