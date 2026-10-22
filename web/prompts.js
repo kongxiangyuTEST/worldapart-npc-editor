@@ -39,8 +39,7 @@ function renderPromptsPage() {
       <span class="inject-status" id="ai-status"></span>
       <div class="inject-footer-buttons">
         <button class="secondary" onclick="reloadAiConfig()">放弃更改</button>
-        <button class="primary" onclick="saveAiConfig2()">保存配置</button>
-        <button class="secondary" onclick="restartCoreProxy2()">重启 core_proxy</button>
+        <button class="primary" onclick="saveAiConfig2()">保存并生效</button>
       </div>
     </div>
   `;
@@ -473,11 +472,54 @@ async function saveAiConfig2() {
     aiConfig.rules = collectRules();
   }
 
+  setAiStatus('保存中...', '');
   const res = await pywebview.api.save_ai_config(aiConfig);
-  if (res.ok) {
-    setAiStatus('✓ 已保存，下次对话自动生效（不用重启）', 'success');
+  if (!res || !res.ok) {
+    setAiStatus('✗ ' + ((res && res.msg) || '保存失败'), 'error');
+    return;
+  }
+
+  // 存盘后先问一次服务：配置是按 mtime 热加载的，正常情况这里就已经生效
+  let chk = null;
+  try {
+    chk = await pywebview.api.apply_ai_config();
+  } catch (e) {
+    chk = null;
+  }
+
+  if (chk && chk.ok && chk.applied) {
+    setAiStatus('✓ 已保存并生效 · ' + chk.msg, 'success');
+  } else if (chk && chk.ok && chk.running === false) {
+    setAiStatus('✓ 已保存 · ' + chk.msg, 'success');
+  } else if (chk && chk.needs_restart) {
+    // 服务还在用旧配置（极少见：进程读的是内存里的旧值）→ 自动重启一次
+    setAiStatus('已保存，服务仍是旧配置，正在自动重启...', '');
+    const rr = await pywebview.api.restart_core_proxy();
+    if (!rr || !rr.ok) {
+      setAiStatus('✗ 保存成功但重启失败：' + ((rr && rr.msg) || '未知错误'), 'error');
+      return;
+    }
+    await new Promise(r => setTimeout(r, 1200));
+    let chk2 = null;
+    try {
+      chk2 = await pywebview.api.apply_ai_config();
+    } catch (e) { chk2 = null; }
+    if (chk2 && chk2.applied) {
+      setAiStatus('✓ 已保存并重启生效 · ' + chk2.msg, 'success');
+    } else {
+      setAiStatus('✓ 已保存，重启后仍未见新配置，请到「服务管理」看日志', 'error');
+    }
   } else {
-    setAiStatus('✗ ' + (res.msg || '保存失败'), 'error');
+    setAiStatus('✓ 已保存（服务状态未知，下次对话会重读配置）', 'success');
+  }
+
+  // 在预览页保存后，顺手按新配置重跑一次，省得再点一次"预览"
+  if (currentTab === 'preview') {
+    const box = document.getElementById('preview-result');
+    if (box && box.innerHTML.trim()) {
+      await runPreview();
+      setAiStatus('✓ 已保存并生效，预览已按新配置刷新', 'success');
+    }
   }
 }
 

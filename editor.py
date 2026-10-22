@@ -899,6 +899,54 @@ class Api:
         except Exception as e:
             return {"ok": False, "msg": f"整理失败: {e}"}
 
+    def apply_ai_config(self):
+        """保存后确认 core_proxy 真的读到了新配置。
+
+        ai_config.json 是按 mtime 热加载的，正常情况下存盘即生效；
+        这里主动问一次 /_status，把"到底生效没有"变成可验证的结果，
+        而不是让用户去猜要不要重启。
+        """
+        import json
+        import os
+        import urllib.request
+
+        try:
+            mtime = os.path.getmtime(AI_CONFIG_PATH)
+            with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as f:
+                conf = json.load(f)
+            want_inject = len((conf.get("inject") or "").strip())
+            want_rules = len([r for r in (conf.get("rules") or []) if (r.get("old") or "").strip()])
+        except Exception as e:
+            return {"ok": False, "msg": f"读取配置失败: {e}"}
+
+        # core_proxy 端口从 core_proxy_config.json 取，读不到就用默认 8789
+        port = 8789
+        try:
+            with open(os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json"), "r",
+                      encoding="utf-8") as f:
+                port = int(json.load(f).get("listen_port") or 8789)
+        except Exception:
+            pass
+
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/_status", timeout=2) as r:
+                st = json.loads(r.read().decode("utf-8"))
+        except Exception:
+            return {"ok": True, "applied": False, "running": False,
+                    "msg": "core_proxy 没在运行，配置已存盘；启动服务后自动生效"}
+
+        got_inject = st.get("inject_chars")
+        got_rules = st.get("rules")
+        if got_inject == want_inject and got_rules == want_rules:
+            return {"ok": True, "applied": True, "running": True,
+                    "rules": got_rules, "inject_chars": got_inject,
+                    "msg": f"已生效（{got_rules} 条规则 / 注入 {got_inject} 字）"}
+
+        return {"ok": True, "applied": False, "running": True, "needs_restart": True,
+                "want": {"rules": want_rules, "inject_chars": want_inject},
+                "got": {"rules": got_rules, "inject_chars": got_inject},
+                "msg": f"服务里还是旧配置（{got_rules} 条规则），需要重启"}
+
     def restart_core_proxy(self):
         try:
             service_mgr.stop("core_proxy")
