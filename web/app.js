@@ -170,7 +170,7 @@ async function loadGameDirDisplay() {
 }
 
 async function onChangeGameDir() {
-  if (!confirm('修改游戏目录会重启 core_proxy，确定继续？')) return;
+  if (!(await uiConfirm('修改游戏目录会重启 core_proxy，确定继续？'))) return;
   const input = document.getElementById('game-dir-display');
   const res = await pywebview.api.pick_and_save_game_dir();
   if (!res.ok) {
@@ -189,3 +189,51 @@ async function onChangeGameDir() {
   }, 1200);
   alert('✓ 已保存，core_proxy 已重启');
 }
+
+// ==================== 统一确认弹窗 ====================
+// 原生 confirm() 在 WebView 里又丑又贴顶，换成主题一致的居中弹窗。
+// 用法：const ok = await uiConfirm('消息', { danger: true, okText: '删除' });
+function uiConfirm(message, opts) {
+  return new Promise((resolve) => {
+    const root = document.getElementById('ui-modal-root');
+    if (!root) { resolve(window.confirm(message)); return; }
+
+    const o = opts || {};
+    const okText = o.okText || '确定';
+    const cancelText = o.cancelText || '取消';
+
+    const mask = document.createElement('div');
+    mask.className = 'ui-mask';
+    mask.innerHTML = `
+      <div class="ui-dialog${o.danger ? ' danger' : ''}" role="dialog" aria-modal="true">
+        <div class="ui-dialog-msg">${escapeHtml(message).replace(/\n/g, '<br>')}</div>
+        <div class="ui-dialog-actions">
+          <button class="ui-btn ui-btn-ghost" data-act="cancel">${escapeHtml(cancelText)}</button>
+          <button class="ui-btn ui-btn-primary" data-act="ok">${escapeHtml(okText)}</button>
+        </div>
+      </div>`;
+
+    let done = false;
+    const close = (val) => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('keydown', onKey);
+      root.removeChild(mask);
+      resolve(val);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') close(false);
+      if (e.key === 'Enter') close(true);
+    };
+    document.addEventListener('keydown', onKey);
+
+    mask.addEventListener('click', (e) => { if (e.target === mask) close(false); });
+    mask.querySelector('[data-act="ok"]').onclick = () => close(true);
+    mask.querySelector('[data-act="cancel"]').onclick = () => close(false);
+
+    root.appendChild(mask);
+    const btn = mask.querySelector('[data-act="ok"]');
+    if (btn) btn.focus();
+  });
+}
+

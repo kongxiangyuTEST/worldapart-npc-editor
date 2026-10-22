@@ -8,6 +8,9 @@ let memorySearchBound = false;
 // 所以进这一页之后定时重读列表；签名没变就不重绘，避免闪烁、抢滚动位置。
 let memorySig = '';
 let memoryPollTimer = null;
+// 当前选中角色的文件改动时间 + 详情是否被手动改过（改了就不自动重载，免得冲掉编辑）
+let memoryCurrentMtime = null;
+let memoryDetailDirty = false;
 const MEMORY_POLL_MS = 4000;
 
 const MEMORY_EMPTY_DETAIL =
@@ -78,6 +81,13 @@ async function refreshMemoryListSilently() {
   if (detail && memoryCurrentId && !stillThere) {
     memoryCurrentId = null;
     detail.innerHTML = MEMORY_EMPTY_DETAIL;
+    return;
+  }
+
+  // 文件被 core_proxy 改过（新一轮对话/总结落盘）且用户没在编辑 → 自动重载详情
+  const cur = items.find(it => String(it.id) === String(memoryCurrentId));
+  if (cur && !memoryDetailDirty && cur.mtime !== memoryCurrentMtime) {
+    await loadMemoryDetail(memoryCurrentId, cur.name);
   }
 }
 
@@ -133,6 +143,56 @@ async function initMemoryPage() {
     memoryCurrentId = null;
     detail.innerHTML = MEMORY_EMPTY_DETAIL;
   }
+}
+
+// 攒了对话但还没生成摘要 / 上次总结失败退回了一堆对话 → 给明确的操作指引
+function renderMemoryTodo(data, npcId, npcName) {
+  const logs = (data && data.recent_logs) ? data.recent_logs.length : 0;
+  const backlog = String((data && data.merge_backlog) || '');
+  const hasSummary = String((data && data.long_summary) || '').trim();
+
+  // 情况一：有对话因为上次总结失败被退回来了（最常见：上游拒答或没开）
+  if (backlog.trim()) {
+    const err = String((data && data.merge_last_error) || '').trim();
+    const fails = data && data.merge_fail_count ? `，已失败 ${data.merge_fail_count} 次` : '';
+    return `
+      <div class="mem-todo">
+        <span>还有 <b>${backlog.length}</b> 字对话没总结成功${fails}。
+        ${err ? `上次原因：${escapeHtml(err)}。` : ''}
+        这段内容一直存在文件里，不会丢。检查「服务管理 → 记忆总结」的地址后，点右边重试。</span>
+        <span class="mem-todo-actions">
+          <button class="primary" onclick="triggerMemoryMerge('${escapeHtml(npcId)}', '${escapeHtml(npcName)}')">立即 AI 总结</button>
+        </span>
+      </div>`;
+  }
+
+  // 情况二：攒了新对话，但还没到 12 轮自动合并
+  if (logs > 0 && !hasSummary) {
+    return `
+      <div class="mem-todo">
+        <span>已经攒了 <b>${logs}</b> 轮对话，等满 12 轮会自动总结；想现在就要摘要，点右边。
+        总结用的地址在「服务管理 → 记忆总结」里设置（留空 = 跟随上游，接了第三方 API 建议填本地 8080）。</span>
+        <span class="mem-todo-actions">
+          <button class="primary" onclick="triggerMemoryMerge('${escapeHtml(npcId)}', '${escapeHtml(npcName)}')">立即 AI 总结</button>
+        </span>
+      </div>`;
+  }
+
+  return '';
+}
+
+// 记录当前角色文件的改动时间，并监听详情里的手动编辑
+function trackMemoryDetailState(npcId) {
+  memoryCurrentMtime = null;
+  memoryDetailDirty = false;
+  const item = memoryItems.find(it => String(it.id) === String(npcId));
+  if (item) memoryCurrentMtime = item.mtime;
+
+  const box = document.getElementById('memory-detail');
+  if (!box) return;
+  box.querySelectorAll('input, textarea').forEach(el => {
+    el.addEventListener('input', () => { memoryDetailDirty = true; });
+  });
 }
 
 function renderMemoryList(items, debugPath) {
@@ -193,6 +253,7 @@ async function loadMemoryDetail(npcId, npcName) {
     return;
   }
   memoryCurrentId = npcId;
+  trackMemoryDetailState(npcId);
   renderMemoryList(memoryItems);
 
   const data = res.data || {};
@@ -209,6 +270,7 @@ async function loadMemoryDetail(npcId, npcName) {
         </div>
         <span id="m-msg" style="color:green; font-size:13px; margin-bottom:10px; display:block; text-align:right; font-weight:bold;"></span>
         ${renderSaveConflict(res.conflict, npcId, npcName)}
+        ${renderMemoryTodo(data, npcId, npcName)}
 
         <div style="display:grid; grid-template-columns: 1fr; gap: 20px;">
             <div style="background:var(--cl-surface-soft); border:1px solid var(--cl-hairline); padding:15px; border-radius:8px;">
@@ -306,7 +368,7 @@ async function saveMemoryData(npcId, npcName) {
 }
 
 async function clearMemoryData(npcId, npcName) {
-  if (!confirm(`确定要彻底清空【${npcName}】的所有记忆吗？\n清空后，AI 将完全忘记你们发生过的事。`)) return;
+  if (!(await uiConfirm(`确定要彻底清空【${npcName}】的所有记忆吗？\n清空后，AI 将完全忘记你们发生过的事。`, { danger: true, okText: '清空' }))) return;
   const res = await pywebview.api.clear_memory(npcId, npcName);
   if (res && res.ok) {
     alert('已清空该角色的长期记忆！');
@@ -365,7 +427,7 @@ async function resolveSaveConflict(npcId, npcName, action) {
   const ask = action === 'accept_new'
     ? '现有记忆会整份备份到 memory/_saves/，然后从空白重新记录。确定吗？'
     : '确认这仍是同一份存档，之后继续注入现有长期记忆。';
-  if (!confirm(ask)) return;
+  if (!(await uiConfirm(ask))) return;
   const res = await pywebview.api.resolve_save_conflict(npcId, npcName, action);
   if (res && res.ok) {
     await loadMemoryDetail(npcId, npcName);
@@ -378,9 +440,8 @@ async function resolveSaveConflict(npcId, npcName, action) {
 // 对应别家控制台的"一键迁移"里那半截：补字段、压超长摘要、修重要度、去重复。
 // 重评重要度那半截需要模型判断，这里不做。
 async function tidyAllMemories() {
-  if (!confirm('整理全部角色的记忆？\n\n只做本地体检：补缺失字段、压缩超长摘要、修正重要度、去掉重复条目。\n不调用模型，写盘前会自动备份到 memory/_backup。')) {
-    return;
-  }
+  const ok = await uiConfirm('整理全部角色的记忆？\n\n只做本地体检：补缺失字段、压缩超长摘要、修正重要度、去掉重复条目。\n不调用模型，写盘前会自动备份到 memory/_backup。');
+  if (!ok) return;
   let res;
   try {
     res = await pywebview.api.tidy_memories();

@@ -137,7 +137,7 @@ async function saveAiConfig() {
 }
 
 async function restartCoreProxy() {
-  if (!confirm('确定要重启 core_proxy 吗？')) return;
+  if (!(await uiConfirm('确定要重启 core_proxy 吗？'))) return;
   const status = document.getElementById('inject-status');
   status.textContent = '正在重启...';
   status.className = 'inject-status';

@@ -450,7 +450,7 @@ async function runDiff() {
 async function applyDiff() {
   const sel = document.getElementById('diff-backup-select');
   if (!sel || !sel.value) return;
-  if (!confirm('确定应用改动？当前卡片会先备份，然后合并。')) return;
+  if (!(await uiConfirm('确定应用改动？当前卡片会先备份，然后合并。'))) return;
 
   const box = document.getElementById('diff-result');
   box.innerHTML = '<div class="diff-empty">正在合并...</div>';

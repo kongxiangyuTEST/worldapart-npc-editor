@@ -1246,3 +1246,112 @@ a { color: var(--cl-coral); }
 }
 
 .copy-btn:hover { color: var(--cl-ink); background: var(--cl-card); }
+
+/* ==================== 统一确认弹窗 ==================== */
+.ui-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(45, 41, 36, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+  animation: ui-fade .14s ease;
+}
+
+.ui-dialog {
+  width: min(460px, 100%);
+  background: var(--cl-canvas);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-md);
+  box-shadow: 0 18px 48px rgba(45, 41, 36, 0.22);
+  padding: 22px 24px 18px;
+  animation: ui-pop .16s cubic-bezier(.2,.8,.3,1);
+}
+
+.ui-dialog-msg {
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--cl-body-strong);
+  white-space: normal;
+  word-break: break-word;
+  margin-bottom: 20px;
+}
+
+.ui-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ui-btn {
+  min-width: 76px;
+  padding: 7px 18px;
+  font-size: 13px;
+  font-family: inherit;
+  border-radius: var(--cl-r-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: filter .12s ease;
+}
+
+.ui-btn:hover { filter: brightness(0.96); }
+
+.ui-btn-ghost {
+  background: var(--cl-card);
+  color: var(--cl-body);
+  border-color: var(--cl-hairline);
+}
+
+.ui-btn-primary {
+  background: var(--cl-coral);
+  color: #fff;
+}
+
+.ui-dialog.danger .ui-btn-primary {
+  background: var(--cl-error);
+}
+
+@keyframes ui-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ui-pop {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 状态提示改成小胶囊：原来是纯文字，绿色/红色紧跟在按钮右边，看着像报错 */
+.inject-status.success {
+  color: #2f7a45;
+  background: rgba(93, 184, 114, 0.12);
+  border: 1px solid rgba(93, 184, 114, 0.32);
+  border-radius: 9999px;
+  padding: 3px 12px;
+  font-weight: normal;
+}
+
+.inject-status.error {
+  color: var(--cl-error);
+  background: rgba(198, 69, 69, 0.08);
+  border: 1px solid rgba(198, 69, 69, 0.3);
+  border-radius: 9999px;
+  padding: 3px 12px;
+  font-weight: normal;
+}
+
+/* 记忆页：攒了对话还没总结的提示条 */
+.mem-todo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: rgba(212, 160, 23, 0.08);
+  border: 1px solid rgba(212, 160, 23, 0.32);
+  border-radius: var(--cl-r-md);
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--cl-body);
+}
+
+.mem-todo-actions { margin-left: auto; }

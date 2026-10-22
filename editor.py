@@ -575,21 +575,30 @@ class Api:
         import os
         import requests
         
-        # 1. 上游地址统一从 proxy/core_proxy_config.json 读（唯一真相源）
-        conf_path = os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json")
-        upstream_base = "http://127.0.0.1:8080/"
+        # 1. 上游：ai_config 的 memory_merge_url 优先（GUI 里"记忆总结 → 用本地 8080"就是改它），
+        #    没填才退回 core_proxy_config.json 的 upstream_base_url
+        upstream = ""
         fallback_key = ""
         try:
-            with open(conf_path, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-            upstream_base = (cfg.get("upstream_base_url") or upstream_base).rstrip("/")
-            fallback_key = cfg.get("api_key") or ""
-        except FileNotFoundError:
-            print(f"[记忆总结] 没找到 {conf_path}，用默认 8080")
-        except Exception as e:
-            print(f"[记忆总结] 读取 core_proxy_config.json 失败: {e}")
+            with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as f:
+                acfg = json.load(f)
+            upstream = (acfg.get("memory_merge_url") or "").strip()
+        except Exception:
+            upstream = ""
 
-        upstream = upstream_base + "/v1/chat/completions"
+        if not upstream:
+            conf_path = os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json")
+            upstream_base = "http://127.0.0.1:8080/"
+            try:
+                with open(conf_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                upstream_base = (cfg.get("upstream_base_url") or upstream_base).rstrip("/")
+                fallback_key = cfg.get("api_key") or ""
+            except FileNotFoundError:
+                print(f"[记忆总结] 没找到 {conf_path}，用默认 8080")
+            except Exception as e:
+                print(f"[记忆总结] 读取 core_proxy_config.json 失败: {e}")
+            upstream = upstream_base + "/v1/chat/completions"
             
         data = memory_manager.load_memory(int(npc_id), npc_name)
         logs = "\n\n".join(data.get("recent_logs", []))

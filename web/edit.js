@@ -40,7 +40,7 @@ function snapshotCurrentCard() {
 
 async function showCardEdit(filename) {
   if (currentFilename && hasUnsavedChanges()) {
-    const ok = confirm(`卡片 ${currentFilename} 有未保存的修改，是否放弃？`);
+    const ok = await uiConfirm(`卡片 ${currentFilename} 有未保存的修改，是否放弃？`);
     if (!ok) return;
   }
 
@@ -240,11 +240,11 @@ const CARD_TEMPLATE = `### 口吻
 2. 
 3. `;
 
-function insertCardTemplate() {
+async function insertCardTemplate() {
   const ta = document.getElementById('f-user_card');
   if (!ta) return;
   const cur = (ta.value || '').trim();
-  if (cur && !confirm('当前名片已有内容，模板会追加到末尾。继续？')) return;
+  if (cur && !(await uiConfirm('当前名片已有内容，模板会追加到末尾。继续？'))) return;
   ta.value = (cur ? cur + '\n\n' : '') + CARD_TEMPLATE;
   try {
     ta.dispatchEvent(new Event('input'));
@@ -314,12 +314,12 @@ function revertField(fieldKey) {
 }
 
 // 恢复此字段原版：从 originals\ 恢复
-function restoreFieldOriginal(fieldKey) {
+async function restoreFieldOriginal(fieldKey) {
   if (!originalCard) {
     alert("没有原版备份，无法恢复");
     return;
   }
-  if (!confirm("确定要恢复此字段到原版吗？")) return;
+  if (!(await uiConfirm("确定要恢复此字段到原版吗？"))) return;
   const v = getFieldValue(originalCard, fieldKey);
   setFieldValue(fieldKey, v);
   setFootLeft(hasUnsavedChanges() ? '⚠ 有未保存的修改' : '就绪');
@@ -354,7 +354,7 @@ async function onSaveCard() {
 
 async function onDeleteCard() {
   if (!currentFilename) return;
-  if (!confirm(`确定要删除卡片 ${currentFilename}？`)) return;
+  if (!(await uiConfirm(`确定要删除卡片 ${currentFilename}？`, { danger: true, okText: '删除' }))) return;
   const res = await pywebview.api.delete_card(currentFilename);
   if (!res.ok) {
     alert('删除失败');

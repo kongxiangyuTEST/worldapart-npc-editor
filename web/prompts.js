@@ -333,7 +333,7 @@ async function restoreFragmentRule(title) {
     alert('没有找到对应的替换规则，可能已经被删掉了。');
     return;
   }
-  if (!confirm('恢复原设定？\n\n会删掉这条替换规则（第 ' + (hit.index + 1) + ' 条），游戏原文重新生效。')) {
+  if (!(await uiConfirm('恢复原设定？\n\n会删掉这条替换规则（第 ' + (hit.index + 1) + ' 条），游戏原文重新生效。', { danger: true, okText: '删除规则' }))) {
     return;
   }
   aiConfig.rules.splice(hit.index, 1);
@@ -426,7 +426,7 @@ function discardFragmentResult() {
 
 async function applyFragmentRule() {
   if (!fragOptResult) return;
-  if (!confirm('把这段的压缩版加成一条替换规则？\n\n原来的内容会被整段替换，随时可以在「系统prompt替换」里删掉这条规则。')) {
+  if (!(await uiConfirm('把这段的压缩版加成一条替换规则？\n\n原来的内容会被整段替换，随时可以在「系统prompt替换」里删掉这条规则。'))) {
     return;
   }
   if (!aiConfig.rules) aiConfig.rules = [];
@@ -524,7 +524,7 @@ async function saveAiConfig2() {
 }
 
 async function restartCoreProxy2() {
-  if (!confirm('确定要重启 core_proxy 吗？')) return;
+  if (!(await uiConfirm('确定要重启 core_proxy 吗？'))) return;
   setAiStatus('正在重启...', '');
   const res = await pywebview.api.restart_core_proxy();
   if (res.ok) {

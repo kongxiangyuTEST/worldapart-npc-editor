@@ -61,7 +61,7 @@ async function startAllServices() {
 }
 
 async function stopAllServices() {
-  if (!confirm('确定要停止所有服务吗？游戏将无法正常对话。')) return;
+  if (!(await uiConfirm('确定要停止所有服务吗？游戏将无法正常对话。', { danger: true, okText: '全部停止' }))) return;
   await pywebview.api.stop_all_services();
   await refreshServicesStatus();
 }
@@ -176,7 +176,7 @@ async function saveUpstreamOnly() {
 async function saveAndRestartUpstream() {
   const url = document.getElementById('upstream-url').value.trim();
   if (!url) { alert('请填写地址'); return; }
-  if (!confirm('保存并重启 core_proxy？')) return;
+  if (!(await uiConfirm('保存并重启 core_proxy？\n\n上游地址改动要重启才会生效。'))) return;
   setUpsStatus('保存并重启中...', '');
   const res = await pywebview.api.save_and_restart_upstream(url);
   if (res.ok) {
