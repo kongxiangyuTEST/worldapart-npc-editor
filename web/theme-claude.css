@@ -1473,3 +1473,52 @@ a { color: var(--cl-coral); }
 }
 
 .ai-fill-tip.warn { color: #8a5a1c; }
+
+/* ==================== 编辑页：名片操作按钮 ====================
+   原来是无色文字链接，看不出能点。改成三种层级：
+   cbtn-primary（珊瑚色，主操作）/ cbtn（白底描边）/ cbtn-quiet（更淡，破坏性操作） */
+#edit-main .card-block-actions {
+  gap: 8px;
+}
+
+.cbtn {
+  padding: 5px 13px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--cl-body);
+  background: var(--cl-canvas);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .12s ease, color .12s ease, background .12s ease;
+}
+
+.cbtn:hover {
+  border-color: var(--cl-coral);
+  color: var(--cl-coral);
+}
+
+.cbtn-primary {
+  background: var(--cl-coral);
+  border-color: var(--cl-coral);
+  color: #fff;
+}
+
+.cbtn-primary:hover {
+  background: #b96a50;
+  border-color: #b96a50;
+  color: #fff;
+}
+
+.cbtn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--cl-muted);
+}
+
+.cbtn-quiet:hover {
+  border-color: var(--cl-hairline);
+  color: var(--cl-error);
+}

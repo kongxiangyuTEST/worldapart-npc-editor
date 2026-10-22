@@ -162,18 +162,12 @@ function renderEditMain() {
           <p class="card-block-sub">注入为「角色演绎要求」，优先级高于上面的属性描述</p>
         </div>
         <div class="card-block-actions">
-          <span class="link" onclick="insertCardTemplate()">插入结构模板</span>
-          <span class="link" onclick="openAiFillDialog()">AI 补全名片</span>
-          <span class="link" onclick="revertField('user_card')">撤销修改</span>
-          <span class="link" onclick="restoreFieldOriginal('user_card')">恢复原版</span>
-          <span class="link" onclick="showGamePrompt('${escapeHtml(card.name)}')">查看游戏 prompt</span>
+          <button type="button" class="cbtn" onclick="insertCardTemplate()">插入结构模板</button>
+          <button type="button" class="cbtn cbtn-primary" onclick="openAiFillDialog()">AI 补全名片</button>
+          <button type="button" class="cbtn" onclick="showGamePrompt('${escapeHtml(card.name)}')">查看游戏 prompt</button>
+          <button type="button" class="cbtn cbtn-quiet" onclick="revertField('user_card')">撤销修改</button>
+          <button type="button" class="cbtn cbtn-quiet" onclick="restoreFieldOriginal('user_card')">恢复原版</button>
         </div>
-      </div>
-
-      <div class="card-block-tips">
-        <span class="card-tip"><b>没思路</b> · 点「插入结构模板」铺骨架</span>
-        <span class="card-tip"><b>想省事</b> · 点「AI 补全名片」读游戏资料自动写</span>
-        <span class="card-tip"><b>写好的</b> · 「查看游戏 prompt」对照原文</span>
       </div>
 
       <textarea id="f-user_card" spellcheck="false">${escapeHtml(card.user_card)}</textarea>
