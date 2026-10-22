@@ -916,3 +916,120 @@ a { color: var(--cl-coral); }
   line-height: 1.6;
   margin-bottom: 10px;
 }
+
+/* ==================== 固定段落：详情区 ==================== */
+.frag-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--cl-hairline);
+  margin-bottom: 12px;
+}
+
+.frag-title {
+  margin: 0 0 4px;
+  font-family: var(--cl-serif);
+  font-weight: 400;
+  font-size: 20px;
+  color: var(--cl-ink);
+}
+
+.frag-meta {
+  font-size: 12px;
+  color: var(--cl-muted-soft);
+}
+
+.frag-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.frag-tag {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 11px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.frag-tag.ok { background: rgba(93, 184, 114, 0.12); color: #2f7a45; border-color: rgba(93, 184, 114, 0.3); }
+.frag-tag.warn { background: rgba(212, 160, 23, 0.12); color: #8a5a1c; border-color: rgba(212, 160, 23, 0.32); }
+.frag-tag.bad { background: rgba(198, 69, 69, 0.1); color: var(--cl-error); border-color: rgba(198, 69, 69, 0.3); }
+
+.frag-inuse {
+  background: rgba(93, 184, 166, 0.1);
+  border: 1px solid rgba(93, 184, 166, 0.28);
+  color: var(--cl-body);
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: var(--cl-r-sm);
+  margin-bottom: 10px;
+}
+
+.frag-hint {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--cl-muted);
+  margin-bottom: 10px;
+}
+
+.frag-section-label {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  color: var(--cl-muted-soft);
+  margin: 10px 0 6px;
+}
+
+.frag-result {
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-md);
+  background: var(--cl-surface-soft);
+  padding: 14px;
+  margin: 10px 0 4px;
+}
+
+.frag-stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.frag-stat {
+  flex: 1 1 120px;
+  background: var(--cl-canvas);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.frag-stat-num {
+  font-family: var(--cl-serif);
+  font-size: 22px;
+  color: var(--cl-ink);
+  line-height: 1.1;
+}
+
+.frag-stat-num.accent { color: var(--cl-coral); }
+
+.frag-stat-label {
+  font-size: 11px;
+  color: var(--cl-muted-soft);
+  line-height: 1.5;
+}
+
+.frag-dropped {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--cl-body);
+  line-height: 1.7;
+}
+
+.frag-dropped ul { margin: 6px 0 0 18px; }

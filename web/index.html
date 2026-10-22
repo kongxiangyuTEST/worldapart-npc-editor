@@ -282,6 +282,23 @@
 
           <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
             <label style="font-size:12px;color:var(--cl-muted);display:flex;align-items:center;gap:6px;">
+              记忆落位
+              <select id="memory-slot"
+                      style="padding:6px 8px;border:1px solid var(--cl-hairline);border-radius:var(--cl-r-sm);font-size:12px;background:var(--cl-canvas);color:var(--cl-body);">
+                <option value="append">system 末尾（省 token）</option>
+                <option value="past_events">写进「过往要事」</option>
+              </select>
+            </label>
+            <label style="font-size:12px;color:var(--cl-muted);display:flex;align-items:center;gap:6px;">
+              过往要事上限
+              <input id="past-events-max" type="number" min="0" max="4000" step="100"
+                     style="width:80px;padding:6px 8px;border:1px solid var(--cl-hairline);border-radius:var(--cl-r-sm);font-family:var(--cl-mono);font-size:12px;background:var(--cl-canvas);color:var(--cl-body);">
+              字
+            </label>
+          </div>
+
+          <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+            <label style="font-size:12px;color:var(--cl-muted);display:flex;align-items:center;gap:6px;">
               合并频率
               <input id="merge-every" type="number" min="4" max="60" step="1"
                      style="width:72px;padding:6px 8px;border:1px solid var(--cl-hairline);border-radius:var(--cl-r-sm);font-family:var(--cl-mono);font-size:12px;background:var(--cl-canvas);color:var(--cl-body);">
@@ -297,7 +314,8 @@
             <span class="inject-status" id="merge-status"></span>
           </div>
           <div style="font-size:12px;color:var(--cl-muted);line-height:1.7;">
-            改完存盘即生效（core_proxy 会自己重读配置）。输出上限太小会导致总结被截断、合并失败，一般 4000 够用。
+            改完存盘即生效（core_proxy 会自己重读配置）。输出上限太小会导致总结被截断、合并失败，一般 4000 够用。<br>
+            记忆落位选「system 末尾」时前缀更稳定，prompt 缓存能命中更多；选「过往要事」位置更靠前，但每轮都会打断缓存。
           </div>
         </div>
 

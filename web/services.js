@@ -226,6 +226,10 @@ async function loadMemorySettings() {
     if (urlEl) urlEl.value = d.memory_merge_url || '';
     if (everyEl) everyEl.value = d.memory_merge_every || 12;
     if (tokEl) tokEl.value = d.memory_merge_max_tokens || 4000;
+    const slotEl = document.getElementById('memory-slot');
+    if (slotEl) slotEl.value = d.memory_slot || 'past_events';
+    const pastEl = document.getElementById('past-events-max');
+    if (pastEl) pastEl.value = (d.past_events_max_chars === undefined ? 800 : d.past_events_max_chars);
   } catch (e) {
     console.error(e);
   }
@@ -242,11 +246,13 @@ async function saveMemorySettings() {
   const url = (document.getElementById('merge-url') || {}).value || '';
   const every = (document.getElementById('merge-every') || {}).value || 12;
   const tokens = (document.getElementById('merge-tokens') || {}).value || 4000;
+  const slot = (document.getElementById('memory-slot') || {}).value || 'past_events';
+  const pastMax = (document.getElementById('past-events-max') || {}).value;
 
   setMsg('保存中...', '');
   let res;
   try {
-    res = await pywebview.api.save_memory_settings(url.trim(), every, tokens);
+    res = await pywebview.api.save_memory_settings(url.trim(), every, tokens, slot, pastMax);
   } catch (e) {
     setMsg('✗ ' + ((e && e.message) || e), 'error');
     return;

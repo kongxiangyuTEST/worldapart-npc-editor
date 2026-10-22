@@ -132,7 +132,16 @@ ctx.pywebview = {
     get_logs: async () => ({ logs: [{ time: '00:00', name: 'core_proxy', line: 'test' }], next_index: 1 }),
     get_upstream: async () => ({ ok: true, url: 'http://127.0.0.1:8080/' }),
     get_upstream_status: async () => ({ ok: true, upstream: 'http://127.0.0.1:8080/' }),
-    get_prompt_fragments: async () => ({ ok: true, data: { fixed_sections: {} } }),
+    get_prompt_fragments: async () => ({
+      ok: true,
+      data: {
+        total_samples: 40,
+        fixed_sections: {
+          '守住世界观': '## 守住世界观\n本世界为东方修仙，凡人亦可修行。',
+          '通用要求': '## 通用要求\n- 不机械复述属性信息。\n- 只对话，不发布任务。',
+        },
+      },
+    }),
     get_ai_config: async () => ({ ok: true, data: { inject: '', rules: [] } }),
     get_memory_list: async () => ({ ok: true, debug_path: 'memory', items: memoryStore.items.slice() }),
     get_memory: async () => ({
@@ -226,6 +235,26 @@ for (const name of STEPS) {
   }
 
   // ---------- 5. AI 提示词预览页 ----------
+  console.log('AI 提示词 · 固定段落：');
+  try {
+    await ctx.initPromptsPage();
+    ctx.switchAiTab('fragments');
+    // promptFragments 是 let 声明，不在 globalThis 上，从渲染出的侧栏里取标题
+    const sideHtml = getEl('ai-tab-content').innerHTML;
+    const m = sideHtml.match(/data-title="([^"]+)"/);
+    if (!m) {
+      fail('固定段落侧栏没渲染出条目');
+    } else {
+      const title = m[1];
+      ctx.selectPromptFragment(title);
+      const html = getEl('prompts-content').innerHTML;
+      if (html && html.indexOf(title) >= 0) ok('详情渲染正常：' + title);
+      else fail('详情为空（selectPromptFragment 可能抛错）');
+    }
+  } catch (e) {
+    fail('固定段落渲染抛错 -> ' + e.name + ': ' + e.message);
+  }
+
   console.log('AI 提示词 · 预览页：');
   try {
     ctx.switchAiTab('preview');

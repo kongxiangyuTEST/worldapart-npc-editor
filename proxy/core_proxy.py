@@ -100,6 +100,7 @@ _AI = {
     "memory_merge_url": "",  # 记忆总结单独走哪个地址（空=用上游；填本地可避开 API 审核）
     "memory_merge_every": 12,     # 攒够多少轮触发一次总结
     "memory_merge_max_tokens": 4000,  # 总结输出上限（太小会被截断成非法 JSON）
+    "past_events_max_chars": 800,     # 游戏「过往要事」最多注入多少字（0=不压缩）
 }
 
 
@@ -151,6 +152,10 @@ def load_ai_config(force=False):
         _AI["memory_merge_max_tokens"] = max(500, int(conf.get("memory_merge_max_tokens", 4000)))
     except (TypeError, ValueError):
         _AI["memory_merge_max_tokens"] = 4000
+    try:
+        _AI["past_events_max_chars"] = max(0, int(conf.get("past_events_max_chars", 800)))
+    except (TypeError, ValueError):
+        _AI["past_events_max_chars"] = 800
 
     _AI["mtime"] = mtime
     print(f"[配置] ai_config.json 已加载：注入 {len(_AI['inject'])} 字，"
@@ -877,6 +882,60 @@ def parse_game_events(messages):
     return lines
 
 
+def _compress_past_events(body, max_chars):
+    """游戏「过往要事」只增不减，久了能到 1000+ 字（占 system 20%）。
+
+    这里按字数上限保留最近若干条，更早的折成一行提示。
+    换档判断读的是原文（在 check_save_guard 里），所以压缩不影响它。
+    """
+    if max_chars <= 0 or len(body) <= max_chars:
+        return body
+
+    lines = [ln for ln in body.split("\n") if ln.strip()]
+    kept, total = [], 0
+    for ln in reversed(lines):          # 从最近的一条往前留
+        if kept and total + len(ln) > max_chars:
+            break
+        kept.append(ln)
+        total += len(ln) + 1
+    kept.reverse()
+
+    omitted = len(lines) - len(kept)
+    if omitted > 0:
+        kept.insert(0, f"（更早的 {omitted} 条已省略）")
+    return "\n".join(kept)
+
+
+def _shrink_past_events(messages):
+    """把「## 过往要事」按上限原地压缩。
+
+    不管记忆落在哪（past_events / append），这一段都值得压：
+    游戏侧只增不减，久了 1000+ 字，占 system 20%。
+    """
+    cap = int(_AI.get("past_events_max_chars", 800))
+    if cap <= 0:
+        return False
+
+    for m in messages:
+        if m.get("role") != "system":
+            continue
+        c = m.get("content")
+        if not isinstance(c, str) or "过往要事" not in c:
+            continue
+        mm = PAST_EVENTS_RE.search(c)
+        if not mm:
+            continue
+        body = mm.group(1).strip()
+        shrunk = _compress_past_events(body, cap)
+        if shrunk == body:
+            return False
+        a, b = mm.span(1)
+        m["content"] = c[:a] + shrunk + c[b:]
+        print(f"[记忆] 「过往要事」{len(body)} 字 → {len(shrunk)} 字", flush=True)
+        return True
+    return False
+
+
 def _place_into_past_events(messages, memory_text):
     """把记忆块写进「## 过往要事」那一节，游戏原有条目保留。
     找不到这一节返回 False（调用方退回 system 末尾追加）。"""
@@ -986,6 +1045,12 @@ def inject_memory_to_messages(req_json, npc_name=None, persist=True):
     if not memory_text.strip():
         return {"npc_id": npc_id, "npc_name": npc_name, "chars": 0,
                 "slot": "", "guard": guard["status"]}
+
+    # 先把游戏侧记忆压到上限（append 模式也做，省 token）
+    try:
+        _shrink_past_events(messages)
+    except Exception as e:
+        print(f"[记忆] 压缩过往要事失败，跳过: {e}", flush=True)
 
     slot = "append"
     placed = False
@@ -1374,6 +1439,7 @@ def _status():
         "memory_merge_url": _AI.get("memory_merge_url") or "(跟随上游)",
         "memory_merge_every": _AI.get("memory_merge_every"),
         "memory_merge_max_tokens": _AI.get("memory_merge_max_tokens"),
+        "past_events_max_chars": _AI.get("past_events_max_chars"),
         "config_mtime": _AI["mtime"],
     })
 

@@ -51,8 +51,9 @@
       "new": "在游戏世界里自然呈现所见与互动。"
     }
   ],
-  "memory_slot": "past_events",
+  "memory_slot": "append",
   "save_guard": true,
   "memory_budget": 2000,
-  "memory_merge_url": ""
+  "memory_merge_url": "",
+  "past_events_max_chars": 800
 }

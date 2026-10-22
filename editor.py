@@ -810,8 +810,9 @@ class Api:
             "note": str(data.get("note") or ""),
         }
 
-    def save_memory_settings(self, merge_url, merge_every, merge_max_tokens):
-        """只改记忆总结相关的三个键，其余配置原样保留。"""
+    def save_memory_settings(self, merge_url, merge_every, merge_max_tokens,
+                             memory_slot=None, past_events_max_chars=None):
+        """只改记忆相关的几个键，其余配置原样保留。"""
         try:
             data = {}
             if os.path.isfile(AI_CONFIG_PATH):
@@ -828,6 +829,18 @@ class Api:
             except (TypeError, ValueError):
                 return {"ok": False, "msg": "输出上限要填数字（≥500）"}
 
+            if memory_slot is not None:
+                slot = str(memory_slot or "").strip()
+                if slot not in ("past_events", "append"):
+                    return {"ok": False, "msg": f"未知的记忆落位: {slot}"}
+                data["memory_slot"] = slot
+
+            if past_events_max_chars is not None:
+                try:
+                    data["past_events_max_chars"] = max(0, int(past_events_max_chars))
+                except (TypeError, ValueError):
+                    return {"ok": False, "msg": "过往要事上限要填数字（0 = 不压缩）"}
+
             if os.path.isfile(AI_CONFIG_PATH):
                 shutil.copy2(AI_CONFIG_PATH, AI_CONFIG_PATH + ".bak")
             with open(AI_CONFIG_PATH, "w", encoding="utf-8") as f:
@@ -836,6 +849,8 @@ class Api:
                 "memory_merge_url": data["memory_merge_url"],
                 "memory_merge_every": data["memory_merge_every"],
                 "memory_merge_max_tokens": data["memory_merge_max_tokens"],
+                "memory_slot": data.get("memory_slot", "past_events"),
+                "past_events_max_chars": data.get("past_events_max_chars", 800),
             }}
         except Exception as e:
             return {"ok": False, "msg": f"保存失败: {e}"}

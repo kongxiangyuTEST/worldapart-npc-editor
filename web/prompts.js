@@ -273,22 +273,38 @@ function selectPromptFragment(title) {
 
   const detail = document.getElementById('prompts-content');
   if (!detail) return;
+
+  const hit = findFragmentRule(content);
+  const volatile = isVolatileFragment(title);
+
   detail.innerHTML = `
-    <div class="prompt-detail-header">
-      <h3>${escapeHtml(title)}</h3>
-      <div style="display:flex;gap:10px;align-items:center;">
-        <span class="prompt-detail-info">${content.length} 字符</span>
-        ${isVolatileFragment(title)
-          ? '<span class="prompt-detail-info" style="color:var(--cl-warning);">每轮都变，不能做替换规则</span>'
+    <div class="frag-head">
+      <div>
+        <h3 class="frag-title">${escapeHtml(title)}</h3>
+        <div class="frag-meta">${content.length} 字符 · 每轮原样发给模型</div>
+      </div>
+      <div class="frag-actions">
+        ${volatile
+          ? '<span class="frag-tag warn">每轮都变，不能做替换规则</span>'
           : `<button class="secondary" onclick="optimizeFragment('${escapeHtml(title)}')">让 AI 精简</button>`}
+        ${hit ? `<button class="secondary" onclick="restoreFragmentRule('${escapeHtml(title)}')">恢复原设定</button>` : ''}
       </div>
     </div>
-    <div class="field-hint" style="margin-bottom:8px;">
-      这段每轮都会原样发给模型。让 AI 合并同义句、删掉赘述，确认后再变成一条替换规则；
-      JSON 结构、枚举值、硬约束要求它不许动。
+
+    ${hit ? `<div class="frag-inuse">
+      当前已用精简版替换这一段（第 ${hit.index + 1} 条替换规则）·
+      <a href="javascript:restoreFragmentRule('${escapeHtml(title)}')">恢复原设定</a>
+    </div>` : ''}
+
+    <div class="frag-hint">
+      让 AI 合并同义句、删掉赘述，确认后再变成一条替换规则。JSON 结构、枚举值、
+      「必须 / 不要」类约束都要求它不许动；随时可以恢复原设定。
     </div>
+
     <div id="frag-opt-status" class="inject-status"></div>
     <div id="frag-opt-result"></div>
+
+    <div class="frag-section-label">原文</div>
     <pre class="prompt-detail-content">${escapeHtml(content)}</pre>
   `;
 }
@@ -296,6 +312,44 @@ function selectPromptFragment(title) {
 // 「本轮会话状态」「当前场景」这类每轮都会变的段落，做成整段替换规则会立刻失效
 function isVolatileFragment(title) {
   return /本轮会话状态|当前场景|本次话题|话题背景/.test(String(title || ''));
+}
+
+// 这一段是不是已经被某条替换规则替换过
+function findFragmentRule(content) {
+  const rules = (aiConfig && aiConfig.rules) || [];
+  const key = String(content || '').trim();
+  for (let i = 0; i < rules.length; i++) {
+    if (String(rules[i].old || '').trim() === key) {
+      return { index: i, rule: rules[i] };
+    }
+  }
+  return null;
+}
+
+async function restoreFragmentRule(title) {
+  const fixed = (promptFragments && promptFragments.fixed_sections) || {};
+  const content = fixed[title] || '';
+  const hit = findFragmentRule(content);
+  if (!hit) {
+    alert('没有找到对应的替换规则，可能已经被删掉了。');
+    return;
+  }
+  if (!confirm('恢复原设定？\n\n会删掉这条替换规则（第 ' + (hit.index + 1) + ' 条），游戏原文重新生效。')) {
+    return;
+  }
+  aiConfig.rules.splice(hit.index, 1);
+  let res;
+  try {
+    res = await pywebview.api.save_ai_config(aiConfig);
+  } catch (e) {
+    alert('恢复失败：' + ((e && e.message) || e));
+    return;
+  }
+  if (!res || !res.ok) {
+    alert('恢复失败：' + ((res && res.msg) || '未知错误'));
+    return;
+  }
+  selectPromptFragment(title);
 }
 
 // ============= 固定段落：AI 精简 =============
@@ -337,21 +391,30 @@ async function optimizeFragment(title) {
 function renderFragmentResult(r) {
   const box = document.getElementById('frag-opt-result');
   if (!box) return;
-  const riskText = { low: '低', mid: '中', high: '高' }[r.risk] || r.risk;
+  const riskMap = { low: ['低', 'ok'], mid: ['中', 'warn'], high: ['高', 'bad'] };
+  const risk = riskMap[r.risk] || [r.risk, 'warn'];
   const dropped = (r.dropped || []).map(x => `<li>${escapeHtml(String(x))}</li>`).join('');
+
   box.innerHTML = `
-    <div class="preview-warn" style="margin-bottom:10px;">
-      原 ${r.original_chars} 字 → ${r.compressed_chars} 字（剩 ${r.ratio}%，省 ${r.saved_chars} 字）·
-      风险：${escapeHtml(riskText)}${r.note ? ' · ' + escapeHtml(r.note) : ''}
+    <div class="frag-result">
+      <div class="frag-stats">
+        <div class="frag-stat"><span class="frag-stat-num">${r.original_chars}</span><span class="frag-stat-label">原字数</span></div>
+        <div class="frag-stat"><span class="frag-stat-num">${r.compressed_chars}</span><span class="frag-stat-label">精简后</span></div>
+        <div class="frag-stat"><span class="frag-stat-num accent">-${r.saved_chars}</span><span class="frag-stat-label">省下 ${100 - r.ratio}%</span></div>
+        <div class="frag-stat"><span class="frag-tag ${risk[1]}">风险 ${escapeHtml(risk[0])}</span>
+          <span class="frag-stat-label">${escapeHtml(r.note || '')}</span></div>
+      </div>
+
+      ${dropped ? `<div class="frag-dropped"><b>改动点</b><ul>${dropped}</ul></div>` : ''}
+
+      <div class="frag-actions" style="margin:12px 0;">
+        <button class="primary" onclick="applyFragmentRule()">采用为替换规则</button>
+        <button class="secondary" onclick="discardFragmentResult()">放弃</button>
+      </div>
+
+      <div class="frag-section-label">精简后的全文（确认没问题再采用）</div>
+      <pre class="prompt-detail-content" style="max-height:280px;">${escapeHtml(r.compressed)}</pre>
     </div>
-    ${dropped ? `<div style="font-size:12px;color:var(--cl-body);margin-bottom:8px;">
-      <b>改动点：</b><ul style="margin:6px 0 0 18px;">${dropped}</ul></div>` : ''}
-    <div style="display:flex;gap:10px;margin-bottom:10px;">
-      <button class="primary" onclick="applyFragmentRule()">采用为替换规则</button>
-      <button class="secondary" onclick="discardFragmentResult()">放弃</button>
-    </div>
-    <div style="font-size:12px;color:var(--cl-muted);margin-bottom:6px;">精简后的全文（确认没问题再采用）：</div>
-    <pre class="prompt-detail-content" style="max-height:260px;">${escapeHtml(r.compressed)}</pre>
   `;
 }
 
@@ -378,6 +441,10 @@ async function applyFragmentRule() {
     return;
   }
   if (res && res.ok) {
+    const fixed = (promptFragments && promptFragments.fixed_sections) || {};
+    const title = fragOptResult ? fragOptResult.title : '';
+    fragOptResult = null;
+    if (title) selectPromptFragment(title);
     setFragStatus('✓ 已保存为替换规则（共 ' + aiConfig.rules.length + ' 条），存盘即生效', 'success');
   } else {
     setFragStatus('✗ ' + ((res && res.msg) || '保存失败'), 'error');
