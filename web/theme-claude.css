@@ -1080,3 +1080,11 @@ a { color: var(--cl-coral); }
   margin-left: 15px;
   margin-right: 15px;
 }
+
+/* 标题行原来只有 padding-bottom:12px，没有上内边距 ——
+   align-items:center 是在"内容盒"里居中，底部那 12px 把整行内容整体顶高了，
+   所以按钮看着偏上。上下补成一样的 6px，再让居中生效。 */
+.frag-head {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
