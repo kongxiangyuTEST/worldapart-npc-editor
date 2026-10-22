@@ -27,6 +27,7 @@ user_config.json
 ui_state.json
 ai_config.json
 ai_config.json.bak
+ai_config.example.json.bak
 prompt_samples/
 
 # ===== 本地备份 =====
