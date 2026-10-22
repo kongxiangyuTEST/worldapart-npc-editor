@@ -23,6 +23,8 @@ dist_editor/
 
 # ===== 用户隐私 / 本地配置 =====
 user_config.json
+# 文件对话框上次打开的目录（本地状态，不参与打包/提交）
+ui_state.json
 ai_config.json
 ai_config.json.bak
 prompt_samples/

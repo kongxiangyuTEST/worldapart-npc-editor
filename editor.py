@@ -33,6 +33,40 @@ else:
 ORIGINALS_DIR = os.path.join(PROJECT_DIR, "originals")
 LAST_SAVED_DIR = os.path.join(PROJECT_DIR, "last_saved")
 AI_CONFIG_PATH = os.path.join(PROJECT_DIR, "ai_config.json")
+
+# 文件对话框的"上次打开位置"存这里：不放进 ai_config（那是给 core_proxy 读的）
+UI_STATE_PATH = os.path.join(PROJECT_DIR, "ui_state.json")
+
+
+def _ui_state_load():
+    try:
+        with open(UI_STATE_PATH, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _ui_state_save(d):
+    try:
+        with open(UI_STATE_PATH, "w", encoding="utf-8") as f:
+            json.dump(d, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _pick_start_dir(key, fallback=""):
+    """取某个对话框上次用的目录；不存在就退回 fallback，再不行返回空。"""
+    p = _ui_state_load().get(key) or fallback or ""
+    return p if p and os.path.isdir(p) else ""
+
+
+def _remember_pick(key, path):
+    if not path:
+        return
+    d = _ui_state_load()
+    d[key] = path
+    _ui_state_save(d)
 PROMPT_FRAGMENTS_PATH = os.path.join(PROJECT_DIR, "prompt_fragments.json")
 PORTRAITS_DIR = os.path.join(WEB_DIR, "portraits")
 PORTRAITS_INDEX_PATH = os.path.join(PROJECT_DIR, "portraits_index.json")
@@ -961,23 +995,30 @@ class Api:
         
     # --- 头像提取 ---
     def pick_assetstudio_cli(self):
-        """弹文件选择框，让用户选 AssetStudioModCLI.exe"""
+        """弹文件选择框，让用户选 AssetStudioModCLI.exe（记上次打开的目录）"""
         try:
+            start = _pick_start_dir("cli_dir")
             result = webview.windows[0].create_file_dialog(
                 webview.OPEN_DIALOG,
+                directory=start,
                 file_types=("所有文件 (*.*)",),
             )
             if result and len(result) > 0:
-                return {"ok": True, "path": result[0]}
+                picked = result[0]
+                _remember_pick("cli_dir", os.path.dirname(picked))
+                return {"ok": True, "path": picked}
             return {"ok": False, "msg": "未选择"}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
     def pick_game_dir(self):
-        """弹文件夹选择框，让用户选游戏根目录"""
+        """弹文件夹选择框，让用户选游戏根目录（记上次选的位置）"""
         try:
-            result = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
+            start = _pick_start_dir("game_dir_pick")
+            result = webview.windows[0].create_file_dialog(
+                webview.FOLDER_DIALOG, directory=start)
             if result and len(result) > 0:
+                _remember_pick("game_dir_pick", result[0])
                 return {"ok": True, "path": result[0]}
             return {"ok": False, "msg": "未选择"}
         except Exception as e:
@@ -1122,10 +1163,13 @@ class Api:
     def pick_and_save_game_dir(self):
         """弹文件夹选择框，选完写入 user_config.json 并重启 core_proxy"""
         try:
-            result = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
+            start = _pick_start_dir("game_dir_pick")
+            result = webview.windows[0].create_file_dialog(
+                webview.FOLDER_DIALOG, directory=start)
             if not result or len(result) == 0:
                 return {"ok": False, "msg": "未选择"}
             gd = result[0]
+            _remember_pick("game_dir_pick", gd)
             if not os.path.isfile(os.path.join(gd, "WorldApart.exe")):
                 return {"ok": False, "msg": "该目录下找不到 WorldApart.exe，请重新选择"}
 

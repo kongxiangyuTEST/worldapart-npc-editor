@@ -1176,3 +1176,55 @@ a { color: var(--cl-coral); }
   border-color: var(--cl-coral);
   box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.15);
 }
+
+/* ==================== 工具页：提取开关 ==================== */
+.extract-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--cl-surface-soft);
+  border: 1px solid var(--cl-hairline);
+  border-radius: 9999px;
+  margin-bottom: 16px;
+}
+
+.extract-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 22px;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--cl-muted);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+
+.extract-opt:hover { background: var(--cl-card); color: var(--cl-ink); }
+
+.extract-opt.active {
+  background: var(--cl-canvas);
+  color: var(--cl-ink);
+  box-shadow: 0 1px 3px rgba(61, 57, 51, 0.08);
+}
+
+.extract-opt-sub {
+  font-size: 10px;
+  letter-spacing: .5px;
+  color: var(--cl-muted-soft);
+  font-family: var(--cl-mono);
+}
+
+.extract-opt.active .extract-opt-sub { color: var(--cl-coral); }
+
+/* 工具页的字段不该撑满整个 tab：style.css 里
+   `.ai-tab-content .field { height: 100% }` 是为提示词页的单一大输入框写的，
+   放到工具页会把两个输入框撑开一百多像素的空白。 */
+#tools-tab-content .field {
+  height: auto;
+  margin-bottom: 16px;
+}
