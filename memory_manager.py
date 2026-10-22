@@ -577,7 +577,8 @@ def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key,
             print(f"[记忆合并] ✅ {npc_name} 的剧情与事实已成功更新保存！\n", flush=True)
             return True
         else:
-            print(f"[记忆合并] ❌ 请求失败（HTTP {res.status_code}），报错信息: {res.text[:200]}\n", flush=True)
+            print(f"[记忆合并] ❌ 请求失败（HTTP {res.status_code}）地址 {upstream_url}，"
+                  f"报错信息: {res.text[:200]}\n", flush=True)
             _restore_merge_backlog(npc_id, npc_name, recent_logs, f"HTTP {res.status_code}")
             return False
     except Exception as e:

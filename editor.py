@@ -654,7 +654,12 @@ class Api:
         try:
             res = requests.post(upstream, json=body, headers=headers, timeout=60)
             if res.status_code != 200:
-                return {"ok": False, "msg": f"模型报错: HTTP {res.status_code}"}
+                # 带上地址：401 到底是本地模型要 key，还是打到了第三方，一眼能看出
+                hint = ""
+                if res.status_code in (401, 403):
+                    hint = "（地址或密钥不对：本地模型一般不需要 key，第三方 API 必须填对 key）"
+                return {"ok": False,
+                        "msg": f"模型报错: HTTP {res.status_code}（{upstream}）{hint}"}
                 
             text = res.json()["choices"][0]["message"]["content"]
             # 暴力清理各种可能的大模型废话；再退一步：只取第一个 { 到最后一个 }
@@ -713,7 +718,8 @@ class Api:
             return {"ok": True, "msg": "AI总结成功！"}
             
         except requests.exceptions.ConnectionError:
-            return {"ok": False, "msg": "连接失败！请确认本地模型(8080)是否开启。"}
+            return {"ok": False,
+                    "msg": f"连接失败（{upstream}）！请确认本地模型(8080)是否开启。"}
         except json.JSONDecodeError:
             return {"ok": False, "msg": "模型返回的不是纯 JSON 格式，解析失败！"}
         except Exception as e:

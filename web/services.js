@@ -233,9 +233,16 @@ async function loadMemorySettings() {
   } catch (e) {
     console.error(e);
   }
+
+  // 填完忘点保存 → 静默失效（用户踩过：总结地址没存，结果打到上游 401）。
+  // 改成失焦即存，core_proxy 按 mtime 热加载，不需要重启。
+  ['merge-url', 'merge-every', 'merge-tokens', 'past-events-max', 'memory-slot'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', () => saveMemorySettings(true));
+  });
 }
 
-async function saveMemorySettings() {
+async function saveMemorySettings(silent) {
   const status = document.getElementById('merge-status');
   const setMsg = (t, cls) => {
     if (!status) return;
@@ -249,7 +256,7 @@ async function saveMemorySettings() {
   const slot = (document.getElementById('memory-slot') || {}).value || 'past_events';
   const pastMax = (document.getElementById('past-events-max') || {}).value;
 
-  setMsg('保存中...', '');
+  if (!silent) setMsg('保存中...', '');
   let res;
   try {
     res = await pywebview.api.save_memory_settings(url.trim(), every, tokens, slot, pastMax);
@@ -257,6 +264,9 @@ async function saveMemorySettings() {
     setMsg('✗ ' + ((e && e.message) || e), 'error');
     return;
   }
-  if (res && res.ok) setMsg('✓ 已保存，core_proxy 会自动重读', 'success');
-  else setMsg('✗ ' + ((res && res.msg) || '保存失败'), 'error');
+  if (res && res.ok) {
+    setMsg(silent ? '✓ 已自动保存' : '✓ 已保存，core_proxy 会自动重读', 'success');
+  } else {
+    setMsg('✗ ' + ((res && res.msg) || '保存失败'), 'error');
+  }
 }
