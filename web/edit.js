@@ -255,17 +255,34 @@ function openAiFillDialog() {
     <div class="ui-dialog ai-fill-dialog">
       <div class="ai-fill-title">AI 补全名片 · ${escapeHtml(name)}</div>
       <div class="ai-fill-note">
-        会读取：卡片预设与背景、该角色最近的游戏 prompt（场景/关系/状态）、长期记忆（剧情与事实）。
-        没有聊过的角色就只用卡片自带资料。用本地模型生成，不联网。
+        以<strong>游戏原始资料</strong>为准：卡片预设与原游戏背景优先，其次是游戏自己写的
+        角色设定与当前场景。没有聊过的角色就只用卡片自带资料。<br>
+        玩家在对话里说过的话、自称的身份、临时编的剧情，都不会被当成设定依据。
       </div>
 
       <label class="ai-fill-label">人设原稿（可选，最高优先级）</label>
       <textarea id="ai-fill-hint" rows="3"
         placeholder="用你自己的话写一段她该怎么演，例如：外人是板着脸的掌柜，独处时才抱怨累、要人哄。"></textarea>
 
+      <div class="ai-fill-row">
+        <span class="ai-fill-label">用哪个模型生成</span>
+        <div class="ai-fill-seg">
+          <button type="button" class="seg-btn active" data-model="local">本地模型</button>
+          <button type="button" class="seg-btn" data-model="api">跟随上游 API</button>
+        </div>
+        <span class="ai-fill-tip" id="ai-fill-model-tip">内容不出本机；没部署本地模型就切 API</span>
+      </div>
+
       <div class="ai-fill-checks">
-        <label><input type="checkbox" id="ai-fill-samples" checked> 读取游戏 prompt 样本</label>
+        <label><input type="checkbox" id="ai-fill-samples" checked> 读取游戏 prompt 样本（游戏写的场景/状态）</label>
+      </div>
+      <div class="ai-fill-checks">
         <label><input type="checkbox" id="ai-fill-memory" checked> 读取长期记忆</label>
+        <span class="ai-fill-tip">默认只取中性的时间地点</span>
+      </div>
+      <div class="ai-fill-checks">
+        <label><input type="checkbox" id="ai-fill-plot"> 连剧情摘要一起读</label>
+        <span class="ai-fill-tip warn">摘要里有玩家说过的话，可能把官方人设带偏，一般不建议</span>
       </div>
 
       <div class="ai-fill-status" id="ai-fill-status"></div>
@@ -282,6 +299,19 @@ function openAiFillDialog() {
   mask.addEventListener('click', e => { if (e.target === mask) close(); });
   mask.querySelector('[data-act="cancel"]').onclick = close;
   mask.querySelector('[data-act="gen"]').onclick = () => runAiFill(mask, close);
+
+  // 模型来源分段按钮，选择记在 localStorage
+  const segs = mask.querySelectorAll('.seg-btn');
+  const saved = 'local';
+  try { saved = localStorage.getItem('wa_ai_fill_model') || 'local'; } catch (e) {}
+  segs.forEach(b => {
+    b.classList.toggle('active', b.dataset.model === saved);
+    b.onclick = () => {
+      segs.forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      try { localStorage.setItem('wa_ai_fill_model', b.dataset.model); } catch (e) {}
+    };
+  });
   root.appendChild(mask);
 }
 
@@ -293,6 +323,12 @@ async function runAiFill(mask, close) {
   const hint = (document.getElementById('ai-fill-hint') || {}).value || '';
   const useSamples = (document.getElementById('ai-fill-samples') || {}).checked;
   const useMemory = (document.getElementById('ai-fill-memory') || {}).checked;
+  const usePlot = (document.getElementById('ai-fill-plot') || {}).checked;
+  const useLocal = (mask.querySelector('.seg-btn.active') || {}).dataset
+    ? mask.querySelector('.seg-btn.active').dataset.model === 'local'
+    : true;
+  // 记忆三态：不读 / 只读时间地点 / 连剧情摘要一起读
+  const memMode = useMemory ? (usePlot ? 'plot' : 'basic') : false;
 
   genBtn.disabled = true;
   genBtn.textContent = '生成中…';
@@ -303,7 +339,7 @@ async function runAiFill(mask, close) {
   let res;
   try {
     res = await pywebview.api.ai_fill_user_card(
-      currentFilename, hint, useSamples, useMemory);
+      currentFilename, hint, useSamples, memMode, useLocal);
   } catch (e) {
     res = { ok: false, msg: String((e && e.message) || e) };
   }
@@ -316,7 +352,7 @@ async function runAiFill(mask, close) {
     return;
   }
 
-  status.textContent = `✓ 生成成功 · ${res.chars} 字 · 资料：${(res.sources || []).join('、')}`;
+  status.textContent = `✓ 生成成功 · ${res.chars} 字 · 模型：${res.model || '?'} · 资料：${(res.sources || []).join('、')}`;
   status.className = 'ai-fill-status success';
 
   result.innerHTML = `

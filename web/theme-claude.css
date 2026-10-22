@@ -1429,3 +1429,47 @@ a { color: var(--cl-coral); }
 .ai-fill-status.error { color: var(--cl-error); }
 
 .ai-fill-result { margin-top: 6px; }
+
+/* AI 补全：模型分段按钮与提示 */
+.ai-fill-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.ai-fill-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--cl-surface-soft);
+  border: 1px solid var(--cl-hairline);
+  border-radius: 9999px;
+}
+
+.seg-btn {
+  padding: 5px 14px;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--cl-muted);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.seg-btn:hover { color: var(--cl-ink); }
+
+.seg-btn.active {
+  background: var(--cl-canvas);
+  color: var(--cl-ink);
+  box-shadow: 0 1px 2px rgba(61, 57, 51, 0.08);
+}
+
+.ai-fill-tip {
+  font-size: 11px;
+  color: var(--cl-muted-soft);
+}
+
+.ai-fill-tip.warn { color: #8a5a1c; }

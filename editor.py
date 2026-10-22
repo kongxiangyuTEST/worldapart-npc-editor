@@ -464,6 +464,26 @@ service_mgr = services.init_manager(log_callback=push_log)
 # ==================== API ====================
 
 
+def _loose_extract_fields(raw):
+    """整体 JSON 坏掉时（常见原因：值里带了 ASCII 双引号），按字段逐个捞。
+
+    只要每个值还被引号包着就能捞出来；值本身含引号时会被截断，
+    但比整块失败强。返回 dict，可能为空。
+    """
+    out = {}
+    for key in ("tone", "rhythm", "self_ref", "address"):
+        m = re.search(r'"' + key + r'"\s*:\s*"([^"\n]{1,200})"', raw)
+        if m:
+            out[key] = m.group(1).strip()
+    for key in ("catch", "habits", "rules", "lines"):
+        m = re.search(r'"' + key + r'"\s*:\s*\[(.*?)\]', raw, re.S)
+        if not m:
+            continue
+        items = re.findall(r'"((?:[^"\\]|\\.)*)"', m.group(1))
+        out[key] = [x.replace('\\"', '"').strip() for x in items if x.strip()]
+    return out
+
+
 class Api:
         # --- 样本查看 ---
     def get_latest_sample(self, npc_name):
@@ -798,7 +818,7 @@ class Api:
             return {"ok": False, "msg": f"保存失败: {e}"}
 
     def ai_fill_user_card(self, filename, user_hint="", use_samples=True,
-                          use_memory=True):
+                          use_memory=True, use_local=True):
         """用 AI 给某张卡的「用户名片」生成内容（只生成，不写盘）。
 
         资料来源（都可关）：
@@ -844,6 +864,9 @@ class Api:
                     sources.append(f"游戏 prompt 样本（{smp.get('filename', '')}）")
 
         # --- 资料 3：长期记忆 ---
+        # 注意：剧情摘要和事实里混着【玩家说过的话】，玩家会自称各种身份、
+        # 临时编剧情，拿它当设定依据会把 NPC 的官方人设带偏。
+        # 所以默认只取中性的「时间地点」；剧情向内容要用户显式勾选。
         mem_ctx = ""
         if use_memory:
             try:
@@ -856,48 +879,63 @@ class Api:
                     parts = []
                     if data.get("time_location"):
                         parts.append("时间地点：" + str(data["time_location"]))
-                    if data.get("early_gist"):
-                        parts.append("早期梗概：" + str(data["early_gist"])[:300])
-                    if data.get("long_summary"):
-                        parts.append("最近剧情：" + str(data["long_summary"])[:500])
-                    for cat, arr in (data.get("facts") or {}).items():
-                        for f in arr[:6]:
-                            txt = (f or {}).get("text") if isinstance(f, dict) else f
-                            if txt:
-                                parts.append(f"事实[{cat}]：{txt}")
+                    if use_memory == "plot":
+                        if data.get("early_gist"):
+                            parts.append("早期梗概：" + str(data["early_gist"])[:300])
+                        if data.get("long_summary"):
+                            parts.append("最近剧情：" + str(data["long_summary"])[:400])
+                        for cat, arr in (data.get("facts") or {}).items():
+                            for f in arr[:4]:
+                                txt = (f or {}).get("text") if isinstance(f, dict) else f
+                                if txt:
+                                    parts.append(f"事实[{cat}]：{txt}")
                     if parts:
-                        mem_ctx = "\n".join(parts)[:1400]
-                        sources.append("长期记忆（剧情摘要与事实）")
+                        mem_ctx = "\n".join(parts)[:900]
+                        sources.append("长期记忆（仅时间地点）" if use_memory != "plot"
+                                       else "长期记忆（含剧情摘要，受玩家发言影响）")
             except Exception as e:
                 print(f"[AI补全] 读记忆失败: {e}", flush=True)
 
-        # --- 上游：优先本地（memory_merge_url） ---
-        upstream, fallback_key = "", ""
+        # --- 用哪个模型生成 ---
+        # use_local=True  → 本地（ai_config 的 memory_merge_url，一般填 127.0.0.1:8080）
+        # use_local=False → 跟随 core_proxy 的上游（第三方 API）
+        # 不是每台电脑都部署了本地模型，所以两种都要能选。
+        upstream, fallback_key, which = "", "", ""
         try:
             with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as f:
                 acfg = json.load(f)
-            upstream = (acfg.get("memory_merge_url") or "").strip()
         except Exception:
-            upstream = ""
-        if not upstream:
+            acfg = {}
+
+        if use_local:
+            upstream = (acfg.get("memory_merge_url") or "").strip()
+            which = "本地模型"
+            if not upstream:
+                upstream = "http://127.0.0.1:8080/v1/chat/completions"
+        else:
             conf_path = os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json")
-            upstream = "http://127.0.0.1:8080/v1/chat/completions"
+            base = "http://127.0.0.1:8080/"
             try:
                 with open(conf_path, "r", encoding="utf-8") as f:
                     ccfg = json.load(f)
-                    base = (ccfg.get("upstream_base_url") or "http://127.0.0.1:8080/").rstrip("/")
-                    upstream = base + "/v1/chat/completions"
-                    fallback_key = ccfg.get("api_key") or ""
+                base = (ccfg.get("upstream_base_url") or base).rstrip("/")
+                fallback_key = ccfg.get("api_key") or ""
             except Exception:
                 pass
+            upstream = base + "/v1/chat/completions"
+            which = "跟随上游（API）"
 
         hint = (user_hint or "").strip()
         prompt = (
             "你在给一个游戏 NPC 写「角色演绎要求」。下面给出这个角色的资料，"
             "请据此写出她怎么说话、怎么反应。\n\n"
             "【硬性规则】\n"
-            "1. 只依据给定资料推断，不要编造资料里没有的身世、门派、剧情。\n"
-            "2. 不要写露骨内容，只写语气、习惯、反应方式。\n"
+            "1. 资料优先级：卡片预设与原游戏背景 > 游戏里的角色设定与当前场景 > 长期记忆。\n"
+            "   冲突时以上面优先级为准，不要让低优先级资料改写官方设定。\n"
+            "2. 资料里凡是【玩家说过的话、玩家自称的身份、玩家临时提起的剧情】，"
+            "一律不当成设定依据——玩家可能只是角色扮演或试探。\n"
+            "3. 只依据给定资料推断，不要编造资料里没有的身世、门派、剧情。\n"
+            "4. 不要写露骨内容，只写语气、习惯、反应方式。\n"
             "3. 示例台词只示范语气，不要复述资料里的剧情原文。\n"
             "4. 输出严格 JSON，不要 markdown 代码块：\n"
             '{"tone":"整体语气基调","rhythm":"句长节奏","self_ref":"她怎么自称",'
@@ -937,7 +975,7 @@ class Api:
         body = {
             "model": "local-model",
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.5,
+            "temperature": 0.4,
             "max_tokens": 4000,
             "thinking": {"type": "disabled"},
         }
@@ -959,10 +997,16 @@ class Api:
         a, b = raw.find("{"), raw.rfind("}")
         if a < 0 or b <= a:
             return {"ok": False, "msg": "模型没有返回 JSON（可能被拒答），前 60 字：" + raw[:60]}
+
+        d = None
         try:
             d = json.loads(raw[a:b + 1])
-        except Exception as e:
-            return {"ok": False, "msg": f"JSON 解析失败: {e}"}
+        except Exception:
+            # 值里混了 ASCII 双引号，整体解析不了 → 按字段兜底
+            d = _loose_extract_fields(raw[a:b + 1]) or None
+        if not d:
+            return {"ok": False,
+                    "msg": "JSON 解析失败（模型可能在值里用了英文引号），前 80 字：" + raw[:80]}
 
         lines = ["### 口吻",
                  f"- 基调：{d.get('tone', '')}",
@@ -983,7 +1027,8 @@ class Api:
         markdown = "\n".join(lines)
 
         return {"ok": True, "markdown": markdown, "sources": sources,
-                "chars": len(markdown), "name": name}
+                "chars": len(markdown), "name": name,
+                "model": which, "url": upstream}
 
     def optimize_fragment(self, title, text):
         """让模型精简一段固定的 system 段落，只给建议、不自动改配置。
