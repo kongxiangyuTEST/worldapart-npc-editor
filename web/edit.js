@@ -171,10 +171,9 @@ function renderEditMain() {
       </div>
 
       <div class="card-block-tips">
-        <span class="card-tip"><b>口吻</b> · 她怎么说话</span>
-        <span class="card-tip"><b>行为逻辑</b> · 当… → 则…</span>
-        <span class="card-tip"><b>绝不说</b> · 压掉 AI 腔</span>
-        <span class="card-tip"><b>示例台词</b> · 2~3 句最有效</span>
+        <span class="card-tip"><b>没思路</b> · 点「插入结构模板」铺骨架</span>
+        <span class="card-tip"><b>想省事</b> · 点「AI 补全名片」读游戏资料自动写</span>
+        <span class="card-tip"><b>写好的</b> · 「查看游戏 prompt」对照原文</span>
       </div>
 
       <textarea id="f-user_card" spellcheck="false">${escapeHtml(card.user_card)}</textarea>
