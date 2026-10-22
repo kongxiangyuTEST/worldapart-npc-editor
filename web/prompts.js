@@ -276,10 +276,112 @@ function selectPromptFragment(title) {
   detail.innerHTML = `
     <div class="prompt-detail-header">
       <h3>${escapeHtml(title)}</h3>
-      <div class="prompt-detail-info">${content.length} 字符 · 只读</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span class="prompt-detail-info">${content.length} 字符</span>
+        ${isVolatileFragment(title)
+          ? '<span class="prompt-detail-info" style="color:var(--cl-warning);">每轮都变，不能做替换规则</span>'
+          : `<button class="secondary" onclick="optimizeFragment('${escapeHtml(title)}')">让 AI 精简</button>`}
+      </div>
     </div>
+    <div class="field-hint" style="margin-bottom:8px;">
+      这段每轮都会原样发给模型。让 AI 合并同义句、删掉赘述，确认后再变成一条替换规则；
+      JSON 结构、枚举值、硬约束要求它不许动。
+    </div>
+    <div id="frag-opt-status" class="inject-status"></div>
+    <div id="frag-opt-result"></div>
     <pre class="prompt-detail-content">${escapeHtml(content)}</pre>
   `;
+}
+
+// 「本轮会话状态」「当前场景」这类每轮都会变的段落，做成整段替换规则会立刻失效
+function isVolatileFragment(title) {
+  return /本轮会话状态|当前场景|本次话题|话题背景/.test(String(title || ''));
+}
+
+// ============= 固定段落：AI 精简 =============
+let fragOptResult = null;
+
+function setFragStatus(text, cls) {
+  const el = document.getElementById('frag-opt-status');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'inject-status ' + (cls || '');
+}
+
+async function optimizeFragment(title) {
+  const fixed = (promptFragments && promptFragments.fixed_sections) || {};
+  const text = fixed[title] || '';
+  if (!text) return;
+
+  setFragStatus('正在请求模型，长段落可能要几十秒...', '');
+  const box = document.getElementById('frag-opt-result');
+  if (box) box.innerHTML = '';
+
+  let res;
+  try {
+    res = await pywebview.api.optimize_fragment(title, text);
+  } catch (e) {
+    setFragStatus('✗ ' + ((e && e.message) || e), 'error');
+    return;
+  }
+  if (!res || !res.ok) {
+    setFragStatus('✗ ' + ((res && res.msg) || '失败'), 'error');
+    return;
+  }
+
+  fragOptResult = res;
+  setFragStatus('✓ 完成', 'success');
+  renderFragmentResult(res);
+}
+
+function renderFragmentResult(r) {
+  const box = document.getElementById('frag-opt-result');
+  if (!box) return;
+  const riskText = { low: '低', mid: '中', high: '高' }[r.risk] || r.risk;
+  const dropped = (r.dropped || []).map(x => `<li>${escapeHtml(String(x))}</li>`).join('');
+  box.innerHTML = `
+    <div class="preview-warn" style="margin-bottom:10px;">
+      原 ${r.original_chars} 字 → ${r.compressed_chars} 字（剩 ${r.ratio}%，省 ${r.saved_chars} 字）·
+      风险：${escapeHtml(riskText)}${r.note ? ' · ' + escapeHtml(r.note) : ''}
+    </div>
+    ${dropped ? `<div style="font-size:12px;color:var(--cl-body);margin-bottom:8px;">
+      <b>改动点：</b><ul style="margin:6px 0 0 18px;">${dropped}</ul></div>` : ''}
+    <div style="display:flex;gap:10px;margin-bottom:10px;">
+      <button class="primary" onclick="applyFragmentRule()">采用为替换规则</button>
+      <button class="secondary" onclick="discardFragmentResult()">放弃</button>
+    </div>
+    <div style="font-size:12px;color:var(--cl-muted);margin-bottom:6px;">精简后的全文（确认没问题再采用）：</div>
+    <pre class="prompt-detail-content" style="max-height:260px;">${escapeHtml(r.compressed)}</pre>
+  `;
+}
+
+function discardFragmentResult() {
+  fragOptResult = null;
+  const box = document.getElementById('frag-opt-result');
+  if (box) box.innerHTML = '';
+  setFragStatus('已放弃', '');
+}
+
+async function applyFragmentRule() {
+  if (!fragOptResult) return;
+  if (!confirm('把这段的压缩版加成一条替换规则？\n\n原来的内容会被整段替换，随时可以在「系统prompt替换」里删掉这条规则。')) {
+    return;
+  }
+  if (!aiConfig.rules) aiConfig.rules = [];
+  aiConfig.rules.push({ old: fragOptResult.original, new: fragOptResult.compressed });
+
+  let res;
+  try {
+    res = await pywebview.api.save_ai_config(aiConfig);
+  } catch (e) {
+    setFragStatus('✗ ' + ((e && e.message) || e), 'error');
+    return;
+  }
+  if (res && res.ok) {
+    setFragStatus('✓ 已保存为替换规则（共 ' + aiConfig.rules.length + ' 条），存盘即生效', 'success');
+  } else {
+    setFragStatus('✗ ' + ((res && res.msg) || '保存失败'), 'error');
+  }
 }
 
 // ============= 保存/重载/重启 =============

@@ -708,6 +708,108 @@ class Api:
         except Exception as e:
             return {"ok": False, "msg": f"保存失败: {e}"}
 
+    def optimize_fragment(self, title, text):
+        """让模型精简一段固定的 system 段落，只给建议、不自动改配置。
+
+        这些段落每轮都会原样发给模型（通用要求 1200+ 字、赠物通则 500+ 字），
+        压缩掉冗余表述能直接省 token。但里面有 JSON 结构、枚举、硬约束，
+        所以提示词里明确禁止动它们，返回结果由用户确认后才变成替换规则。
+        """
+        import json
+        import os
+        import requests
+
+        text = (text or "").strip()
+        if len(text) < 80:
+            return {"ok": False, "msg": "这段太短，没有压缩价值"}
+
+        # 上游：优先用记忆总结地址（可以把压缩也放本地），否则用 core_proxy 的上游
+        upstream = ""
+        fallback_key = ""
+        try:
+            with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as f:
+                acfg = json.load(f)
+            upstream = (acfg.get("memory_merge_url") or "").strip()
+        except Exception:
+            pass
+        if not upstream:
+            conf_path = os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json")
+            try:
+                with open(conf_path, "r", encoding="utf-8") as f:
+                    ccfg = json.load(f)
+                base = (ccfg.get("upstream_base_url") or "http://127.0.0.1:8080/").rstrip("/")
+                upstream = base + "/v1/chat/completions"
+                fallback_key = ccfg.get("api_key") or ""
+            except Exception:
+                upstream = "http://127.0.0.1:8080/v1/chat/completions"
+
+        prompt = (
+            "你在做【提示词压缩】。下面这段是游戏每次对话都会原样发给模型的固定 system 段落，\n"
+            "内容长期不变，但占了不少 token。请在**不改变任何约束含义**的前提下把它压缩。\n\n"
+            "硬性要求（违反任何一条都算失败）：\n"
+            "1. 段落里如果有 JSON 结构、字段名、枚举值、示例，必须原样保留，一个字都不能改。\n"
+            "2. 不能弱化任何「必须 / 不要 / 禁止 / 只能」这类约束，只能合并同义句、"
+            "删掉重复表述和解释性赘述。\n"
+            "3. 不能新增任何规则，也不要加入你自己的风格偏好。\n"
+            "4. 保持原有的条目顺序与结构（列表还是列表）。\n\n"
+            "输出严格 JSON（不要 markdown 代码块，不要多余文字）：\n"
+            '{"compressed": "压缩后的全文", "dropped": ["删掉/合并了哪些内容，逐条简述"], '
+            '"risk": "low|mid|high", "note": "一句话说明压缩思路"}\n\n'
+            "【段落标题】" + str(title or "") + "\n"
+            "【原文】\n" + text
+        )
+
+        headers = {"Content-Type": "application/json"}
+        if fallback_key:
+            headers["Authorization"] = "Bearer " + fallback_key
+        body = {
+            "model": "local-model",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+            "max_tokens": 4000,
+            "thinking": {"type": "disabled"},
+        }
+
+        try:
+            r = requests.post(upstream, json=body, headers=headers, timeout=180)
+        except Exception as e:
+            return {"ok": False, "msg": f"请求失败（{upstream}）: {e}"}
+
+        if r.status_code != 200:
+            return {"ok": False, "msg": f"上游返回 HTTP {r.status_code}: {r.text[:160]}"}
+
+        try:
+            raw = r.json()["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            return {"ok": False, "msg": f"响应格式异常: {e}"}
+
+        a, b = raw.find("{"), raw.rfind("}")
+        if a < 0 or b <= a:
+            return {"ok": False, "msg": "模型没有返回 JSON（可能被拒答），原文前 40 字: " + raw[:40]}
+        try:
+            data = json.loads(raw[a:b + 1])
+        except Exception as e:
+            return {"ok": False, "msg": f"JSON 解析失败: {e}"}
+
+        compressed = str(data.get("compressed") or "").strip()
+        if not compressed:
+            return {"ok": False, "msg": "模型返回的压缩结果为空"}
+
+        orig_len, new_len = len(text), len(compressed)
+        return {
+            "ok": True,
+            "title": title,
+            "original": text,
+            "compressed": compressed,
+            "original_chars": orig_len,
+            "compressed_chars": new_len,
+            "saved_chars": orig_len - new_len,
+            "ratio": round(new_len * 100.0 / max(1, orig_len), 1),
+            "dropped": data.get("dropped") or [],
+            "risk": str(data.get("risk") or "mid"),
+            "note": str(data.get("note") or ""),
+        }
+
     def save_memory_settings(self, merge_url, merge_every, merge_max_tokens):
         """只改记忆总结相关的三个键，其余配置原样保留。"""
         try:
