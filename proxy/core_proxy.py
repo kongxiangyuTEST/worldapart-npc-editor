@@ -720,6 +720,10 @@ def apply_rules(text, rules=None):
     pairs = _AI["rules"] if rules is None else rules
     count = 0
     detail = []
+    # 赠物机制依赖 {GIFT} 占位符：NPC 申请赠物时台词里只写 {GIFT}，
+    # 由游戏在运行时替换成实际物品名（2026-10-24 实测确认）。
+    # 规则要是把它改没了，赠物功能就静默失效——这里留一道提醒。
+    had_gift_token = "{GIFT}" in text
 
     for rule in pairs:
         # 兼容两种元组：旧 (old, new) / 新 (old, new, mode, flags)
@@ -775,6 +779,10 @@ def apply_rules(text, rules=None):
 
         count += 1
         detail.append(old[:30].replace("\n", " "))
+
+    if had_gift_token and "{GIFT}" not in text:
+        print("[警告] 替换规则把 {GIFT} 占位符改没了——"
+              "赠物机制靠它在运行时替换物品名，这会让赠物失效", flush=True)
 
     return text, count, detail
 
