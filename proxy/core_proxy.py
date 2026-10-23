@@ -156,6 +156,18 @@ def load_ai_config(force=False):
         _AI["past_events_max_chars"] = max(0, int(conf.get("past_events_max_chars", 800)))
     except (TypeError, ValueError):
         _AI["past_events_max_chars"] = 800
+    # 历史裁剪：游戏不限制对话轮数，历史会一直涨，最终撑爆上下文窗口
+    # （2026-10-24 实测确认）。0 表示不裁。
+    try:
+        _AI["history_max_chars"] = max(0, int(conf.get("history_max_chars", 24000)))
+    except (TypeError, ValueError):
+        print("[配置] history_max_chars 不是数字，回落 24000")
+        _AI["history_max_chars"] = 24000
+    # 无论如何都保留的最近轮数（一 user + 一 assistant 算一轮）
+    try:
+        _AI["history_keep_turns"] = max(2, int(conf.get("history_keep_turns", 6)))
+    except (TypeError, ValueError):
+        _AI["history_keep_turns"] = 6
 
     _AI["mtime"] = mtime
     print(f"[配置] ai_config.json 已加载：注入 {len(_AI['inject'])} 字，"
@@ -552,9 +564,21 @@ def normalize_response(raw_body):
         if "choices" in outer and isinstance(outer["choices"], list) and outer["choices"]:
             msg = outer["choices"][0].get("message", {})
             inner_text = msg.get("content", "")
-            if isinstance(inner_text, str):
-                inner_text = strip_think(inner_text).strip()
+            if not isinstance(inner_text, str):
+                inner_text = ""
+            inner_text = strip_think(inner_text).strip()
 
+            # 上游返回空 content（内容过滤 / 异常，响应体只有几百字节）时，
+            # 绝不能再往下走到函数末尾的 return clean_tail(temp)——
+            # 那会把整个响应体当台词返回，游戏就直接把原始 JSON 显示出来了
+            # （2026-10-24 实测定 bug：578B 空响应 → 游戏显示 chat.completion JSON，
+            #  而且这段 JSON 会进对话历史和游戏记忆，污染持续）。
+            # 返回空字符串，让上层 too_short 重试 + FALLBACK_LINES 过渡句兜底。
+            if not inner_text:
+                print("[清洗] 上游 content 为空/非文本 → 返回空，触发重试与兜底")
+                return "", None
+
+            if True:
                 try:
                     inner = json.loads(inner_text)
                     if isinstance(inner, dict) and isinstance(inner.get("content"), str):
@@ -1236,6 +1260,99 @@ def prepare_messages(req_json, with_memory=True, with_card=True, dry_run=False):
 # 九、转发
 # ============================================================
 
+# ============================================================
+# 历史裁剪
+# ============================================================
+# 游戏不限制对话轮数，历史会一直累积（实测：一次会话从 6 条涨到 9 条仍在涨），
+# 最终撑爆上下文窗口——token 越烧越多，模型也会开始"忘事"。
+#
+# 策略：
+#   · system 全留（那是 prompt 主体：世界观/任务/角色/动态状态）
+#   · 对话从最新往旧装，装进预算为止
+#   · 无论如何保底保留最近 keep_turns 轮（一 user + 一 assistant 算一轮）
+#   · 只裁不加：不在历史里插"前文已省略"之类的提示，避免游戏解析异常。
+#     早期的内容游戏自己会通过记忆（过往要事）兜底。
+#
+# 阈值走 ai_config.json：history_max_chars（默认 24000，0=不裁）、
+# history_keep_turns（默认 6），改完存盘即生效。
+def trim_history(messages, max_chars=None, keep_turns=None):
+    cfg = load_ai_config()
+    if max_chars is None:
+        max_chars = cfg.get("history_max_chars", 24000)
+    if keep_turns is None:
+        keep_turns = cfg.get("history_keep_turns", 6)
+    if not max_chars or not messages or len(messages) < 3:
+        return messages, 0
+
+    systems = [m for m in messages if m.get("role") == "system"]
+    history = [m for m in messages if m.get("role") != "system"]
+    if len(history) <= keep_turns * 2:
+        return messages, 0
+
+    sys_chars = sum(len(str(m.get("content") or "")) for m in systems)
+    budget = max(2000, max_chars - sys_chars)
+
+    total = sum(len(str(m.get("content") or "")) for m in history)
+    if total <= budget:
+        return messages, 0
+
+    # 从最新往旧累加；保底 keep_turns*2 条必须留住（哪怕超预算）
+    kept, acc = [], 0
+    for m in reversed(history):
+        n = len(str(m.get("content") or ""))
+        if acc + n > budget and len(kept) >= keep_turns * 2:
+            break
+        acc += n
+        kept.append(m)
+    kept.reverse()
+
+    dropped = len(history) - len(kept)
+    if dropped <= 0:
+        return messages, 0
+    return systems + kept, dropped
+
+
+# ============================================================
+# 污染检测与清洗
+# ============================================================
+# 上游返回空 content 时，游戏（beta）会把整个响应体当 NPC 台词显示并存档。
+# 这段 JSON 随后进入对话历史，还会被游戏塞进自己的记忆 content 字段，
+# 之后每一轮都带着它——污染会一直滚下去。
+#
+# 判据取最严格的响应体特征（去空格后含 "object":"chat.completion"），
+# 正常台词几乎不可能误撞。命中的 assistant 消息替换为占位文本：
+# 那段内容本来就不是 NPC 说过的话，替换不损失任何真实信息。
+POLLUTION_MARKER = '"object":"chat.completion"'
+POLLUTION_PLACEHOLDER = "（前次回复异常，已略过）"
+
+
+def clean_polluted_history(messages):
+    """把混进 assistant 历史的原始响应 JSON 替换成占位文本。
+    返回 (messages, fixed_count)。messages 原地修改。"""
+    fixed = 0
+    for m in messages:
+        if m.get("role") != "assistant":
+            continue
+        c = m.get("content")
+        if not isinstance(c, str):
+            continue
+        s = c.strip()
+        if not s.startswith("{"):
+            continue
+        # 归一化要去反斜杠：游戏记忆 JSON 里响应体是转义字符串
+        # （\"object\":\"chat.completion\"），不去反斜杠就匹配不上。
+        norm = s.replace(" ", "").replace("\\", "")
+        # 二次判据：真实响应体必然还带 choices / created / finish_reason。
+        # 只凭 object 标记会误伤"台词里恰好引用该字样"的情况（实测会撞到），
+        # 加上这条后正常台词不会被替换。
+        if (POLLUTION_MARKER in norm
+                and ('"choices":[' in norm or '"created":' in norm
+                     or '"finish_reason"' in norm)):
+            m["content"] = POLLUTION_PLACEHOLDER
+            fixed += 1
+    return messages, fixed
+
+
 def forward(req_json, game_auth):
     upstream_url = UPSTREAM_BASE + "/v1/chat/completions"
     headers = {"Content-Type": "application/json"}
@@ -1304,6 +1421,27 @@ def chat_completions():
     print(f"[REQ] messages={len(messages)}, last_user_len={last_user_len}, "
           f"rules={stats.get('rules_hit', 0)}, card={stats.get('card_chars', 0)}, "
           f"memory={stats.get('memory_chars', 0)}, system={stats.get('system_chars', 0)}")
+
+    # 历史裁剪：在注入之后、转发之前。失败不阻断转发。
+    try:
+        trimmed, dropped = trim_history(messages)
+        if dropped > 0:
+            messages = trimmed
+            req_json["messages"] = trimmed
+            print(f"[裁剪] 对话历史超预算，裁掉最早 {dropped} 条，"
+                  f"保留 {len(trimmed)} 条（含 system）")
+    except Exception as e:
+        print(f"[裁剪] 失败，按原样转发: {e}")
+
+    # 污染清洗：assistant 历史里混进原始响应 JSON 的，换成占位文本，
+    # 否则它会跟着每轮请求继续传，越滚越大。
+    try:
+        _, polluted = clean_polluted_history(messages)
+        if polluted > 0:
+            print(f"[清洗] 发现 {polluted} 条 assistant 历史是原始响应 JSON，已替换为占位。"
+                  f"游戏侧记忆里若也有残留，需在游戏内重置该 NPC 对话。")
+    except Exception as e:
+        print(f"[清洗] 失败，按原样转发: {e}")
 
     game_auth = request.headers.get("Authorization")
 

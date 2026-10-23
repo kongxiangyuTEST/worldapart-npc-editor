@@ -55,5 +55,7 @@
   "save_guard": true,
   "memory_budget": 2000,
   "memory_merge_url": "",
-  "past_events_max_chars": 800
+  "past_events_max_chars": 800,
+  "history_max_chars": 24000,
+  "history_keep_turns": 6
 }
