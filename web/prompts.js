@@ -125,8 +125,123 @@ function renderReplaceTab() {
     <div id="rules-container">${rows}</div>
     <div class="inject-actions">
       <button class="secondary" onclick="addRule()">+ 添加规则</button>
+      <button class="secondary" onclick="toggleRuleTest()">测试规则</button>
+    </div>
+
+    <!-- 规则测试器：贴一段原文逐条看能不能命中。以前只能改完去游戏里试，
+         一条没命中根本看不出来（就是"规则静默失效"那个老问题）。 -->
+    <div id="rule-test-panel" class="rule-test-panel" style="display:none;">
+      <div class="field-hint">
+        贴一段游戏原文（或点「载入最近样本」），逐条看规则能不能命中。
+        <b>不调模型、不改配置</b>，可以反复试。
+      </div>
+      <textarea id="rule-test-input" rows="7" placeholder="把游戏的 system prompt 贴在这里…"></textarea>
+      <div class="rule-test-actions">
+        <button class="secondary" onclick="loadLatestSampleForTest()">载入最近样本</button>
+        <button class="primary" onclick="runRuleTest()">运行</button>
+        <span class="inject-status" id="rule-test-status"></span>
+      </div>
+      <div id="rule-test-result" class="rule-test-result"></div>
     </div>
   `;
+}
+
+function toggleRuleTest() {
+  const p = document.getElementById('rule-test-panel');
+  if (!p) return;
+  p.style.display = (p.style.display === 'none' || !p.style.display) ? 'block' : 'none';
+}
+
+function setRuleTestStatus(text, kind) {
+  const el = document.getElementById('rule-test-status');
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = 'inject-status' + (kind ? ' ' + kind : '');
+}
+
+async function loadLatestSampleForTest() {
+  const npcEl = document.getElementById('preview-npc');
+  const npc = npcEl ? npcEl.value.trim() : '';
+  setRuleTestStatus('读取样本…', '');
+  try {
+    const res = await pywebview.api.get_latest_sample(npc);
+    if (!res || !res.ok) {
+      setRuleTestStatus('✗ ' + ((res && res.msg) || '没有可用样本'), 'error');
+      return;
+    }
+    let data = res.data && res.data.content;
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); } catch (e) { /* 保持字符串 */ }
+    }
+    const msgs = (data && data.messages) || (Array.isArray(data) ? data : []);
+    const sys = msgs.filter(m => m.role === 'system')
+                    .map(m => m.content || '').join('\n\n');
+    const ta = document.getElementById('rule-test-input');
+    if (ta) ta.value = sys || '';
+    setRuleTestStatus(sys ? ('已载入 ' + (res.data.filename || '样本')) : '样本里没有 system 内容',
+                      sys ? 'success' : 'error');
+  } catch (e) {
+    setRuleTestStatus('✗ ' + ((e && e.message) || e), 'error');
+  }
+}
+
+async function runRuleTest() {
+  const ta = document.getElementById('rule-test-input');
+  const text = ta ? ta.value : '';
+  if (!text.trim()) {
+    setRuleTestStatus('✗ 请先输入或载入一段文本', 'error');
+    return;
+  }
+  setRuleTestStatus('运行中…', '');
+  let res;
+  try {
+    res = await pywebview.api.test_rules(text);
+  } catch (e) {
+    setRuleTestStatus('✗ ' + ((e && e.message) || e), 'error');
+    return;
+  }
+  if (!res || !res.ok) {
+    setRuleTestStatus('✗ ' + ((res && res.msg) || '运行失败'), 'error');
+    return;
+  }
+
+  const rep = res.rule_report || [];
+  const hit = rep.filter(r => r.hits > 0).length;
+  const zero = rep.filter(r => r.hits === 0).length;
+  const bad = rep.filter(r => r.hits < 0).length;
+  const bits = [`命中 ${hit} 条`];
+  if (zero) bits.push(`未命中 ${zero} 条`);
+  if (bad) bits.push(`语法错误 ${bad} 条`);
+  setRuleTestStatus((zero || bad ? '⚠ ' : '✓ ') + bits.join(' · '),
+                    (zero || bad) ? 'error' : 'success');
+
+  renderRuleTestResult(rep);
+}
+
+function renderRuleTestResult(rep) {
+  const box = document.getElementById('rule-test-result');
+  if (!box) return;
+  if (!rep.length) {
+    box.innerHTML = '<div class="rule-test-empty">还没有配置任何规则。</div>';
+    return;
+  }
+  box.innerHTML = rep.map(r => {
+    const cls = r.hits < 0 ? 'bad' : (r.hits === 0 ? 'zero' : 'hit');
+    const tag = r.hits < 0 ? '语法错误' : (r.hits === 0 ? '未命中' : `命中 ${r.hits} 处`);
+    const mode = r.mode === 'regex' ? ('正则' + (r.flags ? '/' + r.flags : '')) : '文本';
+    return `
+      <div class="rule-test-row ${cls}">
+        <div class="rule-test-head">
+          <span class="rule-test-mode">${escapeHtml(mode)}</span>
+          <span class="rule-test-hits">${escapeHtml(tag)}</span>
+        </div>
+        <div class="rule-test-body">
+          <div class="rule-test-old">${escapeHtml((r.old || '').slice(0, 160))}</div>
+          <div class="rule-test-arrow">→</div>
+          <div class="rule-test-new">${escapeHtml((r.new || '').slice(0, 160))}</div>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // ============= Tab 4：预览效果 =============
@@ -218,8 +333,33 @@ function renderPreviewResult(res) {
       <span>system 总长：<b>${s.system_chars || 0}</b> 字</span>
     </div>
     <div style="font-size:12px;color:var(--cl-muted);margin-bottom:6px;">角色顺序：${escapeHtml(roleText)}</div>
+    ${renderMemoryDetail(res.memory_detail)}
     <pre style="max-height:420px;overflow:auto;background:var(--cl-canvas);border:1px solid var(--cl-hairline);border-radius:var(--cl-r-md);padding:12px;font-family:var(--cl-mono);font-size:12px;line-height:1.7;color:var(--cl-body);white-space:pre-wrap;word-break:break-word;">${escapeHtml(res.system || '')}</pre>
   `;
+}
+
+// 记忆注入明细：解释"这条为什么进了 / 为什么被裁"
+// 分数 = 重要度×100 + 相关度×10 + 新近度：
+//   重要度 500 级（刻骨铭心）永远压过 300 级（普通约定）
+//   相关度是这条事实与本轮玩家发言的字符重合率，只在同重要度里起决定作用
+function renderMemoryDetail(detail) {
+  if (!detail || !detail.length) return '';
+  const shown = detail.filter(d => d.included);
+  const cut = detail.filter(d => !d.included);
+  const row = d => `
+    <div class="mem-detail-row ${d.included ? 'in' : 'out'}">
+      <span class="mem-detail-score">${d.importance}★${d.relevance > 0 ? ' · 相关 ' + d.relevance : ''}</span>
+      <span class="mem-detail-cat">${escapeHtml(d.cat)}</span>
+      <span class="mem-detail-text">${escapeHtml((d.text || '').slice(0, 80))}</span>
+    </div>`;
+  return `
+    <details class="mem-detail">
+      <summary>记忆注入明细：注入 ${shown.length} 条${cut.length ? '，因预算未注入 ' + cut.length + ' 条' : ''}</summary>
+      <div class="mem-detail-body">
+        ${shown.map(row).join('')}
+        ${cut.length ? `<div class="mem-detail-split">以下因预算不足被裁（重要度低或与当前话题无关）：</div>` + cut.map(row).join('') : ''}
+      </div>
+    </details>`;
 }
 
 function setPreviewStatus(text, cls) {

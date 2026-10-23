@@ -1269,6 +1269,73 @@ class Api:
                 "got": {"rules": got_rules, "inject_chars": got_inject},
                 "msg": f"服务里还是旧配置（{got_rules} 条规则），需要重启"}
 
+    def _proxy_port(self):
+        """core_proxy 的监听端口，以 proxy/core_proxy_config.json 为准。"""
+        port = 8789
+        try:
+            with open(os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json"), "r",
+                      encoding="utf-8") as f:
+                port = int(json.load(f).get("listen_port") or 8789)
+        except Exception:
+            pass
+        return port
+
+    def get_proxy_health(self):
+        """读 core_proxy 的结构自检结果（告警、计数、最近一次结构画像）。
+
+        core_proxy 每轮转发前都会比对"段落集合 / system 条数"这些结构特征，
+        发现游戏改了 prompt 组装方式就记告警。这里只负责取回来给页面显示。
+        """
+        port = self._proxy_port()
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/_status", timeout=2) as r:
+                st = json.loads(r.read().decode("utf-8"))
+        except Exception as e:
+            return {"ok": False, "running": False,
+                    "msg": f"core_proxy 没在运行（{port} 端口无响应）"}
+        return {"ok": True, "running": True, "port": port,
+                "health": st.get("health") or {},
+                "npc": st.get("npc"),
+                "rules": st.get("rules"),
+                "inject_chars": st.get("inject_chars")}
+
+    def test_rules(self, text):
+        """规则测试器：把一段文本当作 system 走一遍预览，返回逐条命中报告。
+
+        走 core_proxy 的 /_preview（dry_run：不调上游、不写记忆、不存样本），
+        并关掉名片与记忆注入——只关心"这些规则到底能不能命中"。
+        """
+        text = (text or "").strip()
+        if not text:
+            return {"ok": False, "msg": "请先输入或载入一段文本"}
+
+        port = self._proxy_port()
+        payload = json.dumps({
+            "messages": [
+                {"role": "system", "content": text},
+                {"role": "user", "content": "测试"},
+            ],
+            "with_memory": False,
+            "with_card": False,
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/_preview", data=payload,
+            headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                res = json.loads(r.read().decode("utf-8"))
+        except Exception as e:
+            return {"ok": False, "msg": f"连不上 core_proxy（{port}）: {e}"}
+
+        if not res.get("ok"):
+            return {"ok": False, "msg": res.get("msg") or "预览失败"}
+
+        return {"ok": True,
+                "rule_report": res.get("rule_report") or [],
+                "system": res.get("system") or "",
+                "stats": res.get("stats") or {}}
+
     def restart_core_proxy(self):
         try:
             service_mgr.stop("core_proxy")
@@ -1535,6 +1602,8 @@ class Api:
             "stats": out.get("stats", {}),
             "system": out.get("system", ""),
             "roles": out.get("roles", []),
+            "rule_report": out.get("rule_report", []),
+            "memory_detail": out.get("memory_detail", []),
             "sample": sample.get("filename"),
             "mtime": sample.get("mtime"),
         }

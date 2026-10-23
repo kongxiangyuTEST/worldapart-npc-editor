@@ -225,6 +225,17 @@
         <div class="service-tip">
           <strong>提示：</strong>游戏里 AI 对话正常前，先确保 <code>llama-server</code>（8080）已经用 LlamaCPP GUI 启动。
         </div>
+
+        <!-- 游戏结构自检：core_proxy 每轮比对段落集合与 system 形状，
+             发现游戏改了 prompt 组装方式、或 NPC 名解析不出来（名片/记忆全废）就告警 -->
+        <div class="upstream-box" id="health-box" style="margin-top:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <h3 style="margin:0;font-size:14px;color:var(--cl-ink);">游戏结构自检</h3>
+            <button class="secondary" style="padding:4px 12px;font-size:12px;" onclick="refreshHealth()">刷新</button>
+          </div>
+          <div id="health-summary" class="health-summary">读取中…</div>
+          <div id="health-alerts" class="health-alerts"></div>
+        </div>
   <div class="upstream-box">
           <h3 style="margin:0 0 10px;font-size:14px;color:var(--cl-ink);">游戏接口地址</h3>
           <div style="font-size:12px;color:var(--cl-muted);margin-bottom:8px;">

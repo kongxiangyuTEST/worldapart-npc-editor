@@ -1560,3 +1560,224 @@ a { color: var(--cl-coral); }
 #edit-main .card-block-actions {
   margin-left: auto;
 }
+
+/* ==================== 游戏结构自检 ==================== */
+/* core_proxy 每轮比对段落集合；告警分 error（NPC 名解析失败，名片记忆全废）
+   和 warn（结构变化、规则连续零命中）两级 */
+
+.health-summary {
+  font-size: 12px;
+  color: var(--cl-muted);
+  line-height: 2;
+}
+
+.health-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-right: 4px;
+  border-radius: var(--cl-r-sm);
+  background: var(--cl-surface-soft);
+  color: var(--cl-body);
+}
+
+.health-chip strong { color: var(--cl-ink); font-weight: 600; }
+
+.health-chip.bad { background: rgba(163, 45, 45, 0.10); }
+.health-chip.bad strong { color: #A32D2D; }
+
+.health-alerts { margin-top: 10px; }
+
+.health-empty, .health-muted { font-size: 12px; color: var(--cl-muted-soft); }
+
+.health-ok {
+  font-size: 12px;
+  color: var(--cl-body);
+  background: rgba(59, 109, 17, 0.06);
+  border-left: 2px solid #3B6D11;
+  border-radius: var(--cl-r-sm);
+  padding: 8px 12px;
+}
+
+.health-head {
+  font-size: 12px;
+  color: var(--cl-muted);
+  margin-bottom: 6px;
+}
+
+.health-error-text { color: #A32D2D; }
+
+.health-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 7px 12px;
+  margin-bottom: 6px;
+  border-radius: var(--cl-r-sm);
+  border-left: 2px solid transparent;
+  background: var(--cl-surface-soft);
+  color: var(--cl-body);
+}
+
+.health-alert.error {
+  border-left-color: #A32D2D;
+  background: rgba(163, 45, 45, 0.06);
+}
+
+.health-alert.warn {
+  border-left-color: #BA7517;
+  background: rgba(186, 117, 23, 0.06);
+}
+
+.health-msg { flex: 1; }
+
+.health-ts {
+  color: var(--cl-muted-soft);
+  font-family: var(--cl-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* ==================== 规则测试器 ==================== */
+/* 逐条显示规则能否命中：命中=正常、未命中=标黄（游戏改了文案）、语法错=标红 */
+
+.rule-test-panel {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--cl-surface-soft);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-md);
+}
+
+.rule-test-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  font-family: var(--cl-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.rule-test-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.rule-test-result { margin-top: 12px; }
+
+.rule-test-empty { font-size: 12px; color: var(--cl-muted-soft); }
+
+.rule-test-row {
+  border-left: 2px solid transparent;
+  border-radius: var(--cl-r-sm);
+  background: #fff;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.rule-test-row.hit { border-left-color: #3B6D11; }
+.rule-test-row.zero { border-left-color: #BA7517; background: rgba(186, 117, 23, 0.05); }
+.rule-test-row.bad { border-left-color: #A32D2D; background: rgba(163, 45, 45, 0.05); }
+
+.rule-test-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.rule-test-mode { color: var(--cl-muted-soft); font-family: var(--cl-mono); }
+.rule-test-hits { color: var(--cl-muted); }
+
+.rule-test-row.hit .rule-test-hits { color: #3B6D11; }
+.rule-test-row.zero .rule-test-hits { color: #BA7517; }
+.rule-test-row.bad .rule-test-hits { color: #A32D2D; }
+
+.rule-test-body {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-family: var(--cl-mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.rule-test-old {
+  flex: 1;
+  color: var(--cl-body);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.rule-test-arrow { color: var(--cl-muted-soft); }
+
+.rule-test-new {
+  flex: 1;
+  color: var(--cl-body-strong);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ==================== 记忆注入明细 ==================== */
+/* 折叠在预览页里：说明哪条记忆进了、哪条被预算裁掉、各自分数多少 */
+
+.mem-detail {
+  margin-bottom: 10px;
+  font-size: 12px;
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-md);
+  background: #fff;
+  overflow: hidden;
+}
+
+.mem-detail > summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  color: var(--cl-body);
+  background: var(--cl-surface-soft);
+  user-select: none;
+}
+
+.mem-detail-body { padding: 8px 12px; }
+
+.mem-detail-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  line-height: 1.6;
+}
+
+.mem-detail-row.out { opacity: 0.55; }
+
+.mem-detail-score {
+  font-family: var(--cl-mono);
+  font-size: 11px;
+  color: var(--cl-muted-soft);
+  white-space: nowrap;
+  min-width: 82px;
+}
+
+.mem-detail-cat {
+  font-size: 11px;
+  color: var(--cl-muted);
+  white-space: nowrap;
+}
+
+.mem-detail-text { flex: 1; color: var(--cl-body); }
+
+.mem-detail-split {
+  margin: 8px 0 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--cl-hairline);
+  color: var(--cl-muted-soft);
+  font-size: 11px;
+}
+
+
+

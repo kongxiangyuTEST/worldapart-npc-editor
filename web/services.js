@@ -10,6 +10,68 @@ async function initServicesPage() {
   setInterval(refreshServicesStatus, 3000);
   await loadUpstream();
   await loadMemorySettings();
+  await refreshHealth();
+}
+
+
+// ---------------- 游戏结构自检 ----------------
+
+// core_proxy 每轮转发前会比对「段落集合 + system 条数」这些结构特征：
+//   · 段落集合变了  → 游戏改了 prompt 组装方式
+//   · NPC 名解析不出 → 名片和长期记忆全部失效（最严重）
+// 这里只负责把告警显示出来。动态段（关系/库存/今日行为）不影响比对，
+// 因为指纹里不含长度，内容变化不会误报。
+async function refreshHealth() {
+  const sum = document.getElementById('health-summary');
+  const box = document.getElementById('health-alerts');
+  if (!sum || !box) return;
+
+  let res;
+  try {
+    res = await pywebview.api.get_proxy_health();
+  } catch (e) {
+    sum.textContent = '读取失败：' + e;
+    return;
+  }
+
+  if (!res || !res.ok) {
+    sum.innerHTML = `<span class="health-muted">${escapeHtml((res && res.msg) || 'core_proxy 未运行')}</span>`;
+    box.innerHTML = '<div class="health-empty">服务启动后，这里会显示自检结果。</div>';
+    return;
+  }
+
+  const h = res.health || {};
+  const alerts = (h.alerts || []).slice().reverse();
+  const errCount = alerts.filter(a => a.level === 'error').length;
+  const warnCount = alerts.filter(a => a.level === 'warn').length;
+
+  const chip = (label, val, bad) =>
+    `<span class="health-chip${bad ? ' bad' : ''}">${label} <strong>${val || 0}</strong></span>`;
+
+  sum.innerHTML = [
+    chip('已处理', h.requests, false) + ' 轮',
+    chip('NPC 名失败', h.npc_name_fail, h.npc_name_fail > 0),
+    chip('结构变化', h.structure_changes, h.structure_changes > 0),
+    chip('空响应', h.empty_response, h.empty_response > 0),
+    chip('清洗污染', h.polluted_cleaned, h.polluted_cleaned > 0),
+    chip('裁剪', h.trimmed_total, false) + ' 条',
+  ].join(' ');
+
+  if (!alerts.length) {
+    box.innerHTML = '<div class="health-ok">✓ 未发现异常。游戏结构稳定，名片与记忆都正常注入。</div>';
+    return;
+  }
+
+  const head = [];
+  if (errCount) head.push(`<strong class="health-error-text">${errCount} 项严重</strong>`);
+  if (warnCount) head.push(`${warnCount} 项提醒`);
+  box.innerHTML =
+    `<div class="health-head">${head.join(' · ')}（最近 ${alerts.length} 条）</div>` +
+    alerts.map(a => `
+      <div class="health-alert ${a.level}">
+        <span class="health-msg">${escapeHtml(a.msg)}</span>
+        <span class="health-ts">${escapeHtml(a.ts || '')}</span>
+      </div>`).join('');
 }
 
 async function refreshServicesStatus() {

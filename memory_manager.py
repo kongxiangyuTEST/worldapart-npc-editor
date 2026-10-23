@@ -30,6 +30,9 @@ RECENT_MAX = 650               # 最近剧情上限
 FACT_CAP_PER_CATEGORY = 20     # 每个分类最多注入多少条事实
 PROTECTED_CATEGORIES = ("关系里程碑",)   # 这几类永不被预算砍掉
 
+# 最近一次注入的逐条明细（预览页用来说明"为什么这条进了/没进"）
+_LAST_INJECTION_DETAIL = []
+
 # 写盘备份
 BACKUP_DIR = os.path.join(MEMORY_DIR, "_backup")
 BACKUP_KEEP = 3                # 每个角色保留最近几份备份
@@ -385,6 +388,12 @@ def build_injection_text(data, budget_chars=2000, hint="", priority=None):
     order = ["关系里程碑", "承诺", "赠物", "重要事件"]
     order += [c for c in FACT_CATEGORIES if c not in order]
 
+    # 记住每次注入的明细，供「预览效果」展示"为什么注入/为什么没注入"。
+    # 用全局变量而不是改返回值——build_injection_text 有好几个调用方，
+    # 改签名要挨个动，风险不值得。
+    global _LAST_INJECTION_DETAIL
+    candidates = []      # [(cat, text, imp, rel, score)]
+
     for cat in order:
         arr = facts.get(cat) or []
         if not isinstance(arr, list) or not arr:
@@ -413,6 +422,7 @@ def build_injection_text(data, budget_chars=2000, hint="", priority=None):
             recency = pos / float(span)          # 越新越接近 1
             score = imp * 100 + rel * 10 + recency
             picked.append((score, text))
+            candidates.append((cat, text, imp, rel, score))
 
         if not picked:
             continue
@@ -467,7 +477,25 @@ def build_injection_text(data, budget_chars=2000, hint="", priority=None):
     text = "\n".join(t for _, t, _ in items)
     if len(text) > budget_chars:
         text = text[:budget_chars] + "\n（记忆过长，已截断）"
+
+    # 明细：判断依据很直接——注入文本里有没有 "- 这一条"
+    try:
+        _LAST_INJECTION_DETAIL = [
+            {"cat": cat, "text": t, "importance": imp,
+             "relevance": round(rel, 2), "score": round(score, 1),
+             "included": (f"- {t}" in text)}
+            for cat, t, imp, rel, score in candidates
+        ]
+    except Exception:
+        _LAST_INJECTION_DETAIL = []
+
     return text
+
+
+def get_last_injection_detail():
+    """最近一次 build_injection_text 的逐条明细（预览用）。
+    每条：{cat, text, importance, relevance, score, included}"""
+    return list(_LAST_INJECTION_DETAIL)
 
 # 第三方 API 会因为内容审核拒答、只给一段道歉、或干脆返回非 JSON。
 # 这种情况下绝不能把"抱歉我无法协助"写进记忆，更不能把原始对话丢掉。

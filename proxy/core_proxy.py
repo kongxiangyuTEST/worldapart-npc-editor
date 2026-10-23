@@ -1835,6 +1835,8 @@ def _preview():
         "system": system_text,
         "roles": [m.get("role") for m in final],
         "rule_report": rule_report,
+        # 记忆注入明细：每条事实的分数与是否注入，用来解释"为什么这条进了/没进"
+        "memory_detail": memory_manager.get_last_injection_detail() if with_memory else [],
         "messages": final,
     })
 
