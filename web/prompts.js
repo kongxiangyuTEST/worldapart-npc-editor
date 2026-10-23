@@ -5,6 +5,7 @@ let promptFragments = null;   // prompt_fragments.json
 let currentTab = 'user_card'; // 当前 Tab
 let previewNpc = '';          // 预览用 NPC 名
 let previewWithMemory = true; // 预览是否带长期记忆
+let aiPresets = { builtin: [], presets: {}, active: '' };  // 注入方案
 
 async function initPromptsPage() {
   // 加载 AI 配置
@@ -21,12 +22,121 @@ async function initPromptsPage() {
   } catch (e) {
     promptFragments = null;
   }
+  await loadPresets();
   renderPromptsPage();
+}
+
+// ---------------- 注入方案 ----------------
+
+async function loadPresets() {
+  try {
+    const res = await pywebview.api.list_presets();
+    aiPresets = (res && res.ok)
+      ? { builtin: res.builtin || [], presets: res.presets || {}, active: res.active || '' }
+      : { builtin: [], presets: {}, active: '' };
+  } catch (e) {
+    aiPresets = { builtin: [], presets: {}, active: '' };
+  }
+}
+
+function presetOptionsHTML() {
+  const builtin = aiPresets.builtin || [];
+  const presets = aiPresets.presets || {};
+  const active = aiPresets.active || '';
+  const opt = (n, label) =>
+    `<option value="${escapeHtml(n)}"${n === active ? ' selected' : ''}>${escapeHtml(label || n)}</option>`;
+  const b = builtin.map(n => opt(n, n + '（内置）')).join('');
+  const mine = Object.keys(presets).map(n => opt(n, n)).join('');
+  return '<option value="">（不套用）</option>'
+    + (b ? `<optgroup label="内置">${b}</optgroup>` : '')
+    + (mine ? `<optgroup label="我的方案">${mine}</optgroup>` : '');
+}
+
+function setPresetStatus(text, kind) {
+  const el = document.getElementById('preset-status');
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = 'inject-status' + (kind ? ' ' + kind : '');
+}
+
+async function applyPreset() {
+  const sel = document.getElementById('preset-select');
+  const name = sel ? sel.value : '';
+  if (!name) { setPresetStatus('先选一个方案', 'error'); return; }
+  const ok = await uiConfirm(
+    `应用方案「${name}」？\n当前的注入语、替换规则与记忆参数会被覆盖，其余配置不动。`,
+    { okText: '应用' });
+  if (!ok) return;
+
+  let res;
+  try {
+    res = await pywebview.api.apply_preset(name);
+  } catch (e) {
+    setPresetStatus('✗ ' + e, 'error');
+    return;
+  }
+  if (!res || !res.ok) {
+    setPresetStatus('✗ ' + ((res && res.msg) || '失败'), 'error');
+    return;
+  }
+  await initPromptsPage();
+  setPresetStatus('✓ ' + res.msg, 'success');
+}
+
+async function saveAsPreset() {
+  const name = await uiPrompt('把当前配置另存为方案，请输入方案名：',
+                              { placeholder: '例如：高冷版 / 温柔版' });
+  if (!name) return;
+  let res;
+  try {
+    res = await pywebview.api.save_preset(name);
+  } catch (e) {
+    setPresetStatus('✗ ' + e, 'error');
+    return;
+  }
+  if (!res || !res.ok) {
+    setPresetStatus('✗ ' + ((res && res.msg) || '失败'), 'error');
+    return;
+  }
+  await loadPresets();
+  renderPromptsPage();
+  setPresetStatus('✓ ' + res.msg, 'success');
+}
+
+async function deletePreset() {
+  const sel = document.getElementById('preset-select');
+  const name = sel ? sel.value : '';
+  if (!name) { setPresetStatus('先选一个方案', 'error'); return; }
+  const ok = await uiConfirm(`删除方案「${name}」？配置本身不会被改动。`,
+                             { danger: true, okText: '删除' });
+  if (!ok) return;
+  let res;
+  try {
+    res = await pywebview.api.delete_preset(name);
+  } catch (e) {
+    setPresetStatus('✗ ' + e, 'error');
+    return;
+  }
+  if (!res || !res.ok) {
+    setPresetStatus('✗ ' + ((res && res.msg) || '失败'), 'error');
+    return;
+  }
+  await loadPresets();
+  renderPromptsPage();
+  setPresetStatus('✓ ' + res.msg, 'success');
 }
 
 function renderPromptsPage() {
   const main = document.getElementById('prompts-main');
   main.innerHTML = `
+    <div class="preset-bar">
+      <span class="preset-bar-label">方案</span>
+      <select id="preset-select" class="preset-select">${presetOptionsHTML()}</select>
+      <button class="secondary" onclick="applyPreset()">应用</button>
+      <button class="secondary" onclick="saveAsPreset()">另存为…</button>
+      <button class="secondary" onclick="deletePreset()">删除</button>
+      <span class="inject-status" id="preset-status"></span>
+    </div>
     <div class="ai-tabs">
       <div class="ai-tab${currentTab === 'user_card' ? ' active' : ''}" data-tab="user_card" onclick="switchAiTab('user_card')">用户名片</div>
       <div class="ai-tab${currentTab === 'inject' ? ' active' : ''}" data-tab="inject" onclick="switchAiTab('inject')">注入规则</div>

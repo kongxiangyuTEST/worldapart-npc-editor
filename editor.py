@@ -34,6 +34,46 @@ ORIGINALS_DIR = os.path.join(PROJECT_DIR, "originals")
 LAST_SAVED_DIR = os.path.join(PROJECT_DIR, "last_saved")
 AI_CONFIG_PATH = os.path.join(PROJECT_DIR, "ai_config.json")
 
+# ==================== 注入方案（预设） ====================
+# 把"注入语 + 替换规则 + 名片开关 + 记忆/预算参数"打包成一套方案，
+# 存多套、一键切换、方便 A/B 对比。
+#
+# 方案只覆盖下面这些键，其余配置（上游、单价、合并地址等）不受影响。
+PRESET_KEYS = ("inject", "rules", "inject_user_card", "memory_slot", "save_guard",
+               "memory_budget", "past_events_max_chars",
+               "history_max_chars", "history_keep_turns")
+
+# 内置两套：只含预算类参数，**不含 inject/rules**——
+# 用户自己写的注入语和规则不该被内置方案覆盖。
+# 数值参考 other/ 那份 MOD 的「记忆档位」两档设计。
+BUILTIN_PRESETS = {
+    "精简（省 token）": {
+        "memory_budget": 1200,
+        "past_events_max_chars": 500,
+        "history_max_chars": 16000,
+        "history_keep_turns": 4,
+    },
+    "完整（留更多细节）": {
+        "memory_budget": 2000,
+        "past_events_max_chars": 800,
+        "history_max_chars": 24000,
+        "history_keep_turns": 6,
+    },
+}
+
+
+def _read_ai_conf():
+    if os.path.isfile(AI_CONFIG_PATH):
+        with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as f:
+            return json.load(f)
+    return {}
+
+
+def _write_ai_conf(data):
+    with open(AI_CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 # 文件对话框的"上次打开位置"存这里：不放进 ai_config（那是给 core_proxy 读的）
 UI_STATE_PATH = os.path.join(PROJECT_DIR, "ui_state.json")
 
@@ -1302,6 +1342,77 @@ class Api:
                 "npc": st.get("npc"),
                 "rules": st.get("rules"),
                 "inject_chars": st.get("inject_chars")}
+
+    def list_presets(self):
+        """列出方案：内置两套 + 用户自存的。不返回 inject/rules 内容（可能很长）。"""
+        data = _read_ai_conf()
+        presets = data.get("presets") or {}
+        brief = {}
+        for name, snap in presets.items():
+            if isinstance(snap, dict):
+                brief[name] = {
+                    "inject_chars": len(str(snap.get("inject") or "")),
+                    "rules": len(snap.get("rules") or []),
+                    "memory_budget": snap.get("memory_budget"),
+                }
+        return {"ok": True,
+                "builtin": list(BUILTIN_PRESETS.keys()),
+                "builtin_detail": BUILTIN_PRESETS,
+                "presets": brief,
+                "active": data.get("active_preset") or ""}
+
+    def save_preset(self, name):
+        """把当前配置里方案相关的键存成一份命名快照。"""
+        name = (name or "").strip()
+        if not name:
+            return {"ok": False, "msg": "方案名不能为空"}
+        if name in BUILTIN_PRESETS:
+            return {"ok": False, "msg": "不能覆盖内置方案，换个名字"}
+        try:
+            data = _read_ai_conf()
+            snap = {k: data[k] for k in PRESET_KEYS if k in data}
+            if not snap:
+                return {"ok": False, "msg": "当前没有可保存的配置项"}
+            data.setdefault("presets", {})[name] = snap
+            data["active_preset"] = name
+            _write_ai_conf(data)
+        except Exception as e:
+            return {"ok": False, "msg": f"保存失败: {e}"}
+        return {"ok": True, "msg": f"已存为方案「{name}」（{len(snap)} 项）"}
+
+    def apply_preset(self, name):
+        """应用方案：把方案里的键写回 ai_config.json。其余键一律不动。"""
+        try:
+            data = _read_ai_conf()
+            if name in BUILTIN_PRESETS:
+                snap = BUILTIN_PRESETS[name]
+            else:
+                snap = (data.get("presets") or {}).get(name)
+                if not isinstance(snap, dict):
+                    return {"ok": False, "msg": f"没有方案「{name}」"}
+            data.update(snap)
+            data["active_preset"] = name
+            _write_ai_conf(data)
+        except Exception as e:
+            return {"ok": False, "msg": f"应用失败: {e}"}
+        return {"ok": True, "msg": f"已应用「{name}」，core_proxy 会自动重新读取"}
+
+    def delete_preset(self, name):
+        try:
+            data = _read_ai_conf()
+            presets = data.get("presets") or {}
+            if name in BUILTIN_PRESETS:
+                return {"ok": False, "msg": "内置方案不能删除"}
+            if name not in presets:
+                return {"ok": False, "msg": f"没有方案「{name}」"}
+            presets.pop(name)
+            data["presets"] = presets
+            if data.get("active_preset") == name:
+                data["active_preset"] = ""
+            _write_ai_conf(data)
+        except Exception as e:
+            return {"ok": False, "msg": f"删除失败: {e}"}
+        return {"ok": True, "msg": f"已删除「{name}」"}
 
     def save_price_settings(self, price_in, price_out):
         """保存 token 单价（每百万 token）。填 0 = 不折算花费。

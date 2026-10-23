@@ -1834,6 +1834,38 @@ a { color: var(--cl-coral); }
 
 .usage-price-sep { color: var(--cl-muted-soft); font-size: 12px; }
 
+/* ==================== 注入方案栏 ==================== */
+/* 把注入语 + 规则 + 名片开关 + 记忆预算打包切换，方便 A/B 对比 */
+
+.preset-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  background: var(--cl-surface-soft);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-md);
+}
+
+.preset-bar-label {
+  font-size: 12px;
+  color: var(--cl-muted);
+  white-space: nowrap;
+}
+
+.preset-select {
+  min-width: 180px;
+  padding: 5px 10px;
+  font-size: 13px;
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-sm);
+  background: #fff;
+  color: var(--cl-ink);
+}
+
+
 
 
 
