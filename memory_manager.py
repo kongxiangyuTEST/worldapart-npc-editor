@@ -324,15 +324,46 @@ def _fact_hits(text, hint):
     return any(w in hint for w in words)
 
 
+def _relevance(text, hint):
+    """事实与当前对话的相关度，0~1。
+
+    为什么要这个：以前 imp>=3 的事实是全量注入的，某类攒多了一样挤爆预算，
+    而且大半和当前聊的事无关。现在是「重要度优先、同级看相关度」，
+    预算不够时先砍不相关的。
+
+    零依赖实现：字符二元组重合率。中文按字、英文数字按连续串，
+    去空白后取所有 2 字片段求交集，用较短一侧的长度归一
+    （hint 通常很短，用 union 会稀释得太厉害）。
+    """
+    if not hint or not text:
+        return 0.0
+    a = re.sub(r"\s+", "", str(text).lower())
+    b = re.sub(r"\s+", "", str(hint).lower())
+    if len(a) < 2 or len(b) < 2:
+        return 0.0
+
+    def grams(s):
+        return {s[i:i + 2] for i in range(len(s) - 1)}
+
+    ga, gb = grams(a), grams(b)
+    if not ga or not gb:
+        return 0.0
+    return len(ga & gb) / float(min(len(ga), len(gb)))
+
+
 def build_injection_text(data, budget_chars=2000, hint="", priority=None):
     """把记忆拼成注入文本。
 
     与旧版的区别（旧版是拼完 text[:2000] 硬截断，会把摘要和里程碑直接切掉）：
       1. 摘要按 GIST_MAX / RECENT_MAX 各自限长，超了保留头尾
       2. 事实按分类顺序输出，'关系里程碑' 标记为受保护，预算裁剪时永不被砍
-      3. 预算不足时从后往前删事实行；事实删光还超，才去压摘要
+      3. 预算不足时先删事实（2026-10-24 起改为**逐条删最低分的**，
+         以前是整类整类删，会把一整类相关事实全砍光）
       4. 重要度 ≤2 的琐事只有在本轮玩家发言命中时才注入
-      5. 每个分类最多 FACT_CAP_PER_CATEGORY 条（取最近的）
+      5. 每个分类最多 FACT_CAP_PER_CATEGORY 条，且**按分数取**：
+         分数 = 重要度×100 + 相关度×10 + 新近度；
+         相关度是事实与本轮玩家发言的字符二元组重合率（_relevance）
+      6. 事实删光还超，才去压摘要
     """
     facts = data.get("facts") or {}
 
@@ -359,8 +390,11 @@ def build_injection_text(data, budget_chars=2000, hint="", priority=None):
         if not isinstance(arr, list) or not arr:
             continue
 
+        # 只看最近 FACT_CAP_PER_CATEGORY*2 条候选（更早的大概率已被淘汰）
+        window = arr[-(FACT_CAP_PER_CATEGORY * 2):]
+        span = max(1, len(window))
         picked = []
-        for it in arr[-FACT_CAP_PER_CATEGORY:]:
+        for pos, it in enumerate(window):
             if isinstance(it, dict):
                 imp = it.get("importance", 3)
                 text = str(it.get("text") or "").strip()
@@ -375,10 +409,17 @@ def build_injection_text(data, budget_chars=2000, hint="", priority=None):
             # 琐事按需注入：本轮没提到就不塞进去
             if imp <= 2 and not _fact_hits(text, hint):
                 continue
-            picked.append((imp, text))
+            rel = _relevance(text, hint)
+            recency = pos / float(span)          # 越新越接近 1
+            score = imp * 100 + rel * 10 + recency
+            picked.append((score, text))
 
         if not picked:
             continue
+
+        # 重要度优先，同级看相关度，再同级看新近；取前 FACT_CAP 条
+        picked.sort(key=lambda x: x[0], reverse=True)
+        picked = picked[:FACT_CAP_PER_CATEGORY]
 
         protected = cat in PROTECTED_CATEGORIES
         lines = [f"【{cat}】"] + [f"- {t}" for _, t in picked]
@@ -387,21 +428,30 @@ def build_injection_text(data, budget_chars=2000, hint="", priority=None):
     def total():
         return sum(len(t) + 1 for _, t, _ in items)
 
-    # 预算裁剪：先删事实（从后往前、跳过受保护的），再压摘要
+    # 预算裁剪。顺序：
+    #   1) 从最后一个非保护事实分类里删掉分数最低的一条（块内已按分数降序，
+    #      所以删末尾就是删最低分）；块内只剩一条时整块删。
+    #      以前是整类整类删，会把一整类刚聊起来的相关事实一次性全砍光。
+    #   2) 没有可删的事实了，才压摘要（保留头尾）
     guard = 0
-    while total() > budget_chars and guard < 200:
+    while total() > budget_chars and guard < 500:
         guard += 1
         removed = False
         for i in range(len(items) - 1, -1, -1):
             kind, text, protected = items[i]
-            if kind == "fact" and not protected:
+            if kind != "fact" or protected:
+                continue
+            lines = text.split("\n")
+            if len(lines) > 2:
+                lines.pop()
+                items[i] = (kind, "\n".join(lines), protected)
+            else:
                 items.pop(i)
-                removed = True
-                break
+            removed = True
+            break
         if removed:
             continue
 
-        # 没有可删的事实了：压摘要（保留头尾）
         shrunk = False
         for i in range(len(items) - 1, -1, -1):
             kind, text, protected = items[i]
