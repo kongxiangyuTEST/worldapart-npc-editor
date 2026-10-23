@@ -129,7 +129,13 @@ def load_ai_config(force=False):
         old = (r.get("old") or "").strip()
         new = (r.get("new") or "").strip()
         if old:
-            new_rules.append((old, new))
+            # mode：text（默认，纯文本，兼容旧配置）/ regex（正则，可用 \1 捕获组）
+            mode = str(r.get("mode") or "text").strip().lower()
+            if mode not in ("text", "regex"):
+                mode = "text"
+            # flags：i 忽略大小写 / m 多行 / s 点匹配换行 / x 忽略空白
+            flags = str(r.get("flags") or "").strip()
+            new_rules.append((old, new, mode, flags))
 
     _AI["inject"] = (conf.get("inject") or "").strip()
     _AI["rules"] = new_rules
@@ -629,6 +635,25 @@ def normalize_response(raw_body):
 FUZZY_LINE_RATIO = 0.70
 FUZZY_LINE_MIN_LEN = 12
 
+# 正则模式的 flags 字符串 → re 标志位。i 忽略大小写 / m 多行 /
+# s 让 . 匹配换行 / x 忽略模式里的空白和注释。
+_REGEX_FLAG_MAP = {
+    "i": re.IGNORECASE,
+    "m": re.MULTILINE,
+    "s": re.DOTALL,
+    "x": re.VERBOSE,
+}
+# 正则过长一律跳过：既是防灾难性回溯的粗筛，也几乎不影响正常使用
+# （正常替换正则远小于这个长度）。
+REGEX_PATTERN_MAX = 500
+
+
+def _parse_regex_flags(s):
+    f = 0
+    for ch in str(s or ""):
+        f |= _REGEX_FLAG_MAP.get(ch.strip().lower(), 0)
+    return f
+
 
 def _norm_for_match(s):
     """归一化：去列表符号、去空白、去常见中英文标点，只留字。"""
@@ -666,10 +691,17 @@ def _fuzzy_replace_line(text, old, new):
 def apply_rules(text, rules=None):
     """应用替换规则。
 
-    匹配顺序（越来越宽松，避免游戏更新后静默失效）：
-      1. 原文精确匹配
-      2. 两边去掉首尾空白后再匹配
-      3. 原文的 \\n 换成 \\r\\n 再匹配（游戏 prompt 行尾可能不同）
+    两种模式：
+      {"old": "原文", "new": "替换为"}                      纯文本（默认）
+      {"old": "正则", "new": "…\\1…", "mode": "regex", "flags": "im"}   正则
+
+    文本模式保留原来的四级匹配（精确 → 去空白 → CRLF → 整行近似），
+    让游戏改几个字也还能命中；正则模式走 re.subn 直路，不参与模糊匹配。
+
+    正则模式下 new 里可以写 \\1 \\2 引用捕获组（Python 原生语法）。
+
+    安全：单条规则异常（语法错、执行错）只跳过该条并记日志，
+    绝不影响其他规则、更不中断转发。
 
     返回 (新文本, 命中条数, 命中明细)
     """
@@ -680,9 +712,32 @@ def apply_rules(text, rules=None):
     count = 0
     detail = []
 
-    for old, new in pairs:
+    for rule in pairs:
+        # 兼容两种元组：旧 (old, new) / 新 (old, new, mode, flags)
+        if len(rule) >= 4:
+            old, new, mode, flags = rule[0], rule[1], rule[2], rule[3]
+        else:
+            old, new, mode, flags = rule[0], rule[1], "text", ""
         if not old:
             continue
+
+        if mode == "regex":
+            try:
+                if len(old) > REGEX_PATTERN_MAX:
+                    print(f"[规则] 正则过长（>{REGEX_PATTERN_MAX} 字符），已跳过: {old[:40]}")
+                    continue
+                new_text, n = re.subn(old, new, text, flags=_parse_regex_flags(flags))
+                if n:
+                    print(f"[规则] 正则命中 {n} 处: {old[:40]}", flush=True)
+                    text = new_text
+                    count += 1
+                    detail.append(old[:30].replace("\n", " "))
+            except re.error as e:
+                print(f"[规则] 正则语法错误，已跳过该条: {old[:40]} → {e}", flush=True)
+            except Exception as e:
+                print(f"[规则] 正则执行异常，已跳过该条: {e}", flush=True)
+            continue
+
         hit = None
         if old in text:
             hit = old
@@ -1747,11 +1802,39 @@ def _preview():
     if final and final[0].get("role") == "system" and isinstance(final[0].get("content"), str):
         system_text = final[0]["content"]
 
+    # 测试器用：逐条规则的命中情况（在【注入前】的原文上统计，
+    # 这样能看到"这条规则到底能不能命中"，而不是被别的规则改过之后的结果）
+    rule_report = []
+    original_sys = ""
+    for m in messages:
+        if m.get("role") == "system" and isinstance(m.get("content"), str):
+            original_sys = m["content"]
+            break
+    for rule in _AI["rules"]:
+        if len(rule) >= 4:
+            old, new, mode, flags = rule[0], rule[1], rule[2], rule[3]
+        else:
+            old, new, mode, flags = rule[0], rule[1], "text", ""
+        if not old:
+            continue
+        if mode == "regex":
+            try:
+                hits = len(re.findall(old, original_sys, flags=_parse_regex_flags(flags)))
+            except re.error:
+                hits = -1          # 语法错误，前端标红
+            except Exception:
+                hits = -1
+        else:
+            hits = original_sys.count(old)
+        rule_report.append({"old": old, "new": new, "mode": mode,
+                            "flags": flags, "hits": hits})
+
     return jsonify({
         "ok": True,
         "stats": stats,
         "system": system_text,
         "roles": [m.get("role") for m in final],
+        "rule_report": rule_report,
         "messages": final,
     })
 
