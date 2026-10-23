@@ -15,6 +15,7 @@ import random
 import re
 import difflib
 import time
+from datetime import datetime
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -1353,6 +1354,113 @@ def clean_polluted_history(messages):
     return messages, fixed
 
 
+# ============================================================
+# 游戏结构自检
+# ============================================================
+# 2026-10-24 实测结论：段落集合**因 NPC 而异**（章籽梦 7 段 / 赤遥 6 段 / 索雅 5 段），
+# 且关系状态、游戏状态这类动态段每轮都变。
+# 所以自检基线必须是「结构画像」（有哪些段落、几条 system、什么形状），
+# 绝不能按原文文本比对——那样游戏改一个字就误报，动态段更是每轮都误报。
+#
+# 检查四类，按严重度排序：
+#   1. NPC 名解析失败  → 名片与长期记忆全部失效，最严重
+#   2. prompt 结构变化 → 游戏改了组装方式（新增/消失段落）
+#   3. 规则命中骤降    → 游戏改了文案，替换规则静默失效
+#   4. 异常响应计数    → 空 content、污染清洗、历史裁剪的发生次数
+_HEALTH = {
+    "requests": 0,
+    "npc_name_fail": 0,
+    "structure_changes": 0,
+    "empty_response": 0,
+    "polluted_cleaned": 0,
+    "trimmed_total": 0,
+    "rules_hit_recent": [],
+    "last_profile": None,
+    "last_fingerprint": "",
+    "alerts": [],
+}
+HEALTH_ALERT_MAX = 20
+
+
+def extract_structure_profile(messages):
+    """提取结构画像：只取形状，不取内容。
+    动态段（关系/库存/今日行为）每轮都变，所以只看段落标题集合和 system 形状。"""
+    systems = [m for m in messages if m.get("role") == "system"]
+    headings = []
+    for m in systems:
+        for h in re.findall(r'^##[^\n\r]*', str(m.get("content") or ""), re.M):
+            headings.append(h.strip())
+    return {
+        "system_count": len(systems),
+        "system_lens": [len(str(m.get("content") or "")) for m in systems],
+        "headings": headings,
+        "msg_count": len(messages),
+    }
+
+
+def _profile_fingerprint(profile):
+    """指纹：段落标题去重集合 + system 条数。不含长度（动态段长度每轮变）。"""
+    return "|".join(sorted(set(profile.get("headings") or []))) + f"#{profile.get('system_count')}"
+
+
+def _add_alert(level, msg):
+    _HEALTH["alerts"].append({"level": level, "msg": msg,
+                              "ts": datetime.now().strftime("%H:%M:%S")})
+    if len(_HEALTH["alerts"]) > HEALTH_ALERT_MAX:
+        del _HEALTH["alerts"][:-HEALTH_ALERT_MAX]
+    tag = {"error": "[自检✗]", "warn": "[自检⚠]", "info": "[自检·]"}.get(level, "[自检]")
+    print(f"{tag} {msg}", flush=True)
+
+
+def run_self_check(stats, messages):
+    """每轮转发前跑一次。只记录和告警，不改变请求内容。"""
+    try:
+        _HEALTH["requests"] += 1
+
+        # 1) NPC 名解析失败：名片和记忆都不会注入，等于核心功能全废
+        if not stats.get("npc_name"):
+            _HEALTH["npc_name_fail"] += 1
+            _add_alert("error",
+                       "NPC 名解析失败，本轮名片与长期记忆都不会注入。"
+                       "多半是游戏改了 system 里「## 角色设定」的写法。")
+
+        # 2) prompt 结构变化：和上一次画像比对段落集合
+        prof = extract_structure_profile(messages)
+        fp = _profile_fingerprint(prof)
+        if _HEALTH["last_fingerprint"] and fp != _HEALTH["last_fingerprint"]:
+            old = set(_HEALTH["last_profile"].get("headings") or [])
+            new = set(prof.get("headings") or [])
+            added = sorted(new - old)
+            removed = sorted(old - new)
+            if added or removed:
+                _HEALTH["structure_changes"] += 1
+                parts = []
+                if added:
+                    parts.append(f"新增段落 {added}")
+                if removed:
+                    parts.append(f"消失段落 {removed}")
+                _add_alert("warn", "prompt 结构变化：" + "，".join(parts) +
+                           "。若这是游戏更新导致的，请到「预览效果」核对规则命中。")
+        _HEALTH["last_profile"] = prof
+        _HEALTH["last_fingerprint"] = fp
+
+        # 3) 规则命中骤降：最近 8 轮全为 0，而之前有过命中 → 文案大概变了
+        hit = int(stats.get("rules_hit") or 0)
+        recent = _HEALTH["rules_hit_recent"]
+        recent.append(hit)
+        if len(recent) > 8:
+            del recent[:-8]
+        if len(recent) == 8 and sum(recent) == 0:
+            _add_alert("warn",
+                       f"替换规则已连续 8 轮零命中。游戏可能改了文案，"
+                       f"{len(_AI['rules'])} 条规则正在静默失效。")
+
+        return prof
+    except Exception as e:
+        print(f"[自检] 执行失败（不影响转发）: {e}", flush=True)
+        return None
+
+
 def forward(req_json, game_auth):
     upstream_url = UPSTREAM_BASE + "/v1/chat/completions"
     headers = {"Content-Type": "application/json"}
@@ -1428,6 +1536,7 @@ def chat_completions():
         if dropped > 0:
             messages = trimmed
             req_json["messages"] = trimmed
+            _HEALTH["trimmed_total"] += dropped
             print(f"[裁剪] 对话历史超预算，裁掉最早 {dropped} 条，"
                   f"保留 {len(trimmed)} 条（含 system）")
     except Exception as e:
@@ -1435,13 +1544,21 @@ def chat_completions():
 
     # 污染清洗：assistant 历史里混进原始响应 JSON 的，换成占位文本，
     # 否则它会跟着每轮请求继续传，越滚越大。
+    polluted_fixed = 0
     try:
-        _, polluted = clean_polluted_history(messages)
-        if polluted > 0:
-            print(f"[清洗] 发现 {polluted} 条 assistant 历史是原始响应 JSON，已替换为占位。"
+        _, polluted_fixed = clean_polluted_history(messages)
+        if polluted_fixed > 0:
+            _HEALTH["polluted_cleaned"] += polluted_fixed
+            print(f"[清洗] 发现 {polluted_fixed} 条 assistant 历史是原始响应 JSON，已替换为占位。"
                   f"游戏侧记忆里若也有残留，需在游戏内重置该 NPC 对话。")
     except Exception as e:
         print(f"[清洗] 失败，按原样转发: {e}")
+
+    # 结构自检：只记录和告警，不改请求
+    try:
+        run_self_check(stats, messages)
+    except Exception as e:
+        print(f"[自检] 失败（不影响转发）: {e}")
 
     game_auth = request.headers.get("Authorization")
 
@@ -1452,6 +1569,9 @@ def chat_completions():
                         status=502, content_type="application/json; charset=utf-8")
 
     clean_text, extra_fields = normalize_response(raw_body)
+
+    if not clean_text.strip():
+        _HEALTH["empty_response"] += 1
 
     preview = raw_body[:100].replace("\n", " ")
     print(f"[UP ] status={status}, 原始前100字: {preview}")
@@ -1576,6 +1696,17 @@ def _status():
         "memory_merge_max_tokens": _AI.get("memory_merge_max_tokens"),
         "past_events_max_chars": _AI.get("past_events_max_chars"),
         "config_mtime": _AI["mtime"],
+        "health": {
+            "requests": _HEALTH["requests"],
+            "npc_name_fail": _HEALTH["npc_name_fail"],
+            "structure_changes": _HEALTH["structure_changes"],
+            "empty_response": _HEALTH["empty_response"],
+            "polluted_cleaned": _HEALTH["polluted_cleaned"],
+            "trimmed_total": _HEALTH["trimmed_total"],
+            "rules_hit_recent": _HEALTH["rules_hit_recent"],
+            "last_profile": _HEALTH["last_profile"],
+            "alerts": _HEALTH["alerts"],
+        },
     })
 
 
