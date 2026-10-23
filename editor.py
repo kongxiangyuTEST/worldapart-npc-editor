@@ -217,8 +217,11 @@ def build_card_file(card):
     lines.append(f"- 姓名：{preset.get('姓名', name)}")
     lines.append(f"- 性别：{preset.get('性别', '未知')}")
     lines.append(f"- 年龄：{preset.get('年龄', '0')}")
-     # 境界：暂时不写入（游戏运行时数据）
-    # lines.append(f"- 境界：{preset.get('境界', '未知或凡人')}")
+    # 境界：配置表能推出来（tbnpcbasecfg.propLayerId + tbcultivatephase.layers），
+    # 由 tools/apply_realm.py 批量填充；导出时保留卡片里已有的值。
+    realm = str(preset.get('境界', '') or '').strip()
+    if realm:
+        lines.append(f"- 境界：{realm}")
     lines.append(f"- 个性：{preset.get('个性', '')}")
     lines.append(f"- 兴趣：{preset.get('兴趣', '')}")
     lines.append("")

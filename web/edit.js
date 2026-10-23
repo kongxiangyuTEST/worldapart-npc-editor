@@ -191,8 +191,7 @@ function renderEditMain() {
     currentCard.name = e.target.value;
     markDirty();
   };
-  for (const key of ['姓名', '性别', '年龄', '个性', '兴趣']) {
-    // 跳过"境界"——它被锁住了，不需要绑定
+  for (const key of ['姓名', '性别', '年龄', '境界', '个性', '兴趣']) {
     const el = document.getElementById('f-preset-' + key);
     if (!el) continue;
     el.oninput = e => {
@@ -380,16 +379,23 @@ async function insertCardTemplate() {
 }
 
 function presetFieldHTML(key, value) {
-  // 境界：暂时锁住（游戏运行时数据，配置表拿不到）
-  const locked = key === '境界';
+  // 境界：以前锁死（"游戏运行时数据，配置表拿不到"）。
+  // 2026-10-24 逆向配置表后确认这个判断不对——tbnpcbasecfg.propLayerId
+  // 配 tbcultivatephase.layers 能推出「炼气初期 / 筑基后期」这类显示名，
+  // 已用 tools/apply_realm.py 批量填进卡片。所以现在放开可编辑。
+  // 注意：这是配置表里的初始境界，游戏内 NPC 突破后实际境界会变。
+  const isRealm = key === '境界';
+  const hint = isRealm
+    ? ' <span style="color:var(--cl-muted-soft);font-weight:normal;font-size:11px;">（游戏初始值，突破后可能已变化）</span>'
+    : '';
   return `
     <div class="field">
       <label>
-        <span>${key}${locked ? ' <span style="color:var(--cl-muted-soft);font-weight:normal;font-size:11px;">（暂未支持）</span>' : ''}</span>
-        ${locked ? '' : fieldActionsHTML('preset.' + key)}
+        <span>${key}${hint}</span>
+        ${fieldActionsHTML('preset.' + key)}
       </label>
       <input id="f-preset-${key}" value="${escapeHtml(value)}"
-             ${locked ? 'readonly style="background:var(--cl-surface-soft);color:var(--cl-muted-soft);cursor:not-allowed;" placeholder="（游戏运行时数据，暂无法读取）"' : ''}>
+             placeholder="${isRealm ? '如：筑基后期（留空则不写入）' : ''}">
     </div>
   `;
 }
