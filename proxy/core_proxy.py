@@ -184,6 +184,14 @@ def load_ai_config(force=False):
         _AI["price_output_per_million"] = max(0.0, float(conf.get("price_output_per_million", 0) or 0))
     except (TypeError, ValueError):
         _AI["price_output_per_million"] = 0.0
+    # 世界信息（Lorebook）预算：命中条目合起来最多注入多少字
+    try:
+        _AI["lorebook_budget"] = max(0, int(conf.get("lorebook_budget", 800)))
+    except (TypeError, ValueError):
+        _AI["lorebook_budget"] = 800
+    # 用户人设（玩家自己的设定，每轮都注入）
+    _AI["persona"] = (conf.get("persona") or "").strip()
+    _AI["inject_persona"] = bool(conf.get("inject_persona", True))
 
     _AI["mtime"] = mtime
     print(f"[配置] ai_config.json 已加载：注入 {len(_AI['inject'])} 字，"
@@ -1300,6 +1308,21 @@ def prepare_messages(req_json, with_memory=True, with_card=True, dry_run=False):
     else:
         npc_label = npc_name
 
+    # 世界信息：按关键词命中的才注入（跨 NPC 共用的设定，游戏没有这层）
+    lore_len = 0
+    try:
+        lore_len = inject_lorebook(req_json, npc_id)
+    except Exception as e:
+        print(f"[世界信息] 注入失败（不影响转发）: {e}", flush=True)
+
+    # 用户人设：每轮都注入（玩家自己的设定）
+    persona_len = 0
+    try:
+        persona_len = inject_persona(req_json)
+    except Exception as e:
+        print(f"[人设] 注入失败（不影响转发）: {e}", flush=True)
+
+    # 名片放最后：离生成位置最近，权重最高，能盖住上面两块
     card_len = 0
     if with_card and _AI["inject_user_card"]:
         try:
@@ -1322,6 +1345,8 @@ def prepare_messages(req_json, with_memory=True, with_card=True, dry_run=False):
         "inject_chars": len(_AI["inject"]),
         "card_chars": card_len,
         "memory_chars": mem_len,
+        "lorebook_chars": lore_len,
+        "persona_chars": persona_len,
         "memory_slot": mem_slot,
         "save_guard": guard_status,
         "system_chars": sys_len,
@@ -1602,6 +1627,130 @@ def _compute_cost():
         return None
     return round(_USAGE["prompt_tokens"] / 1e6 * p_in
                  + _USAGE["completion_tokens"] / 1e6 * p_out, 4)
+
+
+# ============================================================
+# 世界信息（Lorebook）+ 用户人设（Persona）
+# ============================================================
+# 游戏只有「按 NPC 匹配名片」这一种触发方式，没有跨 NPC 共用的设定
+# （门派规矩、某段共同剧情、地点背景这类），所以补一层：
+#
+#   世界信息：存 lorebook.json，按关键词命中当前对话才注入
+#   用户人设：存在 ai_config.json 的 persona，每轮都注入
+#
+# 两者都追加在 system 末尾、且排在用户名片之前——名片仍然最后注入，
+# 离生成位置最近、权重最高，可以盖住它们。
+LOREBOOK_PATH = Path(__file__).parent.parent / "lorebook.json"
+
+
+def load_lorebook():
+    """读 lorebook.json。文件不存在或格式坏了都返回空列表，不影响转发。"""
+    try:
+        with open(LOREBOOK_PATH, "r", encoding="utf-8-sig") as f:
+            d = json.load(f)
+    except Exception:
+        return []
+    entries = d.get("entries") if isinstance(d, dict) else None
+    return entries if isinstance(entries, list) else []
+
+
+def _append_system_text(messages, text):
+    """把 text 追加到最后一条 system 末尾；没有 system 就插一条在最前。"""
+    for m in reversed(messages):
+        if m.get("role") == "system" and isinstance(m.get("content"), str):
+            m["content"] = m["content"].rstrip() + "\n\n" + text
+            return
+    messages.insert(0, {"role": "system", "content": text})
+
+
+def match_lorebook(entries, haystack, npc_id=None):
+    """按关键词命中条目。
+    · enabled=false 跳过
+    · entries[].npcs 非空时，只对这些 NPC 生效
+    · keywords 任一出现即命中（纯字符串包含，零成本）
+    · 命中后按 priority 降序
+    """
+    hits = []
+    scope_id = str(npc_id) if npc_id is not None else ""
+    for e in entries:
+        if not isinstance(e, dict) or not e.get("enabled", True):
+            continue
+        scope = e.get("npcs") or []
+        if scope and scope_id and scope_id not in [str(x) for x in scope]:
+            continue
+        kws = [str(k).strip() for k in (e.get("keywords") or []) if str(k).strip()]
+        # 关键词为空 = 常驻条目，每轮都注入（用户想让某条设定一直在时用这个）
+        if not kws:
+            hits.append(e)
+            continue
+        if any(k in haystack for k in kws):
+            hits.append(e)
+    hits.sort(key=lambda x: -int(x.get("priority") or 0))
+    return hits
+
+
+def inject_lorebook(req_json, npc_id=None):
+    """把命中的世界信息注入 system。返回注入字数（0 表示没命中）。"""
+    entries = load_lorebook()
+    if not entries:
+        return 0
+
+    messages = req_json.get("messages") or []
+    # 搜索范围：最近 4 条对话（约本轮玩家发言 + 前两轮），不扫全量
+    parts, cnt = [], 0
+    for m in reversed(messages):
+        if m.get("role") in ("user", "assistant"):
+            c = m.get("content")
+            if isinstance(c, str) and c.strip():
+                parts.append(c)
+                cnt += 1
+        if cnt >= 4:
+            break
+    haystack = "\n".join(parts)[-800:]
+    if not haystack:
+        return 0
+
+    hits = match_lorebook(entries, haystack, npc_id)
+    if not hits:
+        return 0
+
+    budget = int(_AI.get("lorebook_budget") or 800)
+    chunks, used, titles = [], 0, []
+    for e in hits:
+        body = str(e.get("content") or "").strip()
+        if not body:
+            continue
+        title = str(e.get("title") or "未命名").strip()
+        block = f"### {title}\n{body}"
+        if chunks and used + len(block) > budget:
+            break
+        chunks.append(block)
+        used += len(block)
+        titles.append(title)
+
+    if not chunks:
+        return 0
+
+    text = "## 世界信息（补充设定）\n\n" + "\n\n".join(chunks)
+    _append_system_text(messages, text)
+    print(f"[世界信息] 命中 {len(chunks)} 条（{used} 字）: "
+          f"{'、'.join(titles)}", flush=True)
+    return len(text)
+
+
+def inject_persona(req_json):
+    """把用户人设注入 system。每轮都注入，没配就跳过。"""
+    persona = (_AI.get("persona") or "").strip()
+    if not persona or not _AI.get("inject_persona", True):
+        return 0
+    messages = req_json.get("messages") or []
+    # 太长的截断，避免把上下文挤爆（人设不是剧情，2000 字足够）
+    if len(persona) > 2000:
+        persona = persona[:2000] + "\n（人设过长已截断）"
+    text = "## 玩家设定（关于和你说话的这个人的信息）\n\n" + persona
+    _append_system_text(messages, text)
+    print(f"[人设] 已注入玩家设定（{len(persona)} 字）", flush=True)
+    return len(text)
 
 
 def forward(req_json, game_auth):

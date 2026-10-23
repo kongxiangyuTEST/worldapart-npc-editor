@@ -59,5 +59,8 @@
   "history_max_chars": 24000,
   "history_keep_turns": 6,
   "price_input_per_million": 0,
-  "price_output_per_million": 0
+  "price_output_per_million": 0,
+  "persona": "",
+  "inject_persona": true,
+  "lorebook_budget": 800
 }

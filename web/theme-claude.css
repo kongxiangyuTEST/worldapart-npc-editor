@@ -1882,6 +1882,163 @@ a { color: var(--cl-coral); }
   border-top: none;
 }
 
+/* ==================== 世界信息（Lorebook） ==================== */
+
+.lb-list { margin-top: 12px; }
+
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-sm);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.lb-row:hover { border-color: var(--cl-coral); }
+
+.lb-row.active {
+  border-color: var(--cl-coral);
+  background: rgba(204, 120, 92, 0.05);
+}
+
+.lb-row.disabled { opacity: 0.5; }
+
+.lb-main {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.lb-title {
+  font-size: 13px;
+  color: var(--cl-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lb-kw {
+  font-size: 11px;
+  color: var(--cl-muted-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lb-permanent {
+  color: var(--cl-coral);
+  font-style: normal;
+}
+
+.lb-len {
+  font-size: 11px;
+  color: var(--cl-muted-soft);
+  font-family: var(--cl-mono);
+  white-space: nowrap;
+}
+
+.lb-editor {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: var(--cl-surface-soft);
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-md);
+}
+
+.lb-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.lb-edit-col { display: block; }
+
+.lb-label {
+  font-size: 12px;
+  color: var(--cl-muted);
+  min-width: 52px;
+  white-space: nowrap;
+}
+
+.lb-input {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-sm);
+  background: #fff;
+  color: var(--cl-ink);
+}
+
+.lb-input-num { max-width: 100px; flex: none; }
+
+.lb-inline {
+  font-size: 12px;
+  color: var(--cl-body);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.lb-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-sm);
+  background: #fff;
+  color: var(--cl-body);
+  resize: vertical;
+}
+
+.lb-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ==================== 用户人设 ==================== */
+
+.persona-toggle {
+  margin: 10px 0;
+  font-size: 12px;
+  color: var(--cl-body);
+}
+
+.persona-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.persona-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.8;
+  border: 1px solid var(--cl-hairline);
+  border-radius: var(--cl-r-md);
+  background: #fff;
+  color: var(--cl-body);
+  resize: vertical;
+}
+
+
 
 
 

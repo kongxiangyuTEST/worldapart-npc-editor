@@ -1419,6 +1419,75 @@ class Api:
             return {"ok": False, "msg": f"删除失败: {e}"}
         return {"ok": True, "msg": f"已删除「{name}」"}
 
+    # ==================== 世界信息 / 用户人设 ====================
+
+    def get_lorebook(self):
+        """读世界信息条目。文件不存在就返回空列表（前端可直接新建）。"""
+        path = os.path.join(PROJECT_DIR, "lorebook.json")
+        entries = []
+        try:
+            with open(path, "r", encoding="utf-8-sig") as f:
+                d = json.load(f)
+            if isinstance(d, dict) and isinstance(d.get("entries"), list):
+                entries = d["entries"]
+        except Exception:
+            entries = []
+        budget = 800
+        try:
+            budget = int(_read_ai_conf().get("lorebook_budget", 800))
+        except Exception:
+            pass
+        return {"ok": True, "entries": entries, "path": path, "budget": budget}
+
+    def save_lorebook(self, entries):
+        """整体保存世界信息条目（前端负责增删改，这里只做校验与落盘）。"""
+        if not isinstance(entries, list):
+            return {"ok": False, "msg": "entries 必须是数组"}
+        clean = []
+        for e in entries:
+            if not isinstance(e, dict):
+                continue
+            title = str(e.get("title") or "").strip()
+            content = str(e.get("content") or "").strip()
+            kws = [str(k).strip() for k in (e.get("keywords") or []) if str(k).strip()]
+            # 没正文的条目没有意义（草稿），直接跳过；
+            # 但「有正文、没关键词」是合法的——那是常驻条目，每轮都注入
+            if not content:
+                continue
+            clean.append({
+                "id": str(e.get("id") or "").strip() or str(int(time.time() * 1000)),
+                "title": title or "未命名",
+                "keywords": kws,
+                "content": content,
+                "enabled": bool(e.get("enabled", True)),
+                "priority": int(e.get("priority") or 50),
+                "npcs": [str(x) for x in (e.get("npcs") or [])],
+            })
+        path = os.path.join(PROJECT_DIR, "lorebook.json")
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"entries": clean}, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            return {"ok": False, "msg": f"保存失败: {e}"}
+        return {"ok": True, "msg": f"已保存 {len(clean)} 条", "count": len(clean)}
+
+    def get_persona(self):
+        data = _read_ai_conf()
+        return {"ok": True,
+                "persona": data.get("persona") or "",
+                "inject": bool(data.get("inject_persona", True))}
+
+    def save_persona(self, text, inject=True):
+        """保存玩家设定。core_proxy 按 mtime 热加载，存盘即生效。"""
+        try:
+            data = _read_ai_conf()
+            data["persona"] = str(text or "").strip()
+            data["inject_persona"] = bool(inject)
+            _write_ai_conf(data)
+        except Exception as e:
+            return {"ok": False, "msg": f"保存失败: {e}"}
+        return {"ok": True, "msg": "已保存，core_proxy 会自动重新读取"}
+
     def save_price_settings(self, price_in, price_out):
         """保存 token 单价（每百万 token）。填 0 = 不折算花费。
 

@@ -23,6 +23,18 @@ async function initPromptsPage() {
     promptFragments = null;
   }
   await loadPresets();
+  // 世界信息与用户人设
+  try {
+    const r = await pywebview.api.get_lorebook();
+    lorebookData = (r && r.ok) ? (r.entries || []) : [];
+    lorebookBudget = (r && r.ok) ? (r.budget || 800) : 800;
+  } catch (e) { lorebookData = []; }
+  try {
+    const r = await pywebview.api.get_persona();
+    personaData = (r && r.ok)
+      ? { persona: r.persona || '', inject: r.inject !== false }
+      : { persona: '', inject: true };
+  } catch (e) { personaData = { persona: '', inject: true }; }
   renderPromptsPage();
 }
 
@@ -142,7 +154,9 @@ function renderPromptsPage() {
       <div class="ai-tab${currentTab === 'inject' ? ' active' : ''}" data-tab="inject" onclick="switchAiTab('inject')">注入规则</div>
       <div class="ai-tab${currentTab === 'replace' ? ' active' : ''}" data-tab="replace" onclick="switchAiTab('replace')">系统prompt替换</div>
       <div class="ai-tab${currentTab === 'preview' ? ' active' : ''}" data-tab="preview" onclick="switchAiTab('preview')">预览效果</div>
-      <div class="ai-tab${currentTab === 'fragments' ? ' active' : ''}" data-tab="fragments" onclick="switchAiTab('fragments')">固定段落</div>
+      <div class="ai-tab${currentTab === 'fragments' ? ' active' : ''}" data-tab="fragments" onclick="switchAiTab('fragments')">段落清单</div>
+      <div class="ai-tab${currentTab === 'lorebook' ? ' active' : ''}" data-tab="lorebook" onclick="switchAiTab('lorebook')">世界信息</div>
+      <div class="ai-tab${currentTab === 'persona' ? ' active' : ''}" data-tab="persona" onclick="switchAiTab('persona')">用户人设</div>
     </div>
     <div class="ai-tab-content" id="ai-tab-content"></div>
     <div class="ai-tab-footer">
@@ -179,7 +193,195 @@ function renderTabContent() {
     box.innerHTML = renderPreviewTab();
   } else if (currentTab === 'fragments') {
     box.innerHTML = renderFragmentsTab();
+  } else if (currentTab === 'lorebook') {
+    box.innerHTML = renderLorebookTab();
+    renderLorebookEditor();
+  } else if (currentTab === 'persona') {
+    box.innerHTML = renderPersonaTab();
   }
+}
+
+// ==================== 世界信息（Lorebook） ====================
+// 跨 NPC 共用的设定：门派规矩、地点背景、共同经历。
+// 按关键词命中才注入；关键词留空 = 常驻（每轮都注入）。
+// 这层游戏没有（游戏只有按 NPC 名匹配的名片），所以不会重复。
+
+let lorebookData = [];
+let lorebookBudget = 800;
+let lbEditing = null;   // 正在编辑的索引；-1 = 新增
+
+function renderLorebookTab() {
+  const rows = lorebookData.length
+    ? lorebookData.map((e, i) => {
+        const kws = (e.keywords || []).length
+          ? escapeHtml((e.keywords || []).join('、'))
+          : '<em class="lb-permanent">常驻</em>';
+        const off = e.enabled === false ? ' disabled' : '';
+        return `<div class="lb-row${lbEditing === i ? ' active' : ''}${off}"
+          onclick="editLorebookEntry(${i})">
+          <div class="lb-main">
+            <span class="lb-title">${escapeHtml(e.title || '未命名')}</span>
+            <span class="lb-kw">${kws}</span>
+          </div>
+          <span class="lb-len">${(e.content || '').length} 字</span>
+          <button class="rule-del" onclick="event.stopPropagation();removeLorebookEntry(${i})">×</button>
+        </div>`;
+      }).join('')
+    : '<div class="ai-tab-note">还没有条目。点「+ 新增条目」开始。</div>';
+
+  return `
+    <div class="field-hint">
+      跨 NPC 共用的设定（门派规矩、地点背景、共同经历这类）。
+      <b>按关键词命中才注入</b>，关键词留空则是常驻条目、每轮都注入。
+      总注入量受 ${lorebookBudget} 字预算限制，优先注入优先级高的。
+    </div>
+    <div class="inject-actions">
+      <button class="secondary" onclick="editLorebookEntry(-1)">+ 新增条目</button>
+      <button class="primary" onclick="saveLorebook()">保存世界信息</button>
+      <span class="inject-status" id="lb-status"></span>
+    </div>
+    <div class="lb-list">${rows}</div>
+    <div id="lb-editor"></div>
+  `;
+}
+
+function editLorebookEntry(i) {
+  if (i === -1) {
+    lorebookData.push({ title: '', keywords: [], content: '', enabled: true, priority: 50, npcs: [] });
+    lbEditing = lorebookData.length - 1;
+  } else {
+    lbEditing = (lbEditing === i) ? null : i;
+  }
+  renderTabContent();
+}
+
+function removeLorebookEntry(i) {
+  lorebookData.splice(i, 1);
+  lbEditing = null;
+  renderTabContent();
+}
+
+function renderLorebookEditor() {
+  const box = document.getElementById('lb-editor');
+  if (!box) return;
+  if (lbEditing === null || !lorebookData[lbEditing]) {
+    box.innerHTML = '';
+    return;
+  }
+  const e = lorebookData[lbEditing];
+  box.innerHTML = `
+    <div class="lb-editor">
+      <div class="lb-edit-row">
+        <label class="lb-label">标题</label>
+        <input id="lb-title" class="lb-input" value="${escapeHtml(e.title || '')}" placeholder="例：青云谷门规">
+      </div>
+      <div class="lb-edit-row">
+        <label class="lb-label">关键词</label>
+        <input id="lb-keywords" class="lb-input" value="${escapeHtml((e.keywords || []).join('、'))}"
+               placeholder="用顿号或逗号分隔；留空=每轮都注入">
+      </div>
+      <div class="lb-edit-row">
+        <label class="lb-label">优先级</label>
+        <input id="lb-priority" class="lb-input lb-input-num" type="number" value="${e.priority || 50}">
+        <label class="lb-inline"><input type="checkbox" id="lb-enabled" ${e.enabled === false ? '' : 'checked'}> 启用</label>
+      </div>
+      <div class="lb-edit-row lb-edit-col">
+        <label class="lb-label">正文</label>
+        <textarea id="lb-content" rows="7" class="lb-textarea"
+          placeholder="写成 NPC 应该知道的客观事实，不要写成命令。">${escapeHtml(e.content || '')}</textarea>
+      </div>
+      <div class="lb-edit-actions">
+        <button class="primary" onclick="applyLorebookEdit()">确定</button>
+        <span class="field-hint" style="margin:0;">改完还要点上面的「保存世界信息」才会落盘</span>
+      </div>
+    </div>
+  `;
+}
+
+function applyLorebookEdit() {
+  if (lbEditing === null || !lorebookData[lbEditing]) return;
+  const g = id => document.getElementById(id);
+  const kws = (g('lb-keywords') ? g('lb-keywords').value : '')
+    .split(/[、,，\s]+/).map(s => s.trim()).filter(Boolean);
+  lorebookData[lbEditing] = {
+    ...lorebookData[lbEditing],
+    title: (g('lb-title') ? g('lb-title').value : '').trim() || '未命名',
+    keywords: kws,
+    content: (g('lb-content') ? g('lb-content').value : '').trim(),
+    enabled: g('lb-enabled') ? g('lb-enabled').checked : true,
+    priority: parseInt((g('lb-priority') ? g('lb-priority').value : '50'), 10) || 50,
+  };
+  lbEditing = null;
+  renderTabContent();
+}
+
+async function saveLorebook() {
+  const st = document.getElementById('lb-status');
+  const setSt = (t, k) => { if (st) { st.textContent = t; st.className = 'inject-status ' + (k || ''); } };
+  // 存之前把正在编辑的改动先落进数组
+  if (lbEditing !== null) applyLorebookEdit();
+  setSt('保存中…', '');
+  let res;
+  try {
+    res = await pywebview.api.save_lorebook(lorebookData);
+  } catch (e) {
+    setSt('✗ ' + e, 'error');
+    return;
+  }
+  if (!res || !res.ok) {
+    setSt('✗ ' + ((res && res.msg) || '保存失败'), 'error');
+    return;
+  }
+  setSt('✓ ' + res.msg, 'success');
+}
+
+// ==================== 用户人设（Persona） ====================
+
+let personaData = { persona: '', inject: true };
+
+function renderPersonaTab() {
+  return `
+    <div class="field-hint">
+      关于<b>你自己</b>的设定：身份、来历、与 NPC 的关系、说话习惯。
+      每轮都会注入到 system 末尾（在用户名片之前）。
+      <b>注意</b>：游戏自己也会传玩家属性，「与游戏冲突时以游戏为准」这条要写进去。
+    </div>
+    <div class="persona-toggle">
+      <label>
+        <input type="checkbox" id="persona-inject" ${personaData.inject !== false ? 'checked' : ''}>
+        注入玩家设定
+      </label>
+    </div>
+    <textarea id="persona-text" class="persona-textarea" rows="14"
+      placeholder="例：我是青云谷外门弟子，剑修，性子直。与索雅是同一批入门的师姐妹。
+游戏内的属性与关系以游戏为准，这份设定只补充游戏没有的部分。">${escapeHtml(personaData.persona || '')}</textarea>
+    <div class="inject-actions">
+      <button class="primary" onclick="savePersona()">保存</button>
+      <span class="inject-status" id="persona-status"></span>
+    </div>
+  `;
+}
+
+async function savePersona() {
+  const ta = document.getElementById('persona-text');
+  const ck = document.getElementById('persona-inject');
+  const st = document.getElementById('persona-status');
+  const setSt = (t, k) => { if (st) { st.textContent = t; st.className = 'inject-status ' + (k || ''); } };
+
+  setSt('保存中…', '');
+  let res;
+  try {
+    res = await pywebview.api.save_persona(ta ? ta.value : '', ck ? ck.checked : true);
+  } catch (e) {
+    setSt('✗ ' + e, 'error');
+    return;
+  }
+  if (!res || !res.ok) {
+    setSt('✗ ' + ((res && res.msg) || '保存失败'), 'error');
+    return;
+  }
+  personaData = { persona: ta ? ta.value : '', inject: ck ? ck.checked : true };
+  setSt('✓ ' + res.msg, 'success');
 }
 
 // ============= Tab 1：用户名片 =============

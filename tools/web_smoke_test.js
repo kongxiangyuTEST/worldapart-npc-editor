@@ -154,6 +154,17 @@ ctx.pywebview = {
       },
     }),
     get_ai_config: async () => ({ ok: true, data: { inject: '', rules: [] } }),
+    get_lorebook: async () => ({
+      ok: true, budget: 800,
+      entries: [
+        { id: '1', title: '青云谷门规', keywords: ['青云谷', '门规'], content: '不得私斗。', enabled: true, priority: 80 },
+        { id: '2', title: '常驻常识', keywords: [], content: '以灵石为货币。', enabled: true, priority: 30 },
+      ],
+    }),
+    save_lorebook: async () => ({ ok: true, msg: '已保存 2 条' }),
+    get_persona: async () => ({ ok: true, persona: '我是剑修。', inject: true }),
+    save_persona: async () => ({ ok: true, msg: '已保存' }),
+    list_presets: async () => ({ ok: true, builtin: ['精简'], presets: {}, active: '' }),
     get_memory_list: async () => ({ ok: true, debug_path: 'memory', items: memoryStore.items.slice() }),
     get_memory: async () => ({
       ok: true,
@@ -264,6 +275,40 @@ for (const name of STEPS) {
     }
   } catch (e) {
     fail('固定段落渲染抛错 -> ' + e.name + ': ' + e.message);
+  }
+
+  console.log('AI 提示词 · 世界信息：');
+  try {
+    ctx.switchAiTab('lorebook');
+    const html = getEl('ai-tab-content').innerHTML;
+    if (html.indexOf('青云谷门规') >= 0 && html.indexOf('常驻') >= 0) {
+      ok('条目列表渲染正常（含关键词条目与常驻条目）');
+    } else {
+      fail('世界信息列表没渲染出条目');
+    }
+    // 打开新增编辑表单，确认字段都在
+    ctx.editLorebookEntry(-1);
+    const ed = getEl('lb-editor').innerHTML;
+    if (ed.indexOf('lb-title') >= 0 && ed.indexOf('lb-keywords') >= 0 && ed.indexOf('lb-content') >= 0) {
+      ok('编辑表单字段完整');
+    } else {
+      fail('编辑表单缺字段');
+    }
+  } catch (e) {
+    fail('世界信息页抛错: ' + (e && e.message));
+  }
+
+  console.log('AI 提示词 · 用户人设：');
+  try {
+    ctx.switchAiTab('persona');
+    const html = getEl('ai-tab-content').innerHTML;
+    if (html.indexOf('persona-text') >= 0 && html.indexOf('我是剑修') >= 0) {
+      ok('人设文本与开关渲染正常');
+    } else {
+      fail('人设页没渲染出内容');
+    }
+  } catch (e) {
+    fail('人设页抛错: ' + (e && e.message));
   }
 
   console.log('AI 提示词 · 预览页：');
