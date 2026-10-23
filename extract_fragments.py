@@ -105,9 +105,12 @@ def compare_sections(results):
     fixed = {}
     stats = {}
     varying = {}
+    samples_out = {}   # title -> 代表内容（取最长那份，信息量最大）
 
     for title, contents in title_contents.items():
         appear = title_appear_count[title]
+        if contents:
+            samples_out[title] = max(contents, key=len)
         # 只对"所有样本都出现"的段落做"完全相同"判断
         if appear < total_samples:
             # 出现频率不固定（比如"任务：闲聊"）
@@ -128,6 +131,7 @@ def compare_sections(results):
         "fixed": fixed,
         "stats": stats,
         "varying": varying,
+        "samples": samples_out,
         "total_samples": total_samples,
     }
 
@@ -190,6 +194,8 @@ def main():
         "fixed_sections": report["fixed"],
         "stats": {k: {"appear": v[0], "total": v[1], "status": v[2]}
                   for k, v in stats.items()},
+        # 每种段落留一份代表内容，供页面点开查看（没有它，条件段落就看不到正文）
+        "section_samples": report.get("samples") or {},
     }
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:

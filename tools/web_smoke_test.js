@@ -135,10 +135,21 @@ ctx.pywebview = {
     get_prompt_fragments: async () => ({
       ok: true,
       data: {
-        total_samples: 40,
-        fixed_sections: {
+        total_samples: 57,
+        // 2026-10-24 起统计口径改为「段落清单 + 出现率」：
+        // 实测没有任何段落 100% 出现，fixed_sections 是空的
+        fixed_sections: {},
+        stats: {
+          '守住世界观': { appear: 49, total: 57, status: 'partial' },
+          '通用要求': { appear: 49, total: 57, status: 'partial' },
+          '赠物通则': { appear: 45, total: 57, status: 'partial' },
+          '任务：说服': { appear: 4, total: 57, status: 'partial' },
+        },
+        section_samples: {
           '守住世界观': '## 守住世界观\n本世界为东方修仙，凡人亦可修行。',
           '通用要求': '## 通用要求\n- 不机械复述属性信息。\n- 只对话，不发布任务。',
+          '赠物通则': '## 赠物通则\n**随身之物**：玩家问起你有什么时照实说。',
+          '任务：说服': '## 任务：说服\n玩家正试图说服你做一件事。',
         },
       },
     }),

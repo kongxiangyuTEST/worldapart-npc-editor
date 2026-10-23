@@ -480,31 +480,76 @@ function setPreviewStatus(text, cls) {
 }
 
 // ============= Tab 4：固定段落 =============
+// 「固定段落」这个说法已经不成立了：57 个样本里没有任何一段 100% 出现，
+// 最高的是守住世界观/通用要求等基础段（49/57 = 86%）。
+// 实际是按 talk_type 拼装：说服组、话题组、闲聊组各不相同。
+const FRAG_GROUPS = [
+  ['基础（大多数对话都有）', ['守住世界观', '通用要求', '角色属性', '角色设定', '角色背景', '当前场景', '输出格式']],
+  ['任务（按对话类型选一个）', ['任务：闲聊', '任务：说服', '任务：话题闲聊']],
+  ['口吻（有这个 NPC 的风格才出现）', ['说话习惯']],
+  ['记忆', ['过往要事']],
+  ['赠物（说服场景没有）', ['赠物通则']],
+  ['状态（每轮都变）', ['本轮会话状态（只用于判断，不向玩家报数）']],
+  ['话题相关（话题闲聊专属）', ['本次话题', '话题背景', '对话推进准则',
+    '玩家想聊别的时（这条优先于话题）', '收尾判定（判定权在你）']],
+];
+
+function fragGroupOf(t) {
+  for (const [g, arr] of FRAG_GROUPS) {
+    if (arr.includes(t)) return g;
+  }
+  if (t.startsWith('任务')) return '任务（按对话类型选一个）';
+  return '其他';
+}
+
 function renderFragmentsTab() {
   if (!promptFragments) {
     return `<div class="ai-tab-note">没有 prompt_fragments.json，请先运行 extract_fragments.py 从样本提取。</div>`;
   }
-  const fixed = promptFragments.fixed_sections || {};
-  const titles = Object.keys(fixed);
-  if (titles.length === 0) {
-    return `<div class="ai-tab-note">没有固定段落。</div>`;
+  const stats = promptFragments.stats || {};
+  const total = promptFragments.total_samples || 0;
+  const titles = Object.keys(stats);
+  if (!titles.length) {
+    return `<div class="ai-tab-note">还没有统计结果，先让游戏产生几个对话样本。</div>`;
   }
 
-  const listHTML = titles.map((t, i) => {
-    const len = fixed[t].length;
-    return `<div class="prompt-item${i === 0 ? ' active' : ''}" data-title="${escapeHtml(t)}" onclick="selectPromptFragment('${escapeHtml(t)}')">
-      <div class="prompt-item-title">${escapeHtml(t)}</div>
-      <div class="prompt-item-len">${len} 字符</div>
-    </div>`;
-  }).join('');
+  // 按组归类，组内按出现率降序
+  const groups = {};
+  titles.forEach(t => {
+    const g = fragGroupOf(t);
+    (groups[g] = groups[g] || []).push(t);
+  });
+
+  const order = FRAG_GROUPS.map(x => x[0]).concat(['其他']);
+  let listHTML = '';
+  let idx = 0;
+  order.filter(g => groups[g]).forEach(g => {
+    listHTML += `<div class="frag-group-title">${escapeHtml(g)}</div>`;
+    groups[g]
+      .sort((a, b) => (stats[b].appear || 0) - (stats[a].appear || 0))
+      .forEach(t => {
+        const s = stats[t] || {};
+        const pct = total ? Math.round((s.appear || 0) * 100 / total) : 0;
+        listHTML += `<div class="prompt-item${idx === 0 ? ' active' : ''}"
+          data-title="${escapeHtml(t)}" onclick="selectPromptFragment('${escapeHtml(t)}')">
+          <div class="prompt-item-title">${escapeHtml(t)}</div>
+          <div class="prompt-item-len">${pct}% · ${s.appear || 0}/${total}</div>
+        </div>`;
+        idx++;
+      });
+  });
 
   return `
-    <div class="field-hint">从游戏实际 prompt 中提取的固定段落（所有 NPC 共用），只读查看。</div>
-    <div class="prompts-layout" style="height: calc(100% - 30px);">
+    <div class="field-hint">
+      游戏 prompt 由这些段落按<b>对话类型</b>拼装而成。
+      <b>没有任何一段是所有对话都带的</b>（最高的基础段也只有 86%），
+      所以不能当"固定段落"整段替换——说服场景连「赠物通则」都没有。
+    </div>
+    <div class="prompts-layout" style="height: calc(100% - 52px);">
       <div class="prompts-sidebar">
-        <div class="prompts-sidebar-header">固定段落（${titles.length} 个）</div>
+        <div class="prompts-sidebar-header">段落清单（${titles.length} 种）</div>
         ${listHTML}
-        <div class="prompts-sidebar-footer">基于 ${promptFragments.total_samples || 0} 个游戏样本提取</div>
+        <div class="prompts-sidebar-footer">基于 ${total} 个游戏样本统计</div>
       </div>
       <div class="prompts-content" id="prompts-content"></div>
     </div>
@@ -513,8 +558,12 @@ function renderFragmentsTab() {
 
 function selectPromptFragment(title) {
   if (!promptFragments) return;
-  const fixed = promptFragments.fixed_sections || {};
-  const content = fixed[title] || '';
+  const samples = promptFragments.section_samples || {};
+  const stats = promptFragments.stats || {};
+  const content = samples[title] || '';
+  const s = stats[title] || {};
+  const total = promptFragments.total_samples || 0;
+  const pct = total ? Math.round((s.appear || 0) * 100 / total) : 0;
 
   document.querySelectorAll('.prompt-item').forEach(el => {
     el.classList.toggle('active', el.dataset.title === title);
@@ -530,7 +579,11 @@ function selectPromptFragment(title) {
     <div class="frag-head">
       <div>
         <h3 class="frag-title">${escapeHtml(title)}</h3>
-        <div class="frag-meta">${content.length} 字符 · 每轮原样发给模型</div>
+        <div class="frag-meta">
+          ${content.length} 字符 ·
+          在 ${s.appear || 0}/${total} 个样本里出现（${pct}%）
+          ${pct >= 100 ? '' : '· 条件段落，不是每轮都有'}
+        </div>
       </div>
       <div class="frag-actions">
         ${volatile
@@ -548,12 +601,13 @@ function selectPromptFragment(title) {
     <div class="frag-hint">
       让 AI 合并同义句、删掉赘述，确认后再变成一条替换规则。JSON 结构、枚举值、
       「必须 / 不要」类约束都要求它不许动；随时可以恢复原设定。
+      ${pct < 100 ? '<br>注意：这段不是每轮都出现，替换规则在没出现的对话里自然不会命中——属正常。' : ''}
     </div>
 
     <div id="frag-opt-status" class="inject-status"></div>
     <div id="frag-opt-result"></div>
 
-    <div class="frag-section-label">原文</div>
+    <div class="frag-section-label">原文（取信息量最完整的一个样本）</div>
     <pre class="prompt-detail-content">${escapeHtml(content)}</pre>
   `;
 }

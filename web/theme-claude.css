@@ -1865,6 +1865,24 @@ a { color: var(--cl-coral); }
   color: var(--cl-ink);
 }
 
+/* ==================== 段落清单分组 ==================== */
+/* 段落按对话类型分组展示；不再有"固定段落"这回事（实测无一段 100% 出现） */
+
+.frag-group-title {
+  padding: 12px 12px 4px;
+  font-size: 11px;
+  color: var(--cl-muted-soft);
+  line-height: 1.5;
+  letter-spacing: 0.3px;
+  border-top: 1px solid var(--cl-hairline-soft);
+}
+
+.frag-group-title:first-child {
+  padding-top: 4px;
+  border-top: none;
+}
+
+
 
 
 
