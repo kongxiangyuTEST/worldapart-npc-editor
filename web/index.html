@@ -236,6 +236,28 @@
           <div id="health-summary" class="health-summary">读取中…</div>
           <div id="health-alerts" class="health-alerts"></div>
         </div>
+
+        <!-- 用量统计：core_proxy 每轮记上游返回的 usage。
+             单价没配就只显示 token，不瞎折算（各家价格差很多，让用户自己填）。 -->
+        <div class="upstream-box" style="margin-top:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <h3 style="margin:0;font-size:14px;color:var(--cl-ink);">用量统计</h3>
+            <button class="secondary" style="padding:4px 12px;font-size:12px;" onclick="refreshUsage()">刷新</button>
+          </div>
+          <div id="usage-summary" class="usage-summary">读取中…</div>
+          <div id="usage-models" class="usage-models"></div>
+          <div class="usage-price-row">
+            <span class="usage-price-label">单价（每百万 token）</span>
+            <input id="price-in" type="number" step="0.01" min="0" class="usage-price-input" placeholder="输入">
+            <span class="usage-price-sep">/</span>
+            <input id="price-out" type="number" step="0.01" min="0" class="usage-price-input" placeholder="输出">
+            <button class="secondary" style="padding:4px 12px;font-size:12px;" onclick="savePriceSettings()">保存</button>
+            <span class="inject-status" id="price-status"></span>
+          </div>
+          <div class="field-hint" style="margin-top:6px;">
+            填 0 或留空表示不折算花费。单价按你自己充值的服务商为准，只用于估算。
+          </div>
+        </div>
   <div class="upstream-box">
           <h3 style="margin:0 0 10px;font-size:14px;color:var(--cl-ink);">游戏接口地址</h3>
           <div style="font-size:12px;color:var(--cl-muted);margin-bottom:8px;">

@@ -1298,9 +1298,35 @@ class Api:
                     "msg": f"core_proxy 没在运行（{port} 端口无响应）"}
         return {"ok": True, "running": True, "port": port,
                 "health": st.get("health") or {},
+                "usage": st.get("usage") or {},
                 "npc": st.get("npc"),
                 "rules": st.get("rules"),
                 "inject_chars": st.get("inject_chars")}
+
+    def save_price_settings(self, price_in, price_out):
+        """保存 token 单价（每百万 token）。填 0 = 不折算花费。
+
+        core_proxy 按 mtime 热加载 ai_config.json，存盘即生效，不用重启。
+        """
+        try:
+            p_in = max(0.0, float(price_in or 0))
+            p_out = max(0.0, float(price_out or 0))
+        except (TypeError, ValueError):
+            return {"ok": False, "msg": "单价要填数字（0 表示不折算）"}
+
+        try:
+            data = {}
+            if os.path.isfile(AI_CONFIG_PATH):
+                with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as f:
+                    data = json.load(f)
+            data["price_input_per_million"] = p_in
+            data["price_output_per_million"] = p_out
+            with open(AI_CONFIG_PATH, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            return {"ok": False, "msg": f"保存失败: {e}"}
+
+        return {"ok": True, "msg": "已保存，core_proxy 会自动重新读取"}
 
     def test_rules(self, text):
         """规则测试器：把一段文本当作 system 走一遍预览，返回逐条命中报告。

@@ -175,6 +175,15 @@ def load_ai_config(force=False):
         _AI["history_keep_turns"] = max(2, int(conf.get("history_keep_turns", 6)))
     except (TypeError, ValueError):
         _AI["history_keep_turns"] = 6
+    # 单价（每百万 token，单位与用户充值货币一致）。填 0 表示不折算花费。
+    try:
+        _AI["price_input_per_million"] = max(0.0, float(conf.get("price_input_per_million", 0) or 0))
+    except (TypeError, ValueError):
+        _AI["price_input_per_million"] = 0.0
+    try:
+        _AI["price_output_per_million"] = max(0.0, float(conf.get("price_output_per_million", 0) or 0))
+    except (TypeError, ValueError):
+        _AI["price_output_per_million"] = 0.0
 
     _AI["mtime"] = mtime
     print(f"[配置] ai_config.json 已加载：注入 {len(_AI['inject'])} 字，"
@@ -1516,6 +1525,77 @@ def run_self_check(stats, messages):
         return None
 
 
+# ============================================================
+# 用量统计
+# ============================================================
+# 上游每次返回都带 usage（prompt_tokens / completion_tokens），
+# 以前直接丢了——界面上只有一个"注入字数"，看不到真实花销。
+# 现在每轮记一行到 proxy/usage_log.jsonl，内存里存累计值。
+USAGE_LOG_PATH = Path(__file__).parent / "usage_log.jsonl"
+_USAGE = {
+    "rounds": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "last": None,
+    "by_model": {},
+}
+
+
+def _extract_usage(raw_body):
+    """从上游原始响应里取 usage。取不到就返回 None（不影响转发）。"""
+    try:
+        d = json.loads(raw_body)
+    except Exception:
+        return None
+    u = d.get("usage") if isinstance(d, dict) else None
+    if not isinstance(u, dict):
+        return None
+    try:
+        return {"prompt_tokens": int(u.get("prompt_tokens") or 0),
+                "completion_tokens": int(u.get("completion_tokens") or 0)}
+    except (TypeError, ValueError):
+        return None
+
+
+def record_usage(model, usage, npc_name=""):
+    """记一轮用量：内存累计 + 追加 jsonl。写盘失败不影响转发。"""
+    if not usage:
+        return
+    _USAGE["rounds"] += 1
+    _USAGE["prompt_tokens"] += usage["prompt_tokens"]
+    _USAGE["completion_tokens"] += usage["completion_tokens"]
+
+    entry = {"ts": int(time.time()), "model": model or "", "npc": npc_name or "",
+             "prompt_tokens": usage["prompt_tokens"],
+             "completion_tokens": usage["completion_tokens"]}
+    _USAGE["last"] = entry
+
+    key = model or "unknown"
+    bm = _USAGE["by_model"].setdefault(
+        key, {"rounds": 0, "prompt_tokens": 0, "completion_tokens": 0})
+    bm["rounds"] += 1
+    bm["prompt_tokens"] += usage["prompt_tokens"]
+    bm["completion_tokens"] += usage["completion_tokens"]
+
+    try:
+        with open(USAGE_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        print(f"[用量] 写日志失败: {e}", flush=True)
+
+
+def _compute_cost():
+    """按 ai_config.json 里的单价折算花费。
+    单价没配（0）就返回 None——不瞎猜价格，宁可显示"未配置"。"""
+    cfg = load_ai_config()
+    p_in = float(cfg.get("price_input_per_million") or 0)
+    p_out = float(cfg.get("price_output_per_million") or 0)
+    if p_in <= 0 and p_out <= 0:
+        return None
+    return round(_USAGE["prompt_tokens"] / 1e6 * p_in
+                 + _USAGE["completion_tokens"] / 1e6 * p_out, 4)
+
+
 def forward(req_json, game_auth):
     upstream_url = UPSTREAM_BASE + "/v1/chat/completions"
     headers = {"Content-Type": "application/json"}
@@ -1627,6 +1707,12 @@ def chat_completions():
 
     if not clean_text.strip():
         _HEALTH["empty_response"] += 1
+
+    # 用量统计：上游响应里的 usage，以前直接丢了
+    try:
+        record_usage(req_json.get("model"), _extract_usage(raw_body), active_npc_name or "")
+    except Exception as e:
+        print(f"[用量] 记录失败: {e}", flush=True)
 
     preview = raw_body[:100].replace("\n", " ")
     print(f"[UP ] status={status}, 原始前100字: {preview}")
@@ -1751,6 +1837,17 @@ def _status():
         "memory_merge_max_tokens": _AI.get("memory_merge_max_tokens"),
         "past_events_max_chars": _AI.get("past_events_max_chars"),
         "config_mtime": _AI["mtime"],
+        "usage": {
+            "rounds": _USAGE["rounds"],
+            "prompt_tokens": _USAGE["prompt_tokens"],
+            "completion_tokens": _USAGE["completion_tokens"],
+            "total_tokens": _USAGE["prompt_tokens"] + _USAGE["completion_tokens"],
+            "last": _USAGE["last"],
+            "by_model": _USAGE["by_model"],
+            "cost": _compute_cost(),
+            "price_input_per_million": _AI.get("price_input_per_million", 0),
+            "price_output_per_million": _AI.get("price_output_per_million", 0),
+        },
         "health": {
             "requests": _HEALTH["requests"],
             "npc_name_fail": _HEALTH["npc_name_fail"],

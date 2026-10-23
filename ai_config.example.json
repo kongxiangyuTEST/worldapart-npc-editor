@@ -57,5 +57,7 @@
   "memory_merge_url": "",
   "past_events_max_chars": 800,
   "history_max_chars": 24000,
-  "history_keep_turns": 6
+  "history_keep_turns": 6,
+  "price_input_per_million": 0,
+  "price_output_per_million": 0
 }

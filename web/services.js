@@ -11,6 +11,95 @@ async function initServicesPage() {
   await loadUpstream();
   await loadMemorySettings();
   await refreshHealth();
+  await refreshUsage();
+}
+
+
+// ---------------- 用量统计 ----------------
+
+// core_proxy 每轮会把上游返回的 usage 记下来（以前直接丢了）。
+// 单价没配就只显示 token 数，不折算花费——各家价格差很多，宁可让用户自己填。
+async function refreshUsage() {
+  const sum = document.getElementById('usage-summary');
+  const models = document.getElementById('usage-models');
+  const pin = document.getElementById('price-in');
+  const pout = document.getElementById('price-out');
+  if (!sum) return;
+
+  let res;
+  try {
+    res = await pywebview.api.get_proxy_health();
+  } catch (e) {
+    sum.textContent = '读取失败：' + e;
+    return;
+  }
+
+  if (!res || !res.ok) {
+    sum.innerHTML = '<span class="health-muted">core_proxy 未运行，启动后开始累计</span>';
+    if (models) models.innerHTML = '';
+    return;
+  }
+
+  const u = res.usage || {};
+  // 单价框在没被用户改过时才回填，避免刷新把正在输入的值冲掉
+  if (pin && document.activeElement !== pin) pin.value = u.price_input_per_million || '';
+  if (pout && document.activeElement !== pout) pout.value = u.price_output_per_million || '';
+
+  const fmt = n => (n || 0).toLocaleString('zh-CN');
+  const last = u.last;
+  const rows = [
+    ['累计轮数', fmt(u.rounds) + ' 轮'],
+    ['输入 token', fmt(u.prompt_tokens)],
+    ['输出 token', fmt(u.completion_tokens)],
+    ['合计 token', fmt(u.total_tokens)],
+  ];
+  if (u.cost !== null && u.cost !== undefined) {
+    rows.push(['估算花费', '¥ ' + Number(u.cost).toFixed(4)]);
+  }
+  if (last) {
+    rows.push(['最近一轮', `输入 ${fmt(last.prompt_tokens)} / 输出 ${fmt(last.completion_tokens)}`]);
+  }
+
+  sum.innerHTML = rows.map(([k, v]) =>
+    `<div class="usage-row"><span class="usage-k">${k}</span><span class="usage-v">${v}</span></div>`
+  ).join('');
+
+  // 按模型分组：换过上游的人能看出钱花在哪个模型上
+  const byModel = u.by_model || {};
+  const keys = Object.keys(byModel);
+  if (models) {
+    models.innerHTML = keys.length > 1
+      ? '<div class="usage-models-head">按模型</div>' + keys.map(m => {
+          const b = byModel[m];
+          return `<div class="usage-row"><span class="usage-k">${escapeHtml(m)}</span>
+                  <span class="usage-v">${b.rounds} 轮 · 入 ${fmt(b.prompt_tokens)} / 出 ${fmt(b.completion_tokens)}</span></div>`;
+        }).join('')
+      : '';
+  }
+}
+
+async function savePriceSettings() {
+  const pin = document.getElementById('price-in');
+  const pout = document.getElementById('price-out');
+  const st = document.getElementById('price-status');
+  const setSt = (t, k) => { if (st) { st.textContent = t; st.className = 'inject-status ' + (k || ''); } };
+
+  setSt('保存中…', '');
+  let res;
+  try {
+    res = await pywebview.api.save_price_settings(
+      pin ? pin.value : 0, pout ? pout.value : 0);
+  } catch (e) {
+    setSt('✗ ' + e, 'error');
+    return;
+  }
+  if (!res || !res.ok) {
+    setSt('✗ ' + ((res && res.msg) || '保存失败'), 'error');
+    return;
+  }
+  setSt('✓ 已保存', 'success');
+  // core_proxy 按 mtime 热加载，等它读到新配置再刷新
+  setTimeout(refreshUsage, 800);
 }
 
 
