@@ -925,6 +925,29 @@ class Api:
             "has_memory": bool(mem_text.strip()),
         }
 
+    def chat_trial_fragments(self):
+        """列出游戏 prompt 的可选段落（试聊时用来模拟真实组合）"""
+        try:
+            path = os.path.join(PROJECT_DIR, "prompt_fragments.json")
+            with open(path, "r", encoding="utf-8") as f:
+                d = json.load(f)
+            stats = d.get("stats") or {}
+            samples = d.get("section_samples") or {}
+            total = d.get("total_samples") or 0
+            out = []
+            for title, s in stats.items():
+                text = samples.get(title) or ""
+                out.append({
+                    "title": title,
+                    "pct": round((s.get("appear") or 0) * 100 / total) if total else 0,
+                    "chars": len(text),
+                    "text": text,
+                })
+            out.sort(key=lambda x: -x["pct"])
+            return {"ok": True, "fragments": out, "total_samples": total}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
     def chat_trial_models(self):
         """列出本地节点上的模型"""
         try:

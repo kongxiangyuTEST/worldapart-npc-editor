@@ -1,34 +1,27 @@
 // ===== 试聊页 =====
-// 拿一个 NPC 的真实卡片 + 长期记忆，直接跟本地模型对话。
-// 用处：不启动游戏也能验证「改完名片 / 记忆之后，这个 NPC 说话像不像样」。
+// 拿一个 NPC 的真实卡片 + 长期记忆 + 可选的游戏段落，直接跟本地模型对话。
+// 用处：不启动游戏也能验证「改完名片 / 记忆之后，这个 NPC 说话像不像样」，
+// 也能勾上「赠物通则」这类段落，对比游戏里实际会怎么说话。
 //
-// 为什么不走 core_proxy：那边要完整的游戏 prompt 才会注入，试聊手里只有卡片；
-// 而且试聊的目的是挑本地模型，走直连更干净，也不会污染游戏的记忆文件。
+// 为什么不走 core_proxy：那边要完整游戏 prompt 才注入；试聊手里只有卡片，
+// 直连更干净，也不会污染游戏的记忆文件。
 
-let trialCtx = null;         // chat_trial_context 的返回
-let trialMessages = [];      // 对话历史（不含 system）
+let trialCtx = null;          // chat_trial_context 返回
+let trialMessages = [];       // 对话历史（不含 system）
 let trialBusy = false;
-let trialBase = '';          // 本地节点地址
+let trialBase = '';
 let trialModels = [];
+let trialAllCards = [];       // 全部卡片（搜索用）
+let trialSelected = '';       // 当前选中的 filename
+let trialFragments = [];      // 游戏段落
+let trialFragOpen = false;
 
 async function initTrialPage() {
-  // NPC 下拉：从全局卡片列表填
-  const npcSel = document.getElementById('trial-npc');
-  if (npcSel) {
-    const cards = (typeof allCards !== 'undefined' && allCards) ? allCards : [];
-    if (cards.length) {
-      npcSel.innerHTML = cards.map(c => {
-        const fn = (typeof c === 'string') ? c : (c.filename || '');
-        const label = fn.replace(/^\d+-/, '').replace(/\.md$/, '');
-        return `<option value="${escapeHtml(fn)}">${escapeHtml(label)}</option>`;
-      }).join('');
-    } else {
-      npcSel.innerHTML = '<option value="">（还没有卡片）</option>';
-    }
-    npcSel.onchange = trialLoadCtx;
-  }
+  const search = document.getElementById('trial-npc-search');
+  if (search) search.oninput = trialRenderNpcList;
 
   await trialLoadModels();
+  await trialLoadFragments();
 
   const temp = document.getElementById('trial-temp');
   if (temp) {
@@ -50,8 +43,107 @@ async function initTrialPage() {
     });
   }
 
+  trialAllCards = (typeof allCards !== 'undefined' && allCards) ? allCards : [];
+  trialRenderNpcList();
+  if (trialAllCards.length) await trialSelectNpc(trialAllCards[0].filename);
+}
+
+// ---------- NPC 列表（搜索 + 头像）----------
+
+function trialRenderNpcList() {
+  const box = document.getElementById('trial-npc-list');
+  const cnt = document.getElementById('trial-npc-count');
+  if (!box) return;
+
+  const searchEl = document.getElementById('trial-npc-search');
+  const kw = (searchEl && searchEl.value ? searchEl.value : '').trim().toLowerCase();
+
+  const list = trialAllCards.filter(c => {
+    if (!kw) return true;
+    const n = (c.name || '').toLowerCase();
+    return n.indexOf(kw) >= 0 || String(c.id).indexOf(kw) >= 0;
+  });
+
+  if (cnt) cnt.textContent = list.length + '/' + trialAllCards.length;
+
+  if (!list.length) {
+    box.innerHTML = '<div class="trial-npc-empty">没有匹配的角色</div>';
+    return;
+  }
+
+  box.innerHTML = list.map(c => {
+    const active = (c.filename === trialSelected) ? ' active' : '';
+    const initial = (c.name || '?').slice(0, 1);
+    const av = c.portrait_file
+      ? '<img class="trial-npc-av" alt="" src="portraits/' +
+        encodeURIComponent(c.portrait_file) + '">'
+      : '<span class="trial-npc-av trial-npc-av-ph">' + escapeHtml(initial) + '</span>';
+    return '<div class="trial-npc-item' + active + '" data-fn="' + escapeHtml(c.filename) +
+           '" onclick="trialSelectNpc(this.dataset.fn)">' +
+           av +
+           '<div class="trial-npc-txt">' +
+             '<div class="trial-npc-name">' + escapeHtml(c.name) + '</div>' +
+             '<div class="trial-npc-id">ID ' + c.id + '</div>' +
+           '</div></div>';
+  }).join('');
+}
+
+async function trialSelectNpc(fn) {
+  trialSelected = fn;
+  const hid = document.getElementById('trial-npc');
+  if (hid) hid.value = fn;
+  trialRenderNpcList();
   await trialLoadCtx();
 }
+
+// ---------- 游戏段落 ----------
+
+async function trialLoadFragments() {
+  try {
+    const res = await pywebview.api.chat_trial_fragments();
+    if (!res || !res.ok) return;
+    trialFragments = (res.fragments || []).map(f => ({ ...f, on: false }));
+    // 默认勾上三段最基础的，能体现「游戏里到底灌了什么」
+    const def = ['守住世界观', '通用要求', '赠物通则'];
+    trialFragments.forEach(f => { f.on = def.indexOf(f.title) >= 0; });
+    trialRenderFrags();
+  } catch (e) { /* 没数据就静默跳过 */ }
+}
+
+function trialRenderFrags() {
+  const cnt = document.getElementById('trial-frag-count');
+  const on = trialFragments.filter(f => f.on).length;
+  if (cnt) cnt.textContent = on + '/' + trialFragments.length;
+
+  const box = document.getElementById('trial-frags-body');
+  if (!box || !trialFragOpen) return;
+  box.innerHTML = trialFragments.map((f, i) =>
+    '<label class="trial-frag">' +
+      '<input type="checkbox" data-i="' + i + '"' + (f.on ? ' checked' : '') +
+      ' onchange="trialFragChange(this)">' +
+      '<span class="trial-frag-name">' + escapeHtml(f.title) + '</span>' +
+      '<span class="trial-frag-meta">' + f.pct + '% · ' + f.chars + '字</span>' +
+    '</label>').join('');
+}
+
+function trialFragChange(el) {
+  const i = parseInt(el.dataset.i, 10);
+  if (trialFragments[i]) trialFragments[i].on = el.checked;
+  trialRenderFrags();
+  trialUpdateStat();
+  trialReset();
+}
+
+function trialToggleFrags() {
+  trialFragOpen = !trialFragOpen;
+  const body = document.getElementById('trial-frags-body');
+  const arrow = document.getElementById('trial-frag-arrow');
+  if (body) body.style.display = trialFragOpen ? 'block' : 'none';
+  if (arrow) arrow.textContent = trialFragOpen ? '收起' : '展开';
+  if (trialFragOpen) trialRenderFrags();
+}
+
+// ---------- 模型 ----------
 
 async function trialLoadModels() {
   const sel = document.getElementById('trial-model');
@@ -70,8 +162,8 @@ async function trialLoadModels() {
         sel.innerHTML = '<option value="">节点上没有模型</option>';
       } else {
         sel.innerHTML = trialModels.map(m =>
-          `<option value="${escapeHtml(m.name)}">${escapeHtml(m.name)} · ` +
-          `${(m.size / 1073741824).toFixed(1)}G</option>`).join('');
+          '<option value="' + escapeHtml(m.name) + '">' + escapeHtml(m.name) +
+          ' · ' + (m.size / 1073741824).toFixed(1) + 'G</option>').join('');
         sel.value = trialModels[0].name;
       }
     }
@@ -84,13 +176,14 @@ async function trialLoadModels() {
   }
 }
 
+// ---------- 上下文 / 统计 ----------
+
 async function trialLoadCtx() {
-  const npcSel = document.getElementById('trial-npc');
   const stat = document.getElementById('trial-stat');
-  if (!npcSel || !npcSel.value) return;
+  if (!trialSelected) return;
 
   try {
-    trialCtx = await pywebview.api.chat_trial_context(npcSel.value);
+    trialCtx = await pywebview.api.chat_trial_context(trialSelected);
   } catch (e) {
     trialCtx = { ok: false, msg: String(e) };
   }
@@ -100,7 +193,6 @@ async function trialLoadCtx() {
     return;
   }
 
-  // 没有名片 / 没有记忆时，把开关置灰，避免用户以为注入了
   const useCard = document.getElementById('trial-use-card');
   const useMem = document.getElementById('trial-use-memory');
   if (useCard) { useCard.disabled = !trialCtx.has_card; useCard.checked = !!trialCtx.has_card; }
@@ -110,6 +202,12 @@ async function trialLoadCtx() {
   trialReset();
 }
 
+function trialFragChars() {
+  let n = 0;
+  trialFragments.forEach(f => { if (f.on && f.text) n += f.text.length; });
+  return n;
+}
+
 function trialUpdateStat() {
   const stat = document.getElementById('trial-stat');
   if (!stat || !trialCtx || !trialCtx.ok) return;
@@ -117,12 +215,14 @@ function trialUpdateStat() {
   const useMem = document.getElementById('trial-use-memory');
   const withCard = useCard && useCard.checked;
   const withMem = useMem && useMem.checked;
+  const frag = trialFragChars();
 
-  let sys = trialCtx.base_chars;
+  let sys = trialCtx.base_chars + frag;
   if (withCard) sys += trialCtx.card_chars;
   if (withMem) sys += trialCtx.memory_chars;
 
-  const parts = ['设定 ' + trialCtx.base_chars + ' 字'];
+  const parts = ['设定 ' + trialCtx.base_chars];
+  if (frag) parts.push('段落 ' + frag);
   if (withCard) parts.push('名片 ' + trialCtx.card_chars);
   if (withMem) parts.push('记忆 ' + trialCtx.memory_chars);
   stat.innerHTML = parts.join(' · ') + '<br>system 合计 <b>' + sys + '</b> 字';
@@ -132,6 +232,7 @@ function trialBuildSystem() {
   if (!trialCtx || !trialCtx.ok) return '';
   const useCard = document.getElementById('trial-use-card');
   const useMem = document.getElementById('trial-use-memory');
+
   let s = trialCtx.base;
   if (useCard && useCard.checked && trialCtx.user_card) {
     s += '\n\n## 角色演绎要求（优先于以上所有属性）\n' + trialCtx.user_card;
@@ -139,8 +240,16 @@ function trialBuildSystem() {
   if (useMem && useMem.checked && trialCtx.memory) {
     s += '\n\n## 过往要事\n' + trialCtx.memory;
   }
+
+  // 勾选的游戏段落按原样拼进来 —— 这就是「游戏里实际会灌什么」
+  const picked = trialFragments.filter(f => f.on && f.text);
+  if (picked.length) {
+    s += '\n\n' + picked.map(f => '## ' + f.title + '\n' + f.text).join('\n\n');
+  }
   return s;
 }
+
+// ---------- 对话 ----------
 
 function trialAppend(role, text) {
   const log = document.getElementById('trial-log');
@@ -182,8 +291,7 @@ async function trialSend() {
   if (btn) btn.disabled = true;
   const bubble = trialAppend('bot', '…');
 
-  const sys = trialBuildSystem();
-  const msgs = [{ role: 'system', content: sys }].concat(trialMessages);
+  const msgs = [{ role: 'system', content: trialBuildSystem() }].concat(trialMessages);
   const tempEl = document.getElementById('trial-temp');
 
   try {

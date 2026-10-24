@@ -2220,6 +2220,107 @@ a { color: var(--cl-coral); }
   border-color: var(--cl-coral);
 }
 
+/* 侧栏内容变多了（NPC 列表 + 段落勾选），允许它自己滚 */
+.trial-side { overflow-y: auto; padding-right: 2px; }
+
+/* NPC 列表：搜索 + 头像 + ID，高度压到 170px 左右 */
+.trial-npc-list {
+  max-height: 170px;
+  overflow-y: auto;
+  border: 1px solid var(--cl-hairline);
+  border-radius: 8px;
+  background: #fff;
+  padding: 4px;
+}
+.trial-npc-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.trial-npc-item:hover { background: var(--cl-surface-soft); }
+.trial-npc-item.active {
+  background: var(--cl-surface-soft);
+  box-shadow: inset 2px 0 0 var(--cl-coral);
+}
+.trial-npc-av {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--cl-surface-soft);
+}
+.trial-npc-av-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--cl-muted);
+}
+.trial-npc-txt { min-width: 0; flex: 1; }
+.trial-npc-name {
+  font-size: 12.5px;
+  color: var(--cl-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.trial-npc-id { font-size: 11px; color: var(--cl-muted); }
+.trial-npc-empty {
+  padding: 12px 8px;
+  font-size: 12px;
+  color: var(--cl-muted);
+  text-align: center;
+}
+
+/* 游戏段落（可折叠） */
+.trial-frags {
+  border: 1px solid var(--cl-hairline);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+.trial-frags-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--cl-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.trial-frags-head:hover { background: var(--cl-surface-soft); }
+.trial-frags-head b { color: var(--cl-body); font-weight: 500; }
+.trial-frags-body {
+  display: none;
+  max-height: 190px;
+  overflow-y: auto;
+  border-top: 1px solid var(--cl-hairline);
+  padding: 6px;
+}
+.trial-frag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.trial-frag:hover { background: var(--cl-surface-soft); }
+.trial-frag-name {
+  flex: 1;
+  color: var(--cl-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trial-frag-meta { font-size: 11px; color: var(--cl-muted); flex-shrink: 0; }
+
 
 
 

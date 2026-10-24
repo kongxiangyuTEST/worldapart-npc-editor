@@ -201,6 +201,13 @@ ctx.pywebview = {
       has_card: true, has_memory: true,
     }),
     chat_trial_send: async () => ({ ok: true, reply: '客官里边请。', elapsed: 1.2 }),
+    chat_trial_fragments: async () => ({
+      ok: true, total_samples: 57,
+      fragments: [
+        { title: '守住世界观', pct: 86, chars: 120, text: '世界观原文' },
+        { title: '赠物通则', pct: 60, chars: 90, text: '赠物规则原文' },
+      ],
+    }),
   },
 };
 
@@ -379,6 +386,24 @@ for (const name of STEPS) {
     }
   } catch (e) {
     fail('工具页新 Tab 抛错 -> ' + e.name + ': ' + e.message);
+  }
+
+  // ---------- 7. 试聊页 ----------
+  console.log('试聊页：');
+  try {
+    const listHtml = getEl('trial-npc-list').innerHTML;
+    if (listHtml.indexOf('trial-npc-item') >= 0) ok('NPC 列表渲染正常（头像 + ID）');
+    else fail('NPC 列表没渲染出来');
+
+    // 默认勾了「守住世界观 / 通用要求 / 赠物通则」，mock 里有前两个里的一个
+    const sys = ctx.trialBuildSystem();
+    if (sys.indexOf('世界观原文') >= 0) ok('默认勾选的游戏段落已拼进 system');
+    else fail('system 里没有游戏段落内容');
+
+    if (sys.indexOf('角色演绎要求') >= 0) ok('用户名片已拼进 system');
+    else fail('system 里没有用户名片');
+  } catch (e) {
+    fail('试聊页抛错 -> ' + e.name + ': ' + e.message);
   }
 
   console.log('');

@@ -184,10 +184,13 @@
 
         <div class="trial-layout">
           <aside class="trial-side">
-            <label class="trial-field">
-              <span>NPC</span>
-              <select id="trial-npc"></select>
-            </label>
+            <div class="trial-field">
+              <span>NPC <b id="trial-npc-count"></b></span>
+              <input type="text" id="trial-npc-search" placeholder="搜索角色…" autocomplete="off">
+            </div>
+            <div class="trial-npc-list" id="trial-npc-list"></div>
+            <input type="hidden" id="trial-npc">
+
             <label class="trial-field">
               <span>模型</span>
               <select id="trial-model"></select>
@@ -200,6 +203,15 @@
             <div class="trial-toggles">
               <label><input type="checkbox" id="trial-use-card" checked> 注入用户名片</label>
               <label><input type="checkbox" id="trial-use-memory" checked> 注入长期记忆</label>
+            </div>
+
+            <!-- 游戏段落：勾上就按原样拼进 system，用来对比「游戏里实际会怎么说话」 -->
+            <div class="trial-frags">
+              <div class="trial-frags-head" onclick="trialToggleFrags()">
+                <span>游戏段落 <b id="trial-frag-count">0</b></span>
+                <span id="trial-frag-arrow">展开</span>
+              </div>
+              <div class="trial-frags-body" id="trial-frags-body"></div>
             </div>
 
             <div class="trial-stat" id="trial-stat">—</div>
