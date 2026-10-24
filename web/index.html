@@ -218,18 +218,15 @@
 
             <div id="src-lan" class="src-pane" style="display:none;">
               <label class="trial-field">
-                <span>节点</span>
+                <span>地址</span>
                 <div class="trial-model-row">
-                  <select id="trial-node" onchange="trialLoadModels()"></select>
-                  <button class="secondary tiny" onclick="trialReloadNodes()">刷新</button>
+                  <input type="text" id="trial-lan-base" placeholder="http://192.168.0.116:11434">
+                  <button class="secondary tiny" onclick="trialLoadModels()">刷新</button>
                 </div>
               </label>
               <label class="trial-field">
                 <span>模型</span>
-                <div class="trial-model-row">
-                  <select id="trial-model-lan"></select>
-                  <button class="secondary tiny" onclick="trialLoadModels()">刷新</button>
-                </div>
+                <select id="trial-model-lan"></select>
               </label>
             </div>
 

@@ -60,15 +60,11 @@ async function trialLoadSources() {
     trialSources = { ok: false, local_base: '', lan_nodes: [], api_services: [] };
   }
 
-  // 局域网节点下拉
-  const nodeSel = document.getElementById('trial-node');
-  if (nodeSel) {
+  // 局域网段：把配置里的地址填进输入框，用户也能自己改
+  const lanIn = document.getElementById('trial-lan-base');
+  if (lanIn) {
     const nodes = trialSources.lan_nodes || [];
-    nodeSel.innerHTML = nodes.length
-      ? nodes.map(n => '<option value="' + escapeHtml(n.id) + '">' +
-          escapeHtml(n.name) + ' · ' + escapeHtml(n.base.replace(/^https?:\/\//, '')) +
-          '</option>').join('')
-      : '<option value="">（还没配节点）</option>';
+    if (!lanIn.value) lanIn.value = nodes.length ? nodes[0].base : '';
   }
 
   // API 段
@@ -153,10 +149,8 @@ async function trialLoadModels() {
     base = (trialSources && trialSources.local_base) || '';
     sel = document.getElementById('trial-model-local');
   } else if (trialSource === 'lan') {
-    const nodeSel = document.getElementById('trial-node');
-    const id = nodeSel ? nodeSel.value : '';
-    const node = ((trialSources && trialSources.lan_nodes) || []).find(n => n.id === id);
-    base = node ? node.base : '';
+    const lanIn = document.getElementById('trial-lan-base');
+    base = lanIn ? lanIn.value.trim() : '';
     sel = document.getElementById('trial-model-lan');
   } else {
     const baseIn = document.getElementById('trial-api-base');
@@ -293,11 +287,9 @@ function trialCurrentModel() {
     return { base: (trialSources && trialSources.local_base) || '', model: el ? el.value : '', api_id: '' };
   }
   if (trialSource === 'lan') {
-    const nodeSel = document.getElementById('trial-node');
+    const lanIn = document.getElementById('trial-lan-base');
     const modelSel = document.getElementById('trial-model-lan');
-    const node = ((trialSources && trialSources.lan_nodes) || [])
-      .find(n => n.id === (nodeSel ? nodeSel.value : ''));
-    return { base: node ? node.base : '', model: modelSel ? modelSel.value : '', api_id: '' };
+    return { base: lanIn ? lanIn.value.trim() : '', model: modelSel ? modelSel.value : '', api_id: '' };
   }
   const baseIn = document.getElementById('trial-api-base');
   const modelIn = document.getElementById('trial-api-model');
