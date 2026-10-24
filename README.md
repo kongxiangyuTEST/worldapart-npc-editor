@@ -104,15 +104,25 @@ tools/               辅助脚本
 
 ## 打包
 
+两种包，用途不同：
+
 ```bash
-build_all.bat        # 约 3 分钟，产物在 dist/WorldApartEditor/
+build_all.bat        # 干净包 → dist/WorldApartEditor/        分享用，约 3 分钟
+build_test.bat       # 测试包 → dist/WorldApartEditor_测试版/   自己用，含游玩数据
 ```
 
-`build_all.bat` **不会复制用户数据**。要生成一份可分享的包：
+| | 干净包 | 测试包 |
+|---|---|---|
+| 用途 | 分享、上传 | 自己玩 |
+| 卡片 / 记忆 | 空（占位目录） | 你的全部 |
+| user_config / ai_config | 不含 | 含 |
+| 体积 | 小 | 大（带记忆和样本） |
 
-1. 跑一次 `build_all.bat` 拿干净包
-2. 按需补齐 `editor_cards/`、`memory/`、`prompt_samples/`
-3. 核对前端文件与源码一致
+`build_test.bat` 会先跑一次 `build_all.bat` 拿干净包，再复制一份并灌入
+`editor_cards/`、`editor_cards_backup/`、`originals/`、`last_saved/`、
+`memory/`、`prompt_samples/`、`diff_reports/`、`user_config.json`、`ai_config.json`。
+
+**别把测试包发出去** —— 里面有你自己写的名片和记忆剧情。
 
 改完代码建议先跑这三个检查：
 
