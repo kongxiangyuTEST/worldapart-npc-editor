@@ -2137,6 +2137,13 @@ def chat_completions():
         parts = re.split(r"[“”]", clean_text)
         quotes = [p.strip() for i, p in enumerate(parts)
                   if i % 2 == 1 and len(p.strip()) >= 2]
+        if not quotes:
+            # 没有引号对白：有些 NPC 的回复根本不带引号（如杜老栓的
+            # 「后生，从镇外来？……」），正文本身就是台词。去掉括号动作
+            # 后整段当对白 —— 比起让它漏读，宁可能多读一点。
+            spoken = re.sub(r"[（(][^）)]*[）)]", "", clean_text).strip()
+            if len(spoken) >= 2:
+                quotes = [spoken]
         if quotes:
             inner["a1ttsv2"] = {
                 "instruct": "保持参考声线，吐字清楚，语速适中，平静自然地说完",
