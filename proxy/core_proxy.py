@@ -1437,6 +1437,33 @@ def prepare_messages(req_json, with_memory=True, with_card=True, dry_run=False):
     elif not _AI["inject_user_card"]:
         print("[名片] 用户名片注入已关闭，跳过", flush=True)
 
+    # TTS 语音 MOD 增强：MOD 的钩子只覆盖游戏的 C# 托管代理，覆盖不到
+    # 独立 Python 代理（我们），所以「要求模型输出台本」的提示词不会
+    # 被注入 —— 模型根本不知道要输出 a1ttsv2 / 风格帧，NPC 就不出声。
+    # 这里代替 MOD 注入 V1 风格帧要求（带幂等标记 A1_TTS_STYLE_V1，
+    # MOD 哪天自己支持了 Python 代理、注入过，这里就不会重复加）。
+    # 不想要的话在 ai_config.json 加 "tts_style_inject": false。
+    try:
+        if _AI.get("tts_style_inject", True):
+            marker = "A1_TTS_STYLE_V1"
+            _msgs = req_json.get("messages") or []
+            has_marker = any(
+                marker in (m.get("content") or "")
+                for m in _msgs if m.get("role") == "system"
+            )
+            if not has_marker:
+                tpl_path = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    "tts_style_prompt_v1.txt")
+                if os.path.isfile(tpl_path):
+                    with open(tpl_path, "r", encoding="utf-8") as f:
+                        tpl = f.read().strip()
+                    if _msgs and _msgs[0].get("role") == "system":
+                        _msgs[0]["content"] += "\n\n" + tpl
+                        print(f"[TTS] 已注入语音风格帧要求（{len(tpl)} 字）")
+    except Exception as e:
+        print(f"[TTS] 注入失败（不影响转发）: {e}", flush=True)
+
     final_messages = req_json.get("messages") or []
     sys_len = len(final_messages[0]["content"]) if final_messages and final_messages[0].get("role") == "system" else 0
 
