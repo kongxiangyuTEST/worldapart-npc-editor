@@ -925,6 +925,188 @@ class Api:
             "has_memory": bool(mem_text.strip()),
         }
 
+    # ==================== 模型源管理 ====================
+    # 三类来源：本机 / 局域网节点 / 云端 API。
+    # 本质上都是 OpenAI 兼容端点，差别只在地址和是否需要密钥。
+    # 密钥存 user_config.json（已 gitignore、打包不带用户数据），
+    # 且**回传前端时只给后四位** —— 后端不回传明文，
+    # 即使截图或前端代码泄露，也拿不到完整 key。
+
+    def _user_cfg_path(self):
+        return os.path.join(PROJECT_DIR, "user_config.json")
+
+    def _load_user_config(self):
+        path = self._user_cfg_path()
+        if not os.path.isfile(path):
+            return {}
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def _save_user_config(self, data):
+        path = self._user_cfg_path()
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+
+    @staticmethod
+    def _mask_key(k):
+        k = (k or "").strip()
+        if not k:
+            return ""
+        if len(k) <= 10:
+            return "•" * len(k)
+        return k[:5] + "•" * 6 + k[-4:]
+
+    def model_sources_get(self):
+        """读模型源（密钥脱敏后返回）"""
+        ms = (self._load_user_config().get("model_sources") or {})
+        lan = []
+        for n in (ms.get("lan_nodes") or []):
+            lan.append({"id": n.get("id") or "",
+                        "name": n.get("name") or "未命名",
+                        "base": n.get("base") or ""})
+        api = []
+        for a in (ms.get("api_services") or []):
+            k = a.get("key") or ""
+            api.append({"id": a.get("id") or "",
+                        "name": a.get("name") or "未命名",
+                        "base": a.get("base") or "",
+                        "model": a.get("model") or "",
+                        "key_masked": self._mask_key(k),
+                        "has_key": bool(k)})
+        return {
+            "ok": True,
+            "local_base": ms.get("local_base") or "http://127.0.0.1:11434",
+            "lan_nodes": lan,
+            "api_services": api,
+        }
+
+    def model_sources_save(self, payload):
+        """保存模型源。
+
+        密钥处理：前端拿不到明文，所以提交上来 key 为空时**沿用旧值**；
+        要清空就显式传 "__clear__"。这样用户改个地址不会被顺手清掉密钥。
+        """
+        try:
+            cfg = self._load_user_config()
+            old = cfg.get("model_sources") or {}
+            old_keys = {a.get("id"): (a.get("key") or "")
+                        for a in (old.get("api_services") or [])}
+
+            ms = payload.get("model_sources") or {}
+            new_api = []
+            for a in (ms.get("api_services") or []):
+                aid = a.get("id")
+                k = a.get("key")
+                if k == "__clear__":
+                    k = ""
+                elif not k:
+                    k = old_keys.get(aid, "")
+                new_api.append({"id": aid or "",
+                                "name": a.get("name") or "",
+                                "base": a.get("base") or "",
+                                "model": a.get("model") or "",
+                                "key": k or ""})
+
+            cfg["model_sources"] = {
+                "local_base": ms.get("local_base") or "http://127.0.0.1:11434",
+                "lan_nodes": [{"id": n.get("id") or "",
+                               "name": n.get("name") or "",
+                               "base": n.get("base") or ""}
+                              for n in (ms.get("lan_nodes") or [])],
+                "api_services": new_api,
+            }
+            self._save_user_config(cfg)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def models_scan(self):
+        """扫描编辑器目录下的 models/，列出 GGUF 并标记是否已导入本机 Ollama"""
+        d = os.path.join(PROJECT_DIR, "models")
+        if not os.path.isdir(d):
+            try:
+                os.makedirs(d)
+            except Exception:
+                pass
+
+        files = []
+        try:
+            for fn in sorted(os.listdir(d)):
+                if not fn.lower().endswith(".gguf"):
+                    continue
+                p = os.path.join(d, fn)
+                try:
+                    sz = os.path.getsize(p)
+                except Exception:
+                    sz = 0
+                files.append({
+                    "file": fn,
+                    "size": sz,
+                    "model_name": re.sub(r"\.gguf$", "", fn, flags=re.I),
+                })
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+        # 拿本机 Ollama 的模型名做模糊比对（同一个模型文件名和模型名往往不同）
+        imported, has_local = set(), False
+        try:
+            import urllib.request
+            base = (self.model_sources_get().get("local_base") or "").rstrip("/")
+            with urllib.request.urlopen(base + "/api/tags", timeout=4) as r:
+                d2 = json.loads(r.read().decode())
+            has_local = True
+            for m in (d2.get("models") or []):
+                imported.add((m.get("name") or "").split(":")[0].lower())
+        except Exception:
+            pass
+
+        for f in files:
+            k = f["model_name"].lower()
+            f["imported"] = bool(imported) and any(k in x or x in k for x in imported)
+
+        return {"ok": True, "dir": d, "local_available": has_local, "files": files}
+
+    def models_import(self, filename, model_name=None):
+        """把 models/ 里的一个 GGUF 导入本机 Ollama（走 ollama create）"""
+        src = os.path.join(PROJECT_DIR, "models", os.path.basename(filename))
+        if not os.path.isfile(src):
+            return {"ok": False, "msg": "文件不存在"}
+        name = (model_name or re.sub(r"\.gguf$", "", os.path.basename(src), flags=re.I)).strip()
+        if not re.match(r"^[A-Za-z0-9._-]+$", name):
+            return {"ok": False, "msg": "模型名只能用字母、数字和 . _ -"}
+
+        import subprocess
+        import shutil as _sh
+        exe = _sh.which("ollama")
+        if not exe:
+            return {"ok": False,
+                    "msg": "本机没找到 ollama 命令。模型在别的机器上跑的话，"
+                           "把文件拷到那台机器再导入，或者直接用那边的模型。"}
+
+        mf = os.path.join(PROJECT_DIR, "models", "_import.Modelfile")
+        try:
+            with open(mf, "w", encoding="utf-8") as f:
+                f.write("FROM " + src.replace(os.sep, "/") + "\n")
+                f.write("PARAMETER num_ctx 16384\n")
+                f.write("PARAMETER temperature 0.8\n")
+            r = subprocess.run([exe, "create", name, "-f", mf],
+                               capture_output=True, text=True, timeout=1800)
+            if r.returncode != 0:
+                return {"ok": False, "msg": (r.stderr or r.stdout or "导入失败")[:400]}
+            return {"ok": True, "model": name}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+        finally:
+            try:
+                os.remove(mf)
+            except Exception:
+                pass
+
     def chat_trial_fragments(self):
         """列出游戏 prompt 的可选段落（试聊时用来模拟真实组合）"""
         try:
@@ -948,21 +1130,49 @@ class Api:
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
-    def chat_trial_models(self):
-        """列出本地节点上的模型"""
+    def chat_trial_models(self, base=None, key=None):
+        """列出某个端点上的模型。
+
+        不传 base 时沿用 core_proxy_config 里的本地地址（兼容旧调用）。
+        先试 Ollama 原生的 /api/tags（能拿到体积），失败再退回通用的 /v1/models，
+        这样云端 API 也能列模型。
+        """
         try:
-            conf_path = os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json")
-            with open(conf_path, "r", encoding="utf-8") as f:
-                conf = json.load(f)
-            base = (conf.get("local_upstream_base_url") or "").strip().rstrip("/")
             if not base:
-                return {"ok": False, "msg": "core_proxy_config.json 里没配 local_upstream_base_url"}
+                conf_path = os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json")
+                with open(conf_path, "r", encoding="utf-8") as f:
+                    conf = json.load(f)
+                base = (conf.get("local_upstream_base_url") or "").strip()
+            base = (base or "").strip().rstrip("/")
+            if not base:
+                return {"ok": False, "msg": "没有可用的地址"}
+
             import urllib.request
-            with urllib.request.urlopen(base + "/api/tags", timeout=10) as r:
+            headers = {"User-Agent": "wa-editor"}
+            if key:
+                headers["Authorization"] = "Bearer " + key
+
+            try:
+                req = urllib.request.Request(base + "/api/tags", headers=headers)
+                with urllib.request.urlopen(req, timeout=10) as r:
+                    d = json.loads(r.read().decode())
+                models = [{"name": m.get("name") or "", "size": m.get("size") or 0}
+                          for m in (d.get("models") or [])]
+                if models:
+                    models.sort(key=lambda x: x["name"])
+                    return {"ok": True, "base": base, "models": models}
+            except Exception:
+                pass
+
+            req = urllib.request.Request(base + "/v1/models", headers=headers)
+            with urllib.request.urlopen(req, timeout=12) as r:
                 d = json.loads(r.read().decode())
-            models = [{"name": m.get("name") or "", "size": m.get("size") or 0}
-                      for m in (d.get("models") or [])]
+            models = [{"name": m.get("id") or "", "size": 0}
+                      for m in (d.get("data") or [])]
+            models = [m for m in models if m["name"]]
             models.sort(key=lambda x: x["name"])
+            if not models:
+                return {"ok": False, "msg": "这个地址没返回模型列表"}
             return {"ok": True, "base": base, "models": models}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
@@ -984,10 +1194,23 @@ class Api:
                 # 不关思考的话，Qwen3.5 会先吐一大段内心独白才开口
                 "reasoning_effort": "none",
             }
+            headers = {"Content-Type": "application/json"}
+            # 云端的密钥不出后端：前端只传 api_id，这里自己从 user_config 取明文，
+            # 免得密钥在 JS 里来回传（截图、控制台都能看到）。
+            api_key = str(payload.get("key") or "")
+            api_id = payload.get("api_id")
+            if not api_key and api_id:
+                for a in ((self._load_user_config().get("model_sources") or {})
+                          .get("api_services") or []):
+                    if a.get("id") == api_id:
+                        api_key = a.get("key") or ""
+                        break
+            if api_key:
+                headers["Authorization"] = "Bearer " + api_key
             req = urllib.request.Request(
                 base + "/v1/chat/completions",
                 data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
+                headers=headers,
             )
             t0 = time.time()
             with urllib.request.urlopen(req, timeout=300) as r:

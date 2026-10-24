@@ -2090,7 +2090,7 @@ a { color: var(--cl-coral); }
   min-height: 0;
 }
 .trial-side {
-  width: 218px;
+  width: 250px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -2320,6 +2320,56 @@ a { color: var(--cl-coral); }
   white-space: nowrap;
 }
 .trial-frag-meta { font-size: 11px; color: var(--cl-muted); flex-shrink: 0; }
+
+/* 模型来源三段切换 */
+.trial-seg {
+  display: flex;
+  gap: 2px;
+  background: var(--cl-surface-soft);
+  border-radius: 6px;
+  padding: 2px;
+}
+.trial-seg > span {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  padding: 4px 0;
+  border-radius: 4px;
+  color: var(--cl-muted);
+  cursor: pointer;
+}
+.trial-seg > span:hover { color: var(--cl-body); }
+.trial-seg > span.on {
+  background: #fff;
+  color: var(--cl-ink);
+  font-weight: 500;
+  box-shadow: 0 0 0 1px var(--cl-hairline);
+}
+.src-pane { display: flex; flex-direction: column; gap: 8px; }
+.trial-note { font-size: 11px; color: var(--cl-muted); line-height: 1.5; }
+.trial-gguf-row { display: flex; gap: 6px; align-items: center; }
+.trial-gguf-row select {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  padding: 4px 6px;
+  border: 1px solid var(--cl-hairline);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--cl-body);
+}
+.trial-warn { font-size: 11px; line-height: 1.55; color: var(--cl-warning); }
+.trial-warn b { font-weight: 500; }
+button.tiny { font-size: 11px; padding: 4px 8px; white-space: nowrap; }
+.trial-field input[type=text] {
+  width: 100%;
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid var(--cl-hairline);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--cl-body);
+}
 
 
 

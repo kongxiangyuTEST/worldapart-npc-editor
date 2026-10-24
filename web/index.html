@@ -191,10 +191,59 @@
             <div class="trial-npc-list" id="trial-npc-list"></div>
             <input type="hidden" id="trial-npc">
 
-            <label class="trial-field">
-              <span>模型</span>
-              <select id="trial-model"></select>
-            </label>
+            <!-- 模型来源：三段切换。三类本质上都是 OpenAI 兼容端点，
+                 差别只在地址和要不要密钥，所以每段只显示自己需要的字段。 -->
+            <div class="trial-field">
+              <span>模型来源</span>
+              <div class="trial-seg">
+                <span id="seg-local" class="on" onclick="trialSetSource('local')">本机</span>
+                <span id="seg-lan" onclick="trialSetSource('lan')">局域网</span>
+                <span id="seg-api" onclick="trialSetSource('api')">API</span>
+              </div>
+            </div>
+
+            <div id="src-local" class="src-pane">
+              <label class="trial-field">
+                <span>模型</span>
+                <select id="trial-model-local"></select>
+              </label>
+              <div class="trial-note" id="local-note">扫描中…</div>
+              <div class="trial-gguf-row">
+                <select id="trial-gguf"></select>
+                <button class="secondary tiny" onclick="trialImportGguf()">导入</button>
+              </div>
+            </div>
+
+            <div id="src-lan" class="src-pane" style="display:none;">
+              <label class="trial-field">
+                <span>节点</span>
+                <select id="trial-node" onchange="trialLoadModels()"></select>
+              </label>
+              <label class="trial-field">
+                <span>模型</span>
+                <select id="trial-model-lan"></select>
+              </label>
+            </div>
+
+            <div id="src-api" class="src-pane" style="display:none;">
+              <label class="trial-field">
+                <span>地址</span>
+                <input type="text" id="trial-api-base" placeholder="https://api.deepseek.com">
+              </label>
+              <label class="trial-field">
+                <span>密钥</span>
+                <input type="text" id="trial-api-key" placeholder="sk-…（留空 = 不修改）">
+              </label>
+              <label class="trial-field">
+                <span>模型名</span>
+                <input type="text" id="trial-api-model" placeholder="deepseek-chat">
+              </label>
+              <div class="trial-warn">
+                密钥只存在本机 <b>user_config.json</b>，不上传、不进仓库；
+                界面上只显示后四位，截图前请先遮住。
+              </div>
+              <button class="secondary tiny" onclick="trialSaveApi()">保存并读取模型</button>
+            </div>
             <label class="trial-field">
               <span>温度 <b id="trial-temp-val">0.85</b></span>
               <input type="range" id="trial-temp" min="0.1" max="1.2" step="0.05" value="0.85">

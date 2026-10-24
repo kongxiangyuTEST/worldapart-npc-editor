@@ -34,6 +34,10 @@ prompt_samples/
 # core_proxy 每轮请求都在写，属运行时数据
 proxy/usage_log.jsonl
 
+# ===== 本地模型（体积太大，不进仓库）=====
+models/*.gguf
+models/_import.Modelfile
+
 # ===== 本地备份 =====
 originals/
 last_saved/

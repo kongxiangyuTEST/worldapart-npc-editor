@@ -208,6 +208,22 @@ ctx.pywebview = {
         { title: '赠物通则', pct: 60, chars: 90, text: '赠物规则原文' },
       ],
     }),
+    // ---- 模型来源（2026-10-24）----
+    model_sources_get: async () => ({
+      ok: true,
+      local_base: 'http://127.0.0.1:11434',
+      lan_nodes: [{ id: 'mac-mini', name: 'Mac mini', base: 'http://192.168.0.116:11434' }],
+      api_services: [{
+        id: 'api-1', name: 'API', base: 'https://api.deepseek.com',
+        model: 'deepseek-chat', key_masked: 'sk-12••••••3f2a', has_key: true,
+      }],
+    }),
+    model_sources_save: async () => ({ ok: true }),
+    models_scan: async () => ({
+      ok: true, dir: 'models', local_available: false,
+      files: [{ file: 'demo-Q4_K_M.gguf', size: 5000000000, model_name: 'demo-Q4_K_M', imported: false }],
+    }),
+    models_import: async () => ({ ok: true, model: 'demo-Q4_K_M' }),
   },
 };
 

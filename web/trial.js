@@ -1,27 +1,25 @@
 // ===== 试聊页 =====
-// 拿一个 NPC 的真实卡片 + 长期记忆 + 可选的游戏段落，直接跟本地模型对话。
-// 用处：不启动游戏也能验证「改完名片 / 记忆之后，这个 NPC 说话像不像样」，
-// 也能勾上「赠物通则」这类段落，对比游戏里实际会怎么说话。
+// 用真实卡片 + 记忆 + 可选的游戏段落，跟模型对话。
 //
-// 为什么不走 core_proxy：那边要完整游戏 prompt 才注入；试聊手里只有卡片，
-// 直连更干净，也不会污染游戏的记忆文件。
+// 模型来源分三段（本机 / 局域网 / API）。这三类本质上都是 OpenAI 兼容端点，
+// 差别只在地址和要不要密钥，所以底层是同一份 { base, model }，三段只是入口。
+// 云端的明文密钥不出后端：前端只传 api_id，editor.py 自己从 user_config 取。
 
-let trialCtx = null;          // chat_trial_context 返回
-let trialMessages = [];       // 对话历史（不含 system）
+let trialCtx = null;
+let trialMessages = [];
 let trialBusy = false;
-let trialBase = '';
-let trialModels = [];
-let trialAllCards = [];       // 全部卡片（搜索用）
-let trialSelected = '';       // 当前选中的 filename
-let trialFragments = [];      // 游戏段落
+let trialAllCards = [];
+let trialSelected = '';
+let trialFragments = [];
 let trialFragOpen = false;
+let trialSource = 'local';    // local | lan | api
+let trialSources = null;      // model_sources_get 的结果
 
 async function initTrialPage() {
   const search = document.getElementById('trial-npc-search');
   if (search) search.oninput = trialRenderNpcList;
 
-  await trialLoadModels();
-  await trialLoadFragments();
+  await trialLoadSources();
 
   const temp = document.getElementById('trial-temp');
   if (temp) {
@@ -43,12 +41,233 @@ async function initTrialPage() {
     });
   }
 
+  await trialLoadFragments();
+
   trialAllCards = (typeof allCards !== 'undefined' && allCards) ? allCards : [];
   trialRenderNpcList();
   if (trialAllCards.length) await trialSelectNpc(trialAllCards[0].filename);
 }
 
-// ---------- NPC 列表（搜索 + 头像）----------
+// ---------- 模型来源 ----------
+
+async function trialLoadSources() {
+  try {
+    trialSources = await pywebview.api.model_sources_get();
+  } catch (e) {
+    trialSources = { ok: false, msg: String(e) };
+  }
+  if (!trialSources || !trialSources.ok) {
+    trialSources = { ok: false, local_base: '', lan_nodes: [], api_services: [] };
+  }
+
+  // 局域网节点下拉
+  const nodeSel = document.getElementById('trial-node');
+  if (nodeSel) {
+    const nodes = trialSources.lan_nodes || [];
+    nodeSel.innerHTML = nodes.length
+      ? nodes.map(n => '<option value="' + escapeHtml(n.id) + '">' +
+          escapeHtml(n.name) + ' · ' + escapeHtml(n.base.replace(/^https?:\/\//, '')) +
+          '</option>').join('')
+      : '<option value="">（还没配节点）</option>';
+  }
+
+  // API 段
+  const baseIn = document.getElementById('trial-api-base');
+  const modelIn = document.getElementById('trial-api-model');
+  const keyIn = document.getElementById('trial-api-key');
+  const apis = trialSources.api_services || [];
+  if (apis.length) {
+    const a = apis[0];
+    if (baseIn) baseIn.value = a.base || '';
+    if (modelIn) modelIn.value = a.model || '';
+    if (keyIn) keyIn.placeholder = a.has_key ? ('已保存 ' + a.key_masked + '（留空=不改）') : 'sk-…';
+  } else if (keyIn) {
+    keyIn.placeholder = 'sk-…';
+  }
+
+  trialSetSource(trialSource, true);
+  await trialLoadModels();
+  await trialLoadGguf();
+}
+
+function trialSetSource(kind, silent) {
+  trialSource = kind;
+  ['local', 'lan', 'api'].forEach(k => {
+    const seg = document.getElementById('seg-' + k);
+    if (seg) seg.classList.toggle('on', k === kind);
+    const pane = document.getElementById('src-' + k);
+    if (pane) pane.style.display = (k === kind) ? 'block' : 'none';
+  });
+  if (!silent) trialLoadModels();
+}
+
+async function trialLoadModels() {
+  const badge = document.getElementById('trial-model-badge');
+  let base = '';
+  let key = '';
+  let sel = null;
+
+  if (trialSource === 'local') {
+    base = (trialSources && trialSources.local_base) || '';
+    sel = document.getElementById('trial-model-local');
+  } else if (trialSource === 'lan') {
+    const nodeSel = document.getElementById('trial-node');
+    const id = nodeSel ? nodeSel.value : '';
+    const node = ((trialSources && trialSources.lan_nodes) || []).find(n => n.id === id);
+    base = node ? node.base : '';
+    sel = document.getElementById('trial-model-lan');
+  } else {
+    const baseIn = document.getElementById('trial-api-base');
+    base = baseIn ? baseIn.value.trim() : '';
+    sel = null;   // API 段的模型名手填，不用下拉
+  }
+
+  if (sel) sel.innerHTML = '<option value="">读取中…</option>';
+  if (!base) {
+    if (sel) sel.innerHTML = '<option value="">没有可用地址</option>';
+    if (badge) { badge.textContent = '未连接'; badge.className = 'trial-badge bad'; }
+    return;
+  }
+
+  try {
+    const res = await pywebview.api.chat_trial_models(base, key);
+    if (!res || !res.ok) {
+      if (sel) sel.innerHTML = '<option value="">连不上</option>';
+      if (badge) { badge.textContent = '连接失败'; badge.className = 'trial-badge bad'; }
+      return;
+    }
+    const models = res.models || [];
+    if (sel) {
+      if (!models.length) {
+        sel.innerHTML = '<option value="">这个地址没有模型</option>';
+      } else {
+        sel.innerHTML = models.map(m =>
+          '<option value="' + escapeHtml(m.name) + '">' + escapeHtml(m.name) +
+          (m.size ? ' · ' + (m.size / 1073741824).toFixed(1) + 'G' : '') +
+          '</option>').join('');
+        sel.value = models[0].name;
+      }
+    }
+    if (badge) {
+      badge.textContent = models.length + ' 个模型可用';
+      badge.className = 'trial-badge ok';
+    }
+  } catch (e) {
+    if (badge) { badge.textContent = '连接失败'; badge.className = 'trial-badge bad'; }
+  }
+}
+
+// ---------- models/ 目录 ----------
+
+async function trialLoadGguf() {
+  const sel = document.getElementById('trial-gguf');
+  const note = document.getElementById('local-note');
+  if (!sel) return;
+  try {
+    const res = await pywebview.api.models_scan();
+    if (!res || !res.ok) {
+      if (note) note.textContent = '扫描 models/ 失败';
+      sel.innerHTML = '<option value="">—</option>';
+      return;
+    }
+    const files = (res.files || []).filter(f => !f.imported);
+    if (note) {
+      note.textContent = res.files && res.files.length
+        ? ('models/ 里 ' + res.files.length + ' 个 GGUF，' + files.length + ' 个未导入')
+        : 'models/ 是空的（把 GGUF 放进去）';
+    }
+    sel.innerHTML = files.length
+      ? files.map(f => '<option value="' + escapeHtml(f.file) + '">' +
+          escapeHtml(f.file) + ' · ' + (f.size / 1073741824).toFixed(1) + 'G' +
+          '</option>').join('')
+      : '<option value="">（没有待导入的）</option>';
+    if (!res.local_available && note) {
+      note.textContent += ' · 本机没检测到 Ollama';
+    }
+  } catch (e) {
+    if (note) note.textContent = '扫描失败：' + e;
+  }
+}
+
+async function trialImportGguf() {
+  const sel = document.getElementById('trial-gguf');
+  const file = sel ? sel.value : '';
+  if (!file) { alert('没有待导入的 GGUF'); return; }
+  const note = document.getElementById('local-note');
+  if (note) note.textContent = '正在导入 ' + file + '，可能要几分钟…';
+  try {
+    const res = await pywebview.api.models_import(file);
+    if (!res || !res.ok) {
+      if (note) note.textContent = '导入失败：' + ((res && res.msg) || '');
+      return;
+    }
+    if (note) note.textContent = '已导入：' + res.model;
+    await trialLoadGguf();
+    await trialLoadModels();
+  } catch (e) {
+    if (note) note.textContent = '导入失败：' + e;
+  }
+}
+
+async function trialSaveApi() {
+  const baseIn = document.getElementById('trial-api-base');
+  const keyIn = document.getElementById('trial-api-key');
+  const modelIn = document.getElementById('trial-api-model');
+  const warn = document.querySelector('#src-api .trial-warn');
+  const payload = {
+    model_sources: {
+      local_base: (trialSources && trialSources.local_base) || '',
+      lan_nodes: (trialSources && trialSources.lan_nodes) || [],
+      api_services: [{
+        id: (trialSources && trialSources.api_services && trialSources.api_services[0]
+             && trialSources.api_services[0].id) || 'api-1',
+        name: 'API',
+        base: baseIn ? baseIn.value.trim() : '',
+        model: modelIn ? modelIn.value.trim() : '',
+        key: keyIn ? keyIn.value.trim() : '',
+      }],
+    },
+  };
+  try {
+    const res = await pywebview.api.model_sources_save(payload);
+    if (!res || !res.ok) {
+      if (warn) warn.textContent = '保存失败：' + ((res && res.msg) || '');
+      return;
+    }
+    if (keyIn) keyIn.value = '';
+    await trialLoadSources();
+    if (warn) {
+      warn.textContent = '已保存。密钥只存在本机 user_config.json，不上传、不进仓库。';
+    }
+  } catch (e) {
+    if (warn) warn.textContent = '保存失败：' + e;
+  }
+}
+
+// 当前在用的 { base, model, api_id }
+function trialCurrentModel() {
+  if (trialSource === 'local') {
+    const el = document.getElementById('trial-model-local');
+    return { base: (trialSources && trialSources.local_base) || '', model: el ? el.value : '', api_id: '' };
+  }
+  if (trialSource === 'lan') {
+    const nodeSel = document.getElementById('trial-node');
+    const modelSel = document.getElementById('trial-model-lan');
+    const node = ((trialSources && trialSources.lan_nodes) || [])
+      .find(n => n.id === (nodeSel ? nodeSel.value : ''));
+    return { base: node ? node.base : '', model: modelSel ? modelSel.value : '', api_id: '' };
+  }
+  const baseIn = document.getElementById('trial-api-base');
+  const modelIn = document.getElementById('trial-api-model');
+  const apis = (trialSources && trialSources.api_services) || [];
+  return {
+    base: baseIn ? baseIn.value.trim() : '',
+    model: modelIn ? modelIn.value.trim() : '',
+    api_id: apis.length ? apis[0].id : '',
+  };
+}
+
+// ---------- NPC 列表 ----------
 
 function trialRenderNpcList() {
   const box = document.getElementById('trial-npc-list');
@@ -65,7 +284,6 @@ function trialRenderNpcList() {
   });
 
   if (cnt) cnt.textContent = list.length + '/' + trialAllCards.length;
-
   if (!list.length) {
     box.innerHTML = '<div class="trial-npc-empty">没有匹配的角色</div>';
     return;
@@ -79,8 +297,7 @@ function trialRenderNpcList() {
         encodeURIComponent(c.portrait_file) + '">'
       : '<span class="trial-npc-av trial-npc-av-ph">' + escapeHtml(initial) + '</span>';
     return '<div class="trial-npc-item' + active + '" data-fn="' + escapeHtml(c.filename) +
-           '" onclick="trialSelectNpc(this.dataset.fn)">' +
-           av +
+           '" onclick="trialSelectNpc(this.dataset.fn)">' + av +
            '<div class="trial-npc-txt">' +
              '<div class="trial-npc-name">' + escapeHtml(c.name) + '</div>' +
              '<div class="trial-npc-id">ID ' + c.id + '</div>' +
@@ -103,18 +320,15 @@ async function trialLoadFragments() {
     const res = await pywebview.api.chat_trial_fragments();
     if (!res || !res.ok) return;
     trialFragments = (res.fragments || []).map(f => ({ ...f, on: false }));
-    // 默认勾上三段最基础的，能体现「游戏里到底灌了什么」
     const def = ['守住世界观', '通用要求', '赠物通则'];
     trialFragments.forEach(f => { f.on = def.indexOf(f.title) >= 0; });
     trialRenderFrags();
-  } catch (e) { /* 没数据就静默跳过 */ }
+  } catch (e) { /* 没数据就跳过 */ }
 }
 
 function trialRenderFrags() {
   const cnt = document.getElementById('trial-frag-count');
-  const on = trialFragments.filter(f => f.on).length;
-  if (cnt) cnt.textContent = on + '/' + trialFragments.length;
-
+  if (cnt) cnt.textContent = trialFragments.filter(f => f.on).length + '/' + trialFragments.length;
   const box = document.getElementById('trial-frags-body');
   if (!box || !trialFragOpen) return;
   box.innerHTML = trialFragments.map((f, i) =>
@@ -143,61 +357,24 @@ function trialToggleFrags() {
   if (trialFragOpen) trialRenderFrags();
 }
 
-// ---------- 模型 ----------
-
-async function trialLoadModels() {
-  const sel = document.getElementById('trial-model');
-  const badge = document.getElementById('trial-model-badge');
-  try {
-    const res = await pywebview.api.chat_trial_models();
-    if (!res || !res.ok) {
-      if (sel) sel.innerHTML = '<option value="">连不上本地节点</option>';
-      if (badge) { badge.textContent = '未连接'; badge.className = 'trial-badge bad'; }
-      return;
-    }
-    trialBase = res.base || '';
-    trialModels = res.models || [];
-    if (sel) {
-      if (!trialModels.length) {
-        sel.innerHTML = '<option value="">节点上没有模型</option>';
-      } else {
-        sel.innerHTML = trialModels.map(m =>
-          '<option value="' + escapeHtml(m.name) + '">' + escapeHtml(m.name) +
-          ' · ' + (m.size / 1073741824).toFixed(1) + 'G</option>').join('');
-        sel.value = trialModels[0].name;
-      }
-    }
-    if (badge) {
-      badge.textContent = trialModels.length + ' 个模型可用';
-      badge.className = 'trial-badge ok';
-    }
-  } catch (e) {
-    if (badge) { badge.textContent = '连接失败'; badge.className = 'trial-badge bad'; }
-  }
-}
-
 // ---------- 上下文 / 统计 ----------
 
 async function trialLoadCtx() {
   const stat = document.getElementById('trial-stat');
   if (!trialSelected) return;
-
   try {
     trialCtx = await pywebview.api.chat_trial_context(trialSelected);
   } catch (e) {
     trialCtx = { ok: false, msg: String(e) };
   }
-
   if (!trialCtx || !trialCtx.ok) {
     if (stat) stat.textContent = '读取失败：' + ((trialCtx && trialCtx.msg) || '');
     return;
   }
-
   const useCard = document.getElementById('trial-use-card');
   const useMem = document.getElementById('trial-use-memory');
   if (useCard) { useCard.disabled = !trialCtx.has_card; useCard.checked = !!trialCtx.has_card; }
   if (useMem) { useMem.disabled = !trialCtx.has_memory; useMem.checked = !!trialCtx.has_memory; }
-
   trialUpdateStat();
   trialReset();
 }
@@ -240,8 +417,6 @@ function trialBuildSystem() {
   if (useMem && useMem.checked && trialCtx.memory) {
     s += '\n\n## 过往要事\n' + trialCtx.memory;
   }
-
-  // 勾选的游戏段落按原样拼进来 —— 这就是「游戏里实际会灌什么」
   const picked = trialFragments.filter(f => f.on && f.text);
   if (picked.length) {
     s += '\n\n' + picked.map(f => '## ' + f.title + '\n' + f.text).join('\n\n');
@@ -278,9 +453,8 @@ async function trialSend() {
   if (!text) return;
   if (!trialCtx || !trialCtx.ok) { alert('还没有可用的 NPC 设定'); return; }
 
-  const modelSel = document.getElementById('trial-model');
-  const model = modelSel ? modelSel.value : '';
-  if (!model) { alert('本地节点上没有可用模型'); return; }
+  const cur = trialCurrentModel();
+  if (!cur.base || !cur.model) { alert('先选一个模型'); return; }
 
   if (ta) ta.value = '';
   trialAppend('user', text);
@@ -296,8 +470,9 @@ async function trialSend() {
 
   try {
     const res = await pywebview.api.chat_trial_send({
-      base: trialBase,
-      model: model,
+      base: cur.base,
+      model: cur.model,
+      api_id: cur.api_id,
       messages: msgs,
       temperature: tempEl ? parseFloat(tempEl.value) : 0.85,
       max_tokens: 900,
@@ -309,7 +484,7 @@ async function trialSend() {
       bubble.textContent = res.reply;
       const meta = document.createElement('div');
       meta.className = 'trial-meta';
-      meta.textContent = res.elapsed + 's · ' + res.reply.length + ' 字 · ' + model;
+      meta.textContent = res.elapsed + 's · ' + res.reply.length + ' 字 · ' + cur.model;
       bubble.appendChild(meta);
       trialMessages.push({ role: 'assistant', content: res.reply });
       const log = document.getElementById('trial-log');
