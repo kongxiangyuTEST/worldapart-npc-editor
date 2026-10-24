@@ -2365,6 +2365,17 @@ a { color: var(--cl-coral); }
   box-shadow: 0 0 0 1px var(--cl-hairline);
 }
 .src-pane { display: flex; flex-direction: column; gap: 8px; }
+/* 模型下拉 + 刷新按钮同一行 */
+.trial-model-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.trial-model-row select {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
 .trial-note { font-size: 11px; color: var(--cl-muted); line-height: 1.5; }
 .trial-gguf-row { display: flex; gap: 6px; align-items: center; }
 .trial-gguf-row select {

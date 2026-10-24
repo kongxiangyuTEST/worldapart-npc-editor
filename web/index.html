@@ -204,7 +204,10 @@
             <div id="src-local" class="src-pane">
               <label class="trial-field">
                 <span>模型</span>
-                <select id="trial-model-local"></select>
+                <div class="trial-model-row">
+                  <select id="trial-model-local"></select>
+                  <button class="secondary tiny" onclick="trialLoadModels()">刷新</button>
+                </div>
               </label>
               <div class="trial-note" id="local-note">扫描中…</div>
               <div class="trial-gguf-row">
@@ -220,7 +223,10 @@
               </label>
               <label class="trial-field">
                 <span>模型</span>
-                <select id="trial-model-lan"></select>
+                <div class="trial-model-row">
+                  <select id="trial-model-lan"></select>
+                  <button class="secondary tiny" onclick="trialLoadModels()">刷新</button>
+                </div>
               </label>
             </div>
 

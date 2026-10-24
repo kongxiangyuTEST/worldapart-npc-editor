@@ -98,7 +98,9 @@ function trialSetSource(kind, silent) {
     const pane = document.getElementById('src-' + k);
     if (pane) pane.style.display = (k === kind) ? 'block' : 'none';
   });
-  if (!silent) trialLoadModels();
+  // 切段不再自动拉模型 —— 每次点过去都要等一次网络往返，会卡一下。
+  // 改成用户点旁边的「刷新」。只有首次进页面（silent）才自动拉一次。
+  if (silent) trialLoadModels();
 }
 
 async function trialLoadModels() {
