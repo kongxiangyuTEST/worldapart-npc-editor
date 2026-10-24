@@ -2204,12 +2204,19 @@ a { color: var(--cl-coral); }
   align-items: flex-end;
   flex-shrink: 0;
 }
-/* 重开 / 发送两个按钮：和输入框垂直居中，不然会吊在底边显得没对齐 */
-.trial-input > button {
-  height: 40px;
-  min-width: 56px;
-  align-self: center;
+/* 右侧操作列：重开在上、发送在下，竖排贴着输入框右端 */
+.trial-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   flex-shrink: 0;
+  justify-content: center;
+}
+.trial-actions button {
+  min-width: 64px;
+  height: 29px;
+  padding: 0 12px;
+  font-size: 12px;
 }
 .trial-input textarea {
   flex: 1;
