@@ -79,6 +79,85 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 .page-header h2 { margin: 0; font-size: 16px; }
 .page-header .count { color: #888; font-size: 12px; }
+
+/* ===== 顶栏右侧：游戏目录按钮 =====
+   只放一个按钮，不显示路径（路径太长，会把顶栏撑开）。
+   当前路径放在 title 里悬停可见，点开确认弹窗里也会显示。 */
+header .header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+header .header-btn {
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--cl-body);
+  background: var(--cl-surface-soft);
+  border: 1px solid var(--cl-hairline);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  white-space: nowrap;
+}
+header .header-btn:hover {
+  border-color: var(--cl-coral);
+  background: var(--cl-card);
+}
+/* 没设置目录时标红，提醒还没配 */
+header .header-btn.warn {
+  border-color: var(--cl-error);
+  color: var(--cl-error);
+}
+
+/* ===== 首次启动：强制选择游戏目录 =====
+   没有有效目录时盖住整个界面，只留「选择」一个出口。 */
+.gamedir-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(30, 28, 26, .55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gamedir-card {
+  width: min(520px, 90vw);
+  background: var(--cl-card);
+  border: 1px solid var(--cl-hairline);
+  border-radius: 12px;
+  padding: 26px 28px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .18);
+}
+.gamedir-card h3 {
+  margin: 0 0 12px;
+  font-size: 17px;
+  color: var(--cl-ink);
+}
+.gamedir-card p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--cl-body);
+}
+.gamedir-reason {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  color: var(--cl-error);
+}
+.gamedir-card .gamedir-hint {
+  font-size: 12px;
+  color: var(--cl-muted);
+}
+.gamedir-card button {
+  margin-top: 6px;
+}
+.gamedir-status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--cl-muted);
+  min-height: 18px;
+}
 .page-subtitle { color: #888; font-size: 12px; margin-bottom: 14px; }
 .toolbar {
   display: flex; justify-content: space-between; align-items: center;
@@ -632,6 +711,14 @@ button:disabled { opacity: 0.5; cursor: default; }
   flex-shrink: 0;
 }
 
+/* 列表区独立滚动：header / footer 固定，只有中间的段落列表滚。
+   否则段落一多整个侧栏被撑高，和右侧内容区的高度就对不齐了。 */
+.prompts-sidebar-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .prompts-sidebar-header {
   padding: 12px 16px;
   font-size: 12px;
@@ -672,12 +759,15 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .prompts-content {
   flex: 1;
+  /* min-width:0 必须有：flex 子项默认 min-width:auto，内容一长会把右侧撑破 */
+  min-width: 0;
   background: white;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  /* 原先是 hidden：内容一长就被直接裁掉、又没有滚动条（这个坑踩过） */
+  overflow-y: auto;
 }
 
 .prompt-detail-header {

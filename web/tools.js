@@ -33,12 +33,66 @@ function renderToolTab() {
   } else if (toolsCurrentTab === 'diff') {
     box.innerHTML = renderDiffTab();
     loadBackupsList();
+  } else if (toolsCurrentTab === 'usage') {
+    box.innerHTML = renderUsageTab();
+    refreshUsage();
+  } else if (toolsCurrentTab === 'health') {
+    box.innerHTML = renderHealthTab();
+    refreshHealth();
   } else if (toolsCurrentTab === 'batch') {
 
     box.innerHTML = `<div class="placeholder"><div class="big">📦</div><div>批量工具</div><div class="hint">之后再做</div></div>`;
   } else if (toolsCurrentTab === 'io') {
     box.innerHTML = `<div class="placeholder"><div class="big">📥</div><div>导入 / 导出</div><div class="hint">之后再做</div></div>`;
   }
+}
+
+// ==================== Tab：用量统计 / 结构自检 ====================
+// 这两块原先堆在「服务管理」页，页面越拉越长；挪到工具页按 Tab 分开放。
+// 数据来源仍然是 core_proxy 的 /_status，元素 id 保持不变，
+// 所以 services.js 里的 refreshUsage / refreshHealth 一行都不用改。
+
+function renderUsageTab() {
+  return `
+    <div class="upstream-box" style="margin-top:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3 style="margin:0;font-size:14px;color:var(--cl-ink);">用量统计</h3>
+        <button class="secondary" style="padding:4px 12px;font-size:12px;" onclick="refreshUsage()">刷新</button>
+      </div>
+      <div class="field-hint" style="margin-bottom:10px;">
+        core_proxy 每轮记录上游返回的 token 用量。这里统计的是走云端 API 的部分；
+        转给本地模型（Mac）的请求不产生费用，也不计入花费。
+      </div>
+      <div id="usage-summary" class="usage-summary">读取中…</div>
+      <div id="usage-models" class="usage-models"></div>
+      <div class="usage-price-row">
+        <span class="usage-price-label">单价（每百万 token）</span>
+        <input id="price-in" type="number" step="0.01" min="0" class="usage-price-input" placeholder="输入">
+        <span class="usage-price-sep">/</span>
+        <input id="price-out" type="number" step="0.01" min="0" class="usage-price-input" placeholder="输出">
+        <button class="secondary" style="padding:4px 12px;font-size:12px;" onclick="savePriceSettings()">保存</button>
+        <span class="inject-status" id="price-status"></span>
+      </div>
+      <div class="field-hint" style="margin-top:6px;">
+        填 0 或留空表示不折算花费。单价按你自己充值的服务商为准，只用于估算。
+      </div>
+    </div>`;
+}
+
+function renderHealthTab() {
+  return `
+    <div class="upstream-box" style="margin-top:0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3 style="margin:0;font-size:14px;color:var(--cl-ink);">游戏结构自检</h3>
+        <button class="secondary" style="padding:4px 12px;font-size:12px;" onclick="refreshHealth()">刷新</button>
+      </div>
+      <div class="field-hint" style="margin-bottom:10px;">
+        core_proxy 每轮转发前会比对「段落集合 + system 条数」这些结构特征。<br>
+        段落集合变了 → 游戏改了 prompt 组装方式；NPC 名解析不出来 → 名片和长期记忆全部失效（最严重）。
+      </div>
+      <div id="health-summary" class="health-summary">读取中…</div>
+      <div id="health-alerts" class="health-alerts"></div>
+    </div>`;
 }
 
 // ==================== Tab 1：提取（头像 / 角色卡） ====================

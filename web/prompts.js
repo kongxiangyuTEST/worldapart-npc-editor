@@ -2,6 +2,10 @@
 
 let aiConfig = null;          // 当前配置（对应 ai_config.json）
 let promptFragments = null;   // prompt_fragments.json
+// renderFragmentsTab 生成时记下第一个段落标题，渲染完由 switchAiTab 自动选中。
+// 不走 DOM 查询：测试用的模拟 DOM 只存 innerHTML 字符串、不解析子节点，
+// 用 getElementById/querySelector 查新插入的节点都会落空。
+let lastFragmentsFirst = '';
 let currentTab = 'user_card'; // 当前 Tab
 let previewNpc = '';          // 预览用 NPC 名
 let previewWithMemory = true; // 预览是否带长期记忆
@@ -193,6 +197,8 @@ function renderTabContent() {
     box.innerHTML = renderPreviewTab();
   } else if (currentTab === 'fragments') {
     box.innerHTML = renderFragmentsTab();
+    // 默认选中第一段。不选的话右侧永远是一片空白，看起来像页面坏了。
+    if (lastFragmentsFirst) selectPromptFragment(lastFragmentsFirst);
   } else if (currentTab === 'lorebook') {
     box.innerHTML = renderLorebookTab();
     renderLorebookEditor();
@@ -705,6 +711,7 @@ function fragGroupOf(t) {
 }
 
 function renderFragmentsTab() {
+  lastFragmentsFirst = '';
   if (!promptFragments) {
     return `<div class="ai-tab-note">没有 prompt_fragments.json，请先运行 extract_fragments.py 从样本提取。</div>`;
   }
@@ -725,6 +732,7 @@ function renderFragmentsTab() {
   const order = FRAG_GROUPS.map(x => x[0]).concat(['其他']);
   let listHTML = '';
   let idx = 0;
+  let firstTitle = '';
   order.filter(g => groups[g]).forEach(g => {
     listHTML += `<div class="frag-group-title">${escapeHtml(g)}</div>`;
     groups[g]
@@ -732,6 +740,7 @@ function renderFragmentsTab() {
       .forEach(t => {
         const s = stats[t] || {};
         const pct = total ? Math.round((s.appear || 0) * 100 / total) : 0;
+        if (idx === 0) firstTitle = t;   // 记下来，渲染完自动选中它
         listHTML += `<div class="prompt-item${idx === 0 ? ' active' : ''}"
           data-title="${escapeHtml(t)}" onclick="selectPromptFragment('${escapeHtml(t)}')">
           <div class="prompt-item-title">${escapeHtml(t)}</div>
@@ -741,19 +750,26 @@ function renderFragmentsTab() {
       });
   });
 
+  lastFragmentsFirst = firstTitle;
+
   return `
-    <div class="field-hint">
-      游戏 prompt 由这些段落按<b>对话类型</b>拼装而成。
-      <b>没有任何一段是所有对话都带的</b>（最高的基础段也只有 86%），
-      所以不能当"固定段落"整段替换——说服场景连「赠物通则」都没有。
-    </div>
-    <div class="prompts-layout" style="height: calc(100% - 52px);">
-      <div class="prompts-sidebar">
-        <div class="prompts-sidebar-header">段落清单（${titles.length} 种）</div>
-        ${listHTML}
-        <div class="prompts-sidebar-footer">基于 ${total} 个游戏样本统计</div>
+    <div style="height:100%;display:flex;flex-direction:column;gap:10px;min-height:0;">
+      <div class="field-hint" style="flex-shrink:0;">
+        游戏 prompt 由这些段落按<b>对话类型</b>拼装而成。
+        <b>没有任何一段是所有对话都带的</b>（最高的基础段也只有 86%），
+        所以不能当"固定段落"整段替换——说服场景连「赠物通则」都没有。
       </div>
-      <div class="prompts-content" id="prompts-content"></div>
+      <div class="prompts-layout" id="prompts-layout" data-first="${escapeHtml(firstTitle)}"
+           style="flex:1;min-height:0;height:auto;">
+        <div class="prompts-sidebar">
+          <div class="prompts-sidebar-header">段落清单（${titles.length} 种）</div>
+          <div class="prompts-sidebar-list">
+            ${listHTML}
+          </div>
+          <div class="prompts-sidebar-footer">基于 ${total} 个游戏样本统计</div>
+        </div>
+        <div class="prompts-content" id="prompts-content"></div>
+      </div>
     </div>
   `;
 }

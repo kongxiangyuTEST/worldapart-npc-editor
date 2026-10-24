@@ -2038,6 +2038,26 @@ a { color: var(--cl-coral); }
   resize: vertical;
 }
 
+/* ===== 服务列表内嵌进提示框（2026-10-24）=====
+   原来是「一列白卡片」+「一条提示」上下堆着，现在合成一个整体：
+   外框保留浅黄提示底色，里面的服务卡片改成白底，读起来就是
+   「一段说明 + 它管着的两个服务」。
+   本文件在 style.css 之后加载，靠后者生效，所以能覆盖 .service-item 的底色。 */
+.service-tip-merged {
+  padding: 16px 18px 18px;
+}
+.service-tip-merged .service-tip-text {
+  margin-bottom: 14px;
+  line-height: 1.75;
+}
+.service-tip-merged .service-list {
+  margin-bottom: 0;        /* 原本有 20px，嵌进来后不需要 */
+}
+.service-tip-merged .service-item {
+  background: #fff;        /* 白底，和浅黄外框拉开层次 */
+  border-color: #f0e0a0;   /* 边框取外框同色系，不用中性灰 */
+}
+
 
 
 

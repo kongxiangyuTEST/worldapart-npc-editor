@@ -257,7 +257,7 @@ for (const name of STEPS) {
   }
 
   // ---------- 5. AI 提示词预览页 ----------
-  console.log('AI 提示词 · 固定段落：');
+  console.log('AI 提示词 · 段落清单：');
   try {
     await ctx.initPromptsPage();
     ctx.switchAiTab('fragments');
@@ -265,16 +265,29 @@ for (const name of STEPS) {
     const sideHtml = getEl('ai-tab-content').innerHTML;
     const m = sideHtml.match(/data-title="([^"]+)"/);
     if (!m) {
-      fail('固定段落侧栏没渲染出条目');
+      fail('段落清单侧栏没渲染出条目');
     } else {
       const title = m[1];
+      // 切进来就该自动选中第一段，右侧不能是空白（2026-10-24 修：以前一直是空的）
+      const auto = getEl('prompts-content').innerHTML;
+      if (auto && auto.indexOf(title) >= 0) {
+        ok('自动选中第一段：' + title);
+      } else {
+        fail('切进 Tab 后右侧是空白（自动选中没生效）');
+      }
+      // 侧栏要有独立滚动容器，否则段落一多会把整个侧栏撑高、和右侧错位
+      if (sideHtml.indexOf('prompts-sidebar-list') >= 0) {
+        ok('侧栏列表区有独立滚动容器');
+      } else {
+        fail('侧栏缺 .prompts-sidebar-list 包裹层');
+      }
       ctx.selectPromptFragment(title);
       const html = getEl('prompts-content').innerHTML;
-      if (html && html.indexOf(title) >= 0) ok('详情渲染正常：' + title);
+      if (html && html.indexOf(title) >= 0) ok('手动切换详情也正常');
       else fail('详情为空（selectPromptFragment 可能抛错）');
     }
   } catch (e) {
-    fail('固定段落渲染抛错 -> ' + e.name + ': ' + e.message);
+    fail('段落清单渲染抛错 -> ' + e.name + ': ' + e.message);
   }
 
   console.log('AI 提示词 · 世界信息：');
@@ -324,6 +337,29 @@ for (const name of STEPS) {
     else fail('预览结果渲染异常');
   } catch (e) {
     fail('预览页抛错 -> ' + e.name + ': ' + e.message);
+  }
+
+  // ---------- 6. 工具页：用量统计 / 结构自检 ----------
+  // 这两块 2026-10-24 从「服务管理」搬到了工具页，单独占 Tab
+  console.log('工具页 · 用量统计 / 结构自检：');
+  try {
+    ctx.switchToolTab('usage');
+    const u = getEl('tools-tab-content').innerHTML;
+    if (u.indexOf('usage-summary') >= 0 && u.indexOf('price-in') >= 0) {
+      ok('用量统计 Tab 渲染正常');
+    } else {
+      fail('用量统计 Tab 缺元素（usage-summary / price-in）');
+    }
+
+    ctx.switchToolTab('health');
+    const h = getEl('tools-tab-content').innerHTML;
+    if (h.indexOf('health-summary') >= 0 && h.indexOf('health-alerts') >= 0) {
+      ok('结构自检 Tab 渲染正常');
+    } else {
+      fail('结构自检 Tab 缺元素（health-summary / health-alerts）');
+    }
+  } catch (e) {
+    fail('工具页新 Tab 抛错 -> ' + e.name + ': ' + e.message);
   }
 
   console.log('');

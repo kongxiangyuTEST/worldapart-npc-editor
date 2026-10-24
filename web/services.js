@@ -10,8 +10,8 @@ async function initServicesPage() {
   setInterval(refreshServicesStatus, 3000);
   await loadUpstream();
   await loadMemorySettings();
-  await refreshHealth();
-  await refreshUsage();
+  // 结构自检 / 用量统计已经移到「工具」页，由那边的 Tab 切换时触发刷新，
+  // 这里不再预拉（元素不在这页，拉了也是空跑）。
 }
 
 

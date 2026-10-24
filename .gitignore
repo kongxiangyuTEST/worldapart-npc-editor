@@ -27,8 +27,12 @@ user_config.json
 ui_state.json
 ai_config.json
 ai_config.json.bak
+# 切换模型脚本每次改配置前自动打的备份（带时间戳）
+ai_config.json.bak-*
 ai_config.example.json.bak
 prompt_samples/
+# core_proxy 每轮请求都在写，属运行时数据
+proxy/usage_log.jsonl
 
 # ===== 本地备份 =====
 originals/

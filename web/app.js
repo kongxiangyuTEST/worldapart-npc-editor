@@ -37,6 +37,9 @@ async function init() {
     el.onclick = () => switchPage(el.dataset.page);
   });
 
+  // 先确保游戏目录可用。没有它，下面读卡片、头像、记忆全是空的。
+  await ensureGameDir();
+
   try {
     allCards = await pywebview.api.get_cards_list();
     document.getElementById('header-status').textContent =
@@ -154,30 +157,42 @@ setTimeout(() => {
 
 // ==================== 游戏目录管理 ====================
 
+// 游戏目录按钮在顶栏，标签固定写「游戏目录」—— 路径太长会把顶栏撑开。
+// 完整路径放在 title 里（悬停可见），以及点开的确认弹窗里。
+let _lastGameDir = '';
+
 async function loadGameDirDisplay() {
-  const input = document.getElementById('game-dir-display');
-  if (!input) return;
+  const el = document.getElementById('game-dir-display');
   try {
     const res = await pywebview.api.check_game_dir();
-    if (res.ok) {
-      input.value = res.game_dir || '';
-    } else {
-      input.value = '（未设置：' + (res.msg || '') + '）';
+    _lastGameDir = res.ok ? (res.game_dir || '') : '';
+    if (el) {
+      el.title = res.ok
+        ? '当前：' + _lastGameDir + '\n点击修改'
+        : '尚未设置游戏目录（' + (res.msg || '') + '）\n点击选择';
+      el.classList.toggle('warn', !res.ok);
     }
+    return res;
   } catch (e) {
-    input.value = '读取失败';
+    _lastGameDir = '';
+    if (el) el.title = '读取失败：' + e;
+    return { ok: false, msg: String(e) };
   }
 }
 
 async function onChangeGameDir() {
-  if (!(await uiConfirm('修改游戏目录会重启 core_proxy，确定继续？'))) return;
-  const input = document.getElementById('game-dir-display');
+  // 只有在这里才显示完整路径（顶栏那颗按钮放不下）
+  const msg = _lastGameDir
+    ? `当前游戏目录：\n${_lastGameDir}\n\n修改会重启 core_proxy，确定继续？`
+    : '还没有设置游戏目录。现在去选择？';
+  if (!(await uiConfirm(msg))) return;
+
   const res = await pywebview.api.pick_and_save_game_dir();
   if (!res.ok) {
     if (res.msg !== '未选择') alert('✗ ' + (res.msg || '失败'));
     return;
   }
-  if (input) input.value = res.game_dir;
+  await loadGameDirDisplay();
   // 刷新卡片列表（因为卡片来自新目录）
   setTimeout(async () => {
     try {
@@ -188,6 +203,64 @@ async function onChangeGameDir() {
     } catch (e) { }
   }, 1200);
   alert('✓ 已保存，core_proxy 已重启');
+}
+
+// ==================== 首次启动：强制选择游戏目录 ====================
+// 没有游戏目录的话，卡片列表、头像、记忆读出来全是空的，后面每页都是废的，
+// 所以干脆在最前面拦住：盖一层遮罩，只留「选择目录」一个出口。
+// 点取消不会关掉遮罩 —— 必须选到含 WorldApart.exe 的目录才能进主界面。
+async function ensureGameDir() {
+  let res = null;
+  try {
+    res = await pywebview.api.check_game_dir();
+  } catch (e) {
+    res = { ok: false, msg: String(e) };
+  }
+  if (res && res.ok) return true;
+
+  const mask = document.createElement('div');
+  mask.className = 'gamedir-mask';
+  mask.innerHTML = `
+    <div class="gamedir-card">
+      <h3>先选一下游戏目录</h3>
+      <p>编辑器要从游戏目录里读取 NPC 卡片和头像。当前状态：
+        <span class="gamedir-reason">${escapeHtml((res && res.msg) || '未设置')}</span>
+      </p>
+      <p class="gamedir-hint">请选到游戏根目录 —— 也就是里面有 <b>WorldApart.exe</b> 的那一层。</p>
+      <button class="primary" id="gamedir-pick-btn">选择游戏目录</button>
+      <div class="gamedir-status" id="gamedir-pick-status"></div>
+    </div>`;
+  document.body.appendChild(mask);
+
+  const btn = document.getElementById('gamedir-pick-btn');
+  const st = document.getElementById('gamedir-pick-status');
+
+  await new Promise(resolve => {
+    btn.onclick = async () => {
+      btn.disabled = true;
+      if (st) st.textContent = '正在打开文件夹选择框…';
+      let r = null;
+      try {
+        r = await pywebview.api.pick_and_save_game_dir();
+      } catch (e) {
+        r = { ok: false, msg: String(e) };
+      }
+      if (r && r.ok) {
+        if (st) st.textContent = '✓ 已保存：' + r.game_dir;
+        await loadGameDirDisplay();
+        setTimeout(() => { mask.remove(); resolve(true); }, 600);
+        return;
+      }
+      // 取消选择不退出遮罩，继续等 —— 这就是「强制」
+      if (st) {
+        st.textContent = (r && r.msg === '未选择')
+          ? '必须选一个游戏目录才能继续。'
+          : '✗ ' + ((r && r.msg) || '选择失败');
+      }
+      btn.disabled = false;
+    };
+  });
+  return true;
 }
 
 // ==================== 统一确认弹窗 ====================

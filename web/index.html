@@ -10,7 +10,13 @@
 
 <header>
   <div class="title">WorldApart <span class="sub">/ 人物卡编辑器</span></div>
-  <div class="status" id="header-status">加载中...</div>
+  <div class="header-right">
+    <!-- 游戏目录：只放一个按钮，不显示路径（太长挤不下）。
+         路径在点开的确认弹窗里显示，鼠标悬停也能看到 -->
+    <button class="header-btn" id="game-dir-display" onclick="onChangeGameDir()"
+            title="点击修改游戏目录">游戏目录</button>
+    <div class="status" id="header-status">加载中...</div>
+  </div>
 </header>
 
 <main>
@@ -152,11 +158,11 @@
         <div class="ai-tabs">
           <div class="ai-tab active" data-tab="extract" onclick="switchToolTab('extract')">提取</div>
           <div class="ai-tab" data-tab="diff" onclick="switchToolTab('diff')">卡片对比</div>
+          <div class="ai-tab" data-tab="usage" onclick="switchToolTab('usage')">用量统计</div>
+          <div class="ai-tab" data-tab="health" onclick="switchToolTab('health')">结构自检</div>
+          <!-- 以下功能以后再做，入口先隐藏（tools.js 里的占位页还在）
           <div class="ai-tab" data-tab="batch" onclick="switchToolTab('batch')">批量工具</div>
-          <!-- 导入 / 导出：功能以后再做，入口先隐藏。
-               恢复时解开下面一行注释即可（tools.js 里的占位页还在） -->
-          <!-- <div class="ai-tab" data-tab="io" onclick="switchToolTab('io')">导入 / 导出</div> -->
-
+          <div class="ai-tab" data-tab="io" onclick="switchToolTab('io')">导入 / 导出</div> -->
         </div>
 
         <div class="ai-tab-content" id="tools-tab-content"></div>
@@ -169,97 +175,61 @@
       <div id="services-page">
         <div class="page-header">
           <h2>服务管理</h2>
-          <div class="count">Caddy + core_proxy</div>
         </div>
         <div class="page-subtitle">这两个服务是游戏 AI 对话的中转层。关闭编辑器时会自动停止。</div>
-        
-                <div class="upstream-box" style="margin-bottom:16px;">
-          <h3 style="margin:0 0 10px;font-size:14px;color:var(--cl-ink);">游戏目录</h3>
-          <div style="font-size:12px;color:var(--cl-muted);margin-bottom:8px;">
-            编辑器通过这个路径读取 NPC 卡片。如果游戏换位置了，可以在这里重新指定。
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input id="game-dir-display" type="text" readonly
-                   style="flex:1;padding:8px 12px;border:1px solid #e6dfd8;border-radius:8px;font-family:Consolas,monospace;font-size:12px;background:#fff;color:#3d3d3a;">
-            <button class="secondary" onclick="onChangeGameDir()">修改</button>
-          </div>
-        </div>
 
+        <!-- 启动全部 / 停止全部：下面每个服务都有自己的按钮，这两个冗余，先隐藏。
+             要恢复解开注释即可（startAllServices / stopAllServices 函数都还在）
         <div class="toolbar">
           <div class="toolbar-right">
             <button class="secondary" onclick="startAllServices()">启动全部</button>
             <button class="secondary" onclick="stopAllServices()">停止全部</button>
           </div>
         </div>
+        -->
 
-        <div class="service-list">
-          <div class="service-item">
-            <div class="service-info">
-              <div class="service-name">
-                <span class="status-dot stopped" id="status-dot-core_proxy"></span>
-                core_proxy.py
+        <!-- 服务列表直接内嵌在提示框里：外框保留浅黄提示底色，
+             里面的服务卡片单独用白底，形成「说明 + 内容」的整体 -->
+        <div class="service-tip service-tip-merged">
+          <div class="service-tip-text">
+            <strong>提示：</strong>游戏里 AI 对话正常前，先确保 <code>llama-server</code>（8080）已经用 LlamaCPP GUI 启动。
+          </div>
+
+          <div class="service-list">
+            <div class="service-item">
+              <div class="service-info">
+                <div class="service-name">
+                  <span class="status-dot stopped" id="status-dot-core_proxy"></span>
+                  core_proxy.py
+                </div>
+                <div class="service-desc">端口 8789 · 清洗 + 去重 + 兜底</div>
               </div>
-              <div class="service-desc">端口 8789 · 清洗 + 去重 + 兜底</div>
-            </div>
-            <div class="service-actions">
-              <span class="service-status" id="status-text-core_proxy">未运行</span>
-              <button class="secondary" onclick="startService('core_proxy')">启动</button>
-              <button class="secondary" onclick="stopService('core_proxy')">停止</button>
-            </div>
-          </div>
-
-          <div class="service-item">
-            <div class="service-info">
-              <div class="service-name">
-                <span class="status-dot stopped" id="status-dot-caddy"></span>
-                caddy
+              <div class="service-actions">
+                <span class="service-status" id="status-text-core_proxy">未运行</span>
+                <button class="secondary" onclick="startService('core_proxy')">启动</button>
+                <button class="secondary" onclick="stopService('core_proxy')">停止</button>
               </div>
-              <div class="service-desc">端口 8788 · 转发 + TLS</div>
             </div>
-            <div class="service-actions">
-              <span class="service-status" id="status-text-caddy">未运行</span>
-              <button class="secondary" onclick="startService('caddy')">启动</button>
-              <button class="secondary" onclick="stopService('caddy')">停止</button>
+
+            <div class="service-item">
+              <div class="service-info">
+                <div class="service-name">
+                  <span class="status-dot stopped" id="status-dot-caddy"></span>
+                  caddy
+                </div>
+                <div class="service-desc">端口 8788 · 转发 + TLS</div>
+              </div>
+              <div class="service-actions">
+                <span class="service-status" id="status-text-caddy">未运行</span>
+                <button class="secondary" onclick="startService('caddy')">启动</button>
+                <button class="secondary" onclick="stopService('caddy')">停止</button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="service-tip">
-          <strong>提示：</strong>游戏里 AI 对话正常前，先确保 <code>llama-server</code>（8080）已经用 LlamaCPP GUI 启动。
-        </div>
+        <!-- 游戏结构自检、用量统计已移到「工具」页，这里不再重复放 -->
 
-        <!-- 游戏结构自检：core_proxy 每轮比对段落集合与 system 形状，
-             发现游戏改了 prompt 组装方式、或 NPC 名解析不出来（名片/记忆全废）就告警 -->
-        <div class="upstream-box" id="health-box" style="margin-top:16px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <h3 style="margin:0;font-size:14px;color:var(--cl-ink);">游戏结构自检</h3>
-            <button class="secondary" style="padding:4px 12px;font-size:12px;" onclick="refreshHealth()">刷新</button>
-          </div>
-          <div id="health-summary" class="health-summary">读取中…</div>
-          <div id="health-alerts" class="health-alerts"></div>
-        </div>
-
-        <!-- 用量统计：core_proxy 每轮记上游返回的 usage。
-             单价没配就只显示 token，不瞎折算（各家价格差很多，让用户自己填）。 -->
-        <div class="upstream-box" style="margin-top:16px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <h3 style="margin:0;font-size:14px;color:var(--cl-ink);">用量统计</h3>
-            <button class="secondary" style="padding:4px 12px;font-size:12px;" onclick="refreshUsage()">刷新</button>
-          </div>
-          <div id="usage-summary" class="usage-summary">读取中…</div>
-          <div id="usage-models" class="usage-models"></div>
-          <div class="usage-price-row">
-            <span class="usage-price-label">单价（每百万 token）</span>
-            <input id="price-in" type="number" step="0.01" min="0" class="usage-price-input" placeholder="输入">
-            <span class="usage-price-sep">/</span>
-            <input id="price-out" type="number" step="0.01" min="0" class="usage-price-input" placeholder="输出">
-            <button class="secondary" style="padding:4px 12px;font-size:12px;" onclick="savePriceSettings()">保存</button>
-            <span class="inject-status" id="price-status"></span>
-          </div>
-          <div class="field-hint" style="margin-top:6px;">
-            填 0 或留空表示不折算花费。单价按你自己充值的服务商为准，只用于估算。
-          </div>
-        </div>
   <div class="upstream-box">
           <h3 style="margin:0 0 10px;font-size:14px;color:var(--cl-ink);">游戏接口地址</h3>
           <div style="font-size:12px;color:var(--cl-muted);margin-bottom:8px;">
