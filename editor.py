@@ -1041,6 +1041,50 @@ class Api:
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
+    def trial_source_get(self):
+        """试聊用的连接配置：一个地址 + 可选密钥。
+
+        比「三段切换」简单也更通用 —— 云端、局域网、本机都是填地址，
+        用户想连哪台机器就填哪台。没配过时用 core_proxy 的本地地址预填。
+        """
+        cfg = self._load_user_config()
+        ts = cfg.get("trial_source") or {}
+        base = (ts.get("base") or "").strip()
+        default_base = ""
+        try:
+            conf_path = os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json")
+            with open(conf_path, "r", encoding="utf-8") as f:
+                default_base = (json.load(f).get("local_upstream_base_url") or "").strip().rstrip("/")
+        except Exception:
+            pass
+        if not base:
+            base = default_base
+        key = ts.get("key") or ""
+        return {"ok": True,
+                "base": base,
+                "default_base": default_base,
+                "model": ts.get("model") or "",
+                "has_key": bool(key),
+                "key_masked": self._mask_key(key)}
+
+    def trial_source_save(self, payload):
+        """保存试聊连接。key 传空 = 沿用旧值，传 __clear__ 才清空。"""
+        try:
+            cfg = self._load_user_config()
+            old = cfg.get("trial_source") or {}
+            k = payload.get("key")
+            if k == "__clear__":
+                k = ""
+            elif not k:
+                k = old.get("key") or ""
+            cfg["trial_source"] = {"base": (payload.get("base") or "").strip(),
+                                   "model": payload.get("model") or "",
+                                   "key": k}
+            self._save_user_config(cfg)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
     def models_scan(self):
         """扫描编辑器目录下的 models/，列出 GGUF 并标记是否已导入本机 Ollama"""
         d = os.path.join(PROJECT_DIR, "models")
@@ -1211,16 +1255,11 @@ class Api:
                 "reasoning_effort": "none",
             }
             headers = {"Content-Type": "application/json"}
-            # 云端的密钥不出后端：前端只传 api_id，这里自己从 user_config 取明文，
-            # 免得密钥在 JS 里来回传（截图、控制台都能看到）。
+            # 密钥不出后端：前端不传时从 user_config 的 trial_source 取，
+            # 免得明文在 JS 里流转（控制台、截图都能看到）
             api_key = str(payload.get("key") or "")
-            api_id = payload.get("api_id")
-            if not api_key and api_id:
-                for a in ((self._load_user_config().get("model_sources") or {})
-                          .get("api_services") or []):
-                    if a.get("id") == api_id:
-                        api_key = a.get("key") or ""
-                        break
+            if not api_key:
+                api_key = (self._load_user_config().get("trial_source") or {}).get("key") or ""
             if api_key:
                 headers["Authorization"] = "Bearer " + api_key
             req = urllib.request.Request(

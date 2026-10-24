@@ -209,6 +209,15 @@ ctx.pywebview = {
       ],
     }),
     // ---- 模型来源（2026-10-24）----
+    trial_source_get: async () => ({
+      ok: true,
+      base: 'http://192.168.0.116:11434',
+      default_base: 'http://192.168.0.116:11434',
+      model: 'wa-hauhau',
+      has_key: false,
+      key_masked: '',
+    }),
+    trial_source_save: async () => ({ ok: true }),
     model_sources_get: async () => ({
       ok: true,
       local_base: 'http://127.0.0.1:11434',
