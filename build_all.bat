@@ -44,7 +44,8 @@ echo.
 echo 需要留档就把 dist\WorldApartEditor 复制一份，
 echo 改名成 dist\WorldApartEditorv0.22 之类的即可。
 echo.
-pause
+REM 双击运行时停下来让人看结果；被 build_test.bat 调用时跳过
+if not defined NO_PAUSE_STOP pause
 exit /b 0
 
 :fail
@@ -53,5 +54,5 @@ echo ============================================
 echo   [失败] %FAILED%
 echo   请往上翻，看 PyInstaller 的报错信息
 echo ============================================
-pause
+if not defined NO_PAUSE_STOP pause
 exit /b 1

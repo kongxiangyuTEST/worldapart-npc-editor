@@ -53,6 +53,11 @@ REM 带上你当前调好的注入语与替换规则（v0.21 的包就是这么�
 if exist "ai_config.json" copy /Y "ai_config.json" "%OUTPUT%\" >nul
 copy /Y "prompt_fragments.json" "%OUTPUT%\" >nul
 copy /Y "portraits_index.json" "%OUTPUT%\" >nul
+
+REM 分享包出厂前抹掉本机环境信息（memory_merge_url 指向自己的局域网）
+if exist ".venv\Scripts\python.exe" if exist "%OUTPUT%\ai_config.json" (
+    ".venv\Scripts\python.exe" tools\sanitize_share_config.py "%OUTPUT%\ai_config.json"
+)
 if exist "user_config.example.json" copy /Y "user_config.example.json" "%OUTPUT%\" >nul
 if exist "使用说明.txt" copy /Y "使用说明.txt" "%OUTPUT%\" >nul
 
