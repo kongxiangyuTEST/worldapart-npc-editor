@@ -82,6 +82,16 @@ LISTEN_PORT = int(conf.get("listen_port", 8789))
 UPSTREAM_BASE = conf.get("upstream_base_url", "http://127.0.0.1:8080/").rstrip("/")
 FALLBACK_KEY = conf.get("api_key")
 
+# 本地推理分流（2026-10-24 新增）。
+# local_upstream_base_url 填了本地节点（如 Mac 上的 Ollama http://192.168.0.116:11434）后：
+#   游戏自带的记忆压缩请求（passthrough，system 里没有「## 角色设定」的那些）
+#   会转投本地小模型；主对话仍走云端。本地失败自动回落云端，不会卡住游戏。
+#   好处：这类请求量大、规则死，小模型够用；且不过上游审核、不产生 API 费用。
+# 留空 = 全部走云端（原有行为，一字不改）。
+LOCAL_UPSTREAM = (conf.get("local_upstream_base_url") or "").strip().rstrip("/")
+LOCAL_MODEL_NAME = (conf.get("local_model_name") or "").strip()
+LOCAL_ROUTE_PASSTHROUGH = bool(conf.get("local_route_passthrough", True))
+
 # ============================================================
 # 二、AI 配置（ai_config.json，按 mtime 热加载）
 # ============================================================
@@ -102,6 +112,9 @@ _AI = {
     "memory_merge_every": 12,     # 攒够多少轮触发一次总结
     "memory_merge_max_tokens": 4000,  # 总结输出上限（太小会被截断成非法 JSON）
     "past_events_max_chars": 800,     # 游戏「过往要事」最多注入多少字（0=不压缩）
+    # 本地模型名可以放在 ai_config.json 里覆盖 core_proxy_config.json ——
+    # ai_config 是按 mtime 热加载的，所以改这一行存盘就换模型，不用重启。
+    "local_model_name": "",
 }
 
 
@@ -163,6 +176,8 @@ def load_ai_config(force=False):
         _AI["past_events_max_chars"] = max(0, int(conf.get("past_events_max_chars", 800)))
     except (TypeError, ValueError):
         _AI["past_events_max_chars"] = 800
+    # 留空则回落到 core_proxy_config.json 里的 local_model_name
+    _AI["local_model_name"] = str(conf.get("local_model_name") or "").strip()
     # 历史裁剪：游戏不限制对话轮数，历史会一直涨，最终撑爆上下文窗口
     # （2026-10-24 实测确认）。0 表示不裁。
     try:
@@ -1188,11 +1203,12 @@ _merge_backoff = {}          # npc_id -> 可以再次尝试的时间戳
 MERGE_BACKOFF_SEC = 300
 
 
-def _run_merge(npc_id, npc_name, logs_str, url, key):
+def _run_merge(npc_id, npc_name, logs_str, url, key, model=None):
     """后台线程里跑一次总结；失败就退避 5 分钟。"""
     ok = memory_manager.do_auto_merge(
         npc_id, npc_name, logs_str, url, key,
         max_tokens=_AI.get("memory_merge_max_tokens", 4000),
+        model=model,
     )
     if not ok:
         _merge_backoff[npc_id] = time.time() + MERGE_BACKOFF_SEC
@@ -1231,9 +1247,15 @@ def _update_memory_locked(npc_id, npc_name, user_text, ai_text):
         upstream_url = _AI.get("memory_merge_url") or (UPSTREAM_BASE + "/v1/chat/completions")
         f_key = FALLBACK_KEY
 
+        # 目标是本地节点时必须换成它真实拥有的模型名，否则 Ollama 会报 model not found
+        merge_model = None
+        if LOCAL_UPSTREAM and upstream_url.startswith(LOCAL_UPSTREAM):
+            merge_model = _AI.get("local_model_name") or LOCAL_MODEL_NAME
+            print(f"[记忆] 总结转本地节点，使用模型 {merge_model}", flush=True)
+
         threading.Thread(
             target=_run_merge,
-            args=(npc_id, npc_name, logs_str, upstream_url, f_key),
+            args=(npc_id, npc_name, logs_str, upstream_url, f_key, merge_model),
             daemon=True,
         ).start()
         data["recent_logs"] = []   # 清空队列；失败时 do_auto_merge 会退回 merge_backlog
@@ -1772,6 +1794,41 @@ def forward(req_json, game_auth):
     return up_resp.text, up_resp.status_code, None
 
 
+def forward_local(req_json, game_auth):
+    """转发到局域网内的本地推理节点（Mac 上的 Ollama），供记忆压缩这类非对话请求使用。
+
+    和 forward() 有三处差别：
+    1. 模型名换成本地模型（Ollama 只认自己拉过的名字，云端的 deepseek-chat 它没有）
+    2. 加 reasoning_effort="none" —— 关掉 Qwen3 的思考模式。这一条是实测出来的：
+       2026-10-24 在 Ollama 0.40.10 / qwen3:8b 上试了六种写法，只有它有效。
+         ✗ /no_think 放 system 末尾（官方 soft switch，这里不认）
+         ✗ /no_think 放 user 末尾
+         ✗ think=false（Ollama 原生参数，OpenAI 兼容层不透传）
+         ✗ chat_template_kwargs.enable_thinking=false
+         ✓ reasoning_effort="none"
+       不关掉的话，思考会占满 max_tokens，正文直接是空的 —— 游戏拿到的
+       记忆摘要就成了空白，而且它不会报错，只是"记忆不更新"，极难排查。
+    3. 不发 Authorization —— 本地不校验，没必要把云端的 key 送到局域网另一台机器上
+
+    用 json 往返深拷贝而非浅拷贝：messages 是嵌套 list，浅拷贝后改 system
+    会连带改掉调用方的 req_json。
+    """
+    url = LOCAL_UPSTREAM + "/v1/chat/completions"
+    body = json.loads(json.dumps(req_json, ensure_ascii=False))
+    # 模型名支持热切换：ai_config.json 里填了就用它（改完存盘即生效），
+    # 没填则回落到 core_proxy_config.json 的 local_model_name（那个要重启才生效）。
+    body["model"] = _AI.get("local_model_name") or LOCAL_MODEL_NAME
+    body["reasoning_effort"] = "none"
+
+    data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    try:
+        r = requests.post(url, data=data,
+                          headers={"Content-Type": "application/json"}, timeout=600)
+    except Exception as e:
+        return None, 502, str(e)
+    return r.text, r.status_code, None
+
+
 # ============================================================
 # 十、路由
 # ============================================================
@@ -1854,7 +1911,26 @@ def chat_completions():
 
     game_auth = request.headers.get("Authorization")
 
-    raw_body, status, err = forward(req_json, game_auth)
+    # 分流：非对话请求（游戏自带的记忆压缩）转投本地小模型。
+    # stats["passthrough"] 由 prepare_messages 判定，判据是 system 里有没有「## 角色设定」。
+    use_local = bool(
+        LOCAL_UPSTREAM and LOCAL_MODEL_NAME
+        and LOCAL_ROUTE_PASSTHROUGH
+        and stats.get("passthrough")
+    )
+    if use_local:
+        _HEALTH["local_routed"] = _HEALTH.get("local_routed", 0) + 1
+        print(f"[分流] 非对话请求 → 本地节点 {LOCAL_UPSTREAM}（模型 {LOCAL_MODEL_NAME}）")
+        raw_body, status, err = forward_local(req_json, game_auth)
+        if err or status != 200:
+            # 本地节点睡了 / Ollama 没启动 / 模型没拉 —— 一律回落云端。
+            # 宁可多花一次 API 费用，也不能让游戏的记忆压缩失败。
+            _HEALTH["local_fallback"] = _HEALTH.get("local_fallback", 0) + 1
+            print(f"[分流] 本地不可用（err={err}, status={status}），回落云端")
+            raw_body, status, err = forward(req_json, game_auth)
+    else:
+        raw_body, status, err = forward(req_json, game_auth)
+
     if err:
         print(f"[错误] 上游请求失败: {err}")
         return Response(json.dumps({"error": err}),

@@ -528,7 +528,7 @@ def _restore_merge_backlog(npc_id, npc_name, logs, reason):
 
 
 def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key,
-                  max_tokens=4000):
+                  max_tokens=4000, model=None):
     """让 AI 总结剧情并提取事实。成功返回 True，失败返回 False（失败会把对话退回队列）。"""
     if not recent_logs:
         return False
@@ -568,13 +568,16 @@ def do_auto_merge(npc_id, npc_name, recent_logs, upstream_url, fallback_key,
     headers = {"Content-Type": "application/json"}
     if fallback_key: headers["Authorization"] = "Bearer " + fallback_key
     
+    # model：以前这里硬编码 "local-model"，Ollama 上没这个名字，一填本地地址就 404。
+    # 现在由调用方按目标节点传入真实模型名；不传则保持旧值以兼容云端网关。
     body = {
-        "model": "local-model",
+        "model": model or "local-model",
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.3,
         "max_tokens": int(max_tokens),
-        # 关掉思考：否则思考内容会把输出预算吃掉，JSON 被截断
-        "thinking": {"type": "disabled"},
+        # 关掉思考。Ollama 只认 reasoning_effort（thinking 是 Anthropic 的写法，
+        # 发过去会被忽略，结果思考吃掉全部输出预算、JSON 被截断）。
+        "reasoning_effort": "none",
     }
     
     print(f"\n[记忆合并] 开始请求本地模型 {upstream_url}...", flush=True)
