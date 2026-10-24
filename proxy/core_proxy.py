@@ -2120,6 +2120,20 @@ def chat_completions():
     inner.setdefault("intent", {"give_gift": False, "gift_item": "none"})
     inner["content"] = clean_text
 
+    # TTS 台本兜底：语音 MOD（A1IndexTTSMod 0.8.x）的提示增强会要求模型
+    # 输出 a1ttsv2（breeze2 引擎的朗读台本），但小参数模型经常漏输出 ——
+    # 表现是 NPC 有文本、不朗读。MOD 按设计「未从正文补写」，那我们补：
+    # 从 content 生成基础台本（整段一段、无 tag），至少让 NPC 出声。
+    # 模型明确给了字段（哪怕是 null，表示无可朗读台词）就尊重，不覆盖。
+    if isinstance(inner, dict) and "a1ttsv2" not in inner:
+        spoken = re.sub(r"[（(][^）)]*[）)]", "", clean_text).strip()
+        if spoken:
+            inner["a1ttsv2"] = {
+                "instruct": "保持参考声线，吐字清楚，语速适中，平静自然地说完",
+                "segments": [{"text": spoken, "tag": ""}],
+            }
+            print(f"[TTS] 模型没输出台本 → 已从正文补写基础台本（{len(spoken)} 字）")
+
     outer = {
         "id": "chatcmpl-proxy",
         "object": "chat.completion",
