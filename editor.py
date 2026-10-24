@@ -703,12 +703,35 @@ class Api:
         headers = {"Content-Type": "application/json"}
         if fallback_key: headers["Authorization"] = "Bearer " + fallback_key
         
+        # 模型名：目标是本地节点时必须用它真实拥有的名字。
+        # 这里之前和 memory_manager.do_auto_merge 一样硬编码 "local-model"，
+        # 而 Ollama 上没有这个名字 —— 手动总结必然 404。
+        # ⚠ 同一个逻辑复制了两份，改的时候两边都要动（见 do_auto_merge 里的同名注释）。
+        model_name = "local-model"
+        try:
+            with open(os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json"),
+                      "r", encoding="utf-8") as f:
+                cc = json.load(f)
+            local_base = (cc.get("local_upstream_base_url") or "").strip().rstrip("/")
+            if local_base and upstream.startswith(local_base):
+                model_name = (cc.get("local_model_name") or "").strip() or model_name
+                try:
+                    with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as f:
+                        ac = json.load(f)
+                    model_name = (ac.get("local_model_name") or "").strip() or model_name
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         body = {
-            "model": "local-model",
+            "model": model_name,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.3,
             "max_tokens": 4000,
-            "thinking": {"type": "disabled"},
+            # 关思考。Ollama 只认 reasoning_effort；thinking 是 Anthropic 的写法，
+            # 发过去会被忽略，结果思考吃掉输出预算、JSON 被截断。
+            "reasoning_effort": "none",
         }
         
         print(f"[记忆总结] 正在请求 {upstream} ...", flush=True)
