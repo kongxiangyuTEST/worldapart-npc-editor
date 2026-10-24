@@ -2129,6 +2129,15 @@ def chat_completions():
 
     print(f"[OK ] 耗时={elapsed_ms}ms, 回复={len(clean_text)}字")
 
+    # 语音 MOD（A1IndexTTSMod）诊断：一眼看出台本字段有没有穿过中转。
+    # 没有的话 NPC 只出文本不朗读 —— 可能是模型没输出，也可能被清洗丢了。
+    tts_keys = [k for k in inner.keys() if k.lower().startswith("a1tts")]
+    frame_in_text = "<a1tts" in clean_text
+    if tts_keys or frame_in_text:
+        print(f"[TTS] 台本已保留: 字段={tts_keys or '无'} 正文帧={'有' if frame_in_text else '无'}")
+    else:
+        print("[TTS] 本轮响应没有台本字段（MOD 侧显示 absent 属正常，是模型没输出）")
+
     return Response(json.dumps(outer, ensure_ascii=False),
                     status=200, content_type="application/json; charset=utf-8")
 
