@@ -109,6 +109,16 @@ function switchPage(pageName) {
       reportError('长期记忆', e);
     }
   }
+
+  // 试聊页第一次进入时才连模型。启动时不连 —— 否则每次开编辑器都在
+  // 后台干等一次网络往返（连不上还要等到超时），感觉像卡了一下。
+  if (name === 'trial' && typeof trialOnEnter === 'function') {
+    try {
+      trialOnEnter();
+    } catch (e) {
+      reportError('试聊', e);
+    }
+  }
 }
 
 function escapeHtml(s) {

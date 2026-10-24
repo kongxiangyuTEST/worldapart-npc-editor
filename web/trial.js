@@ -83,8 +83,15 @@ async function trialLoadSources() {
   }
 
   trialSetSource(trialSource, true);
+}
+
+// 第一次切到试聊页时才连模型。放在启动时连的话，每次开编辑器都会
+// 在后台干等一次网络往返（连不上还要等到超时），感觉像卡了一下。
+let trialEntered = false;
+async function trialOnEnter() {
+  if (trialEntered) return;
+  trialEntered = true;
   await trialLoadModels();
-  await trialLoadGguf();
 }
 
 // 重新读节点配置（含后端兜底的默认节点）并拉模型
@@ -187,58 +194,6 @@ async function trialLoadModels() {
     }
   } catch (e) {
     if (badge) { badge.textContent = '连接失败'; badge.className = 'trial-badge bad'; }
-  }
-}
-
-// ---------- models/ 目录 ----------
-
-async function trialLoadGguf() {
-  const sel = document.getElementById('trial-gguf');
-  const note = document.getElementById('local-note');
-  if (!sel) return;
-  try {
-    const res = await pywebview.api.models_scan();
-    if (!res || !res.ok) {
-      if (note) note.textContent = '扫描 models/ 失败';
-      sel.innerHTML = '<option value="">—</option>';
-      return;
-    }
-    const files = (res.files || []).filter(f => !f.imported);
-    if (note) {
-      note.textContent = res.files && res.files.length
-        ? ('models/ 里 ' + res.files.length + ' 个 GGUF，' + files.length + ' 个未导入')
-        : 'models/ 是空的（把 GGUF 放进去）';
-    }
-    sel.innerHTML = files.length
-      ? files.map(f => '<option value="' + escapeHtml(f.file) + '">' +
-          escapeHtml(f.file) + ' · ' + (f.size / 1073741824).toFixed(1) + 'G' +
-          '</option>').join('')
-      : '<option value="">（没有待导入的）</option>';
-    if (!res.local_available && note) {
-      note.textContent += ' · 本机没检测到 Ollama';
-    }
-  } catch (e) {
-    if (note) note.textContent = '扫描失败：' + e;
-  }
-}
-
-async function trialImportGguf() {
-  const sel = document.getElementById('trial-gguf');
-  const file = sel ? sel.value : '';
-  if (!file) { alert('没有待导入的 GGUF'); return; }
-  const note = document.getElementById('local-note');
-  if (note) note.textContent = '正在导入 ' + file + '，可能要几分钟…';
-  try {
-    const res = await pywebview.api.models_import(file);
-    if (!res || !res.ok) {
-      if (note) note.textContent = '导入失败：' + ((res && res.msg) || '');
-      return;
-    }
-    if (note) note.textContent = '已导入：' + res.model;
-    await trialLoadGguf();
-    await trialLoadModels();
-  } catch (e) {
-    if (note) note.textContent = '导入失败：' + e;
   }
 }
 
