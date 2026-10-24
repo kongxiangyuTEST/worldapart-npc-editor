@@ -187,9 +187,8 @@
             <div class="trial-field">
               <span>NPC <b id="trial-npc-count"></b></span>
               <input type="text" id="trial-npc-search" placeholder="搜索角色…" autocomplete="off">
+              <select id="trial-npc" onchange="trialSelectNpc(this.value)"></select>
             </div>
-            <div class="trial-npc-list" id="trial-npc-list"></div>
-            <input type="hidden" id="trial-npc">
 
             <!-- 模型来源：三段切换。三类本质上都是 OpenAI 兼容端点，
                  差别只在地址和要不要密钥，所以每段只显示自己需要的字段。 -->

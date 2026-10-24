@@ -270,9 +270,9 @@ function trialCurrentModel() {
 // ---------- NPC 列表 ----------
 
 function trialRenderNpcList() {
-  const box = document.getElementById('trial-npc-list');
+  const sel = document.getElementById('trial-npc');
   const cnt = document.getElementById('trial-npc-count');
-  if (!box) return;
+  if (!sel) return;
 
   const searchEl = document.getElementById('trial-npc-search');
   const kw = (searchEl && searchEl.value ? searchEl.value : '').trim().toLowerCase();
@@ -284,31 +284,17 @@ function trialRenderNpcList() {
   });
 
   if (cnt) cnt.textContent = list.length + '/' + trialAllCards.length;
-  if (!list.length) {
-    box.innerHTML = '<div class="trial-npc-empty">没有匹配的角色</div>';
-    return;
-  }
 
-  box.innerHTML = list.map(c => {
-    const active = (c.filename === trialSelected) ? ' active' : '';
-    const initial = (c.name || '?').slice(0, 1);
-    const av = c.portrait_file
-      ? '<img class="trial-npc-av" alt="" src="portraits/' +
-        encodeURIComponent(c.portrait_file) + '">'
-      : '<span class="trial-npc-av trial-npc-av-ph">' + escapeHtml(initial) + '</span>';
-    return '<div class="trial-npc-item' + active + '" data-fn="' + escapeHtml(c.filename) +
-           '" onclick="trialSelectNpc(this.dataset.fn)">' + av +
-           '<div class="trial-npc-txt">' +
-             '<div class="trial-npc-name">' + escapeHtml(c.name) + '</div>' +
-             '<div class="trial-npc-id">ID ' + c.id + '</div>' +
-           '</div></div>';
-  }).join('');
+  sel.innerHTML = list.length
+    ? list.map(c => '<option value="' + escapeHtml(c.filename) + '">' +
+        escapeHtml(c.name) + '（ID ' + c.id + '）</option>').join('')
+    : '<option value="">没有匹配的角色</option>';
+
+  if (trialSelected) sel.value = trialSelected;
 }
 
 async function trialSelectNpc(fn) {
   trialSelected = fn;
-  const hid = document.getElementById('trial-npc');
-  if (hid) hid.value = fn;
   trialRenderNpcList();
   await trialLoadCtx();
 }

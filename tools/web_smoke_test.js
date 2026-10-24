@@ -407,9 +407,9 @@ for (const name of STEPS) {
   // ---------- 7. 试聊页 ----------
   console.log('试聊页：');
   try {
-    const listHtml = getEl('trial-npc-list').innerHTML;
-    if (listHtml.indexOf('trial-npc-item') >= 0) ok('NPC 列表渲染正常（头像 + ID）');
-    else fail('NPC 列表没渲染出来');
+    const listHtml = getEl('trial-npc').innerHTML;
+    if (listHtml.indexOf('<option') >= 0) ok('NPC 下拉渲染正常');
+    else fail('NPC 下拉没渲染出来');
 
     // 默认勾了「守住世界观 / 通用要求 / 赠物通则」，mock 里有前两个里的一个
     const sys = ctx.trialBuildSystem();

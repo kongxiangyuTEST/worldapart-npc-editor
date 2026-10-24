@@ -2204,9 +2204,11 @@ a { color: var(--cl-coral); }
   align-items: flex-end;
   flex-shrink: 0;
 }
-/* 重开 / 发送两个按钮统一高度，和输入框底边对齐 */
+/* 重开 / 发送两个按钮：和输入框垂直居中，不然会吊在底边显得没对齐 */
 .trial-input > button {
-  height: 36px;
+  height: 40px;
+  min-width: 56px;
+  align-self: center;
   flex-shrink: 0;
 }
 .trial-input textarea {
