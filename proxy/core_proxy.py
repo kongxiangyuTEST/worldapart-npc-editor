@@ -2126,13 +2126,25 @@ def chat_completions():
     # 从 content 生成基础台本（整段一段、无 tag），至少让 NPC 出声。
     # 模型明确给了字段（哪怕是 null，表示无可朗读台词）就尊重，不覆盖。
     if isinstance(inner, dict) and "a1ttsv2" not in inner:
-        spoken = re.sub(r"[（(][^）)]*[）)]", "", clean_text).strip()
-        if spoken:
+        # 只朗读引号内的对白。叙述、动作描写不该被念出来 ——
+        # 上一版直接把去括号后的正文全塞进台本，NPC 会把「她把尺子往
+        # 台面上一搁」这种叙述也读一遍，听着很怪。
+        # 没有引号对白（整段都是旁白）就不补台本：这轮没有说出口的话，
+        # NPC 不出声是合理的。
+        # 用引号切分而不是配对正则：模型经常漏写结尾引号
+        #（实测：「要不我念一句……就一句。」后面没有 ” ），配对正则会漏掉
+        # 最后一段。切分后奇数位置都是引号内的内容，未闭合的也能算。
+        parts = re.split(r"[“”]", clean_text)
+        quotes = [p.strip() for i, p in enumerate(parts)
+                  if i % 2 == 1 and len(p.strip()) >= 2]
+        if quotes:
             inner["a1ttsv2"] = {
                 "instruct": "保持参考声线，吐字清楚，语速适中，平静自然地说完",
-                "segments": [{"text": spoken, "tag": ""}],
+                "segments": [{"text": q, "tag": ""} for q in quotes],
             }
-            print(f"[TTS] 模型没输出台本 → 已从正文补写基础台本（{len(spoken)} 字）")
+            total = sum(len(q) for q in quotes)
+            print(f"[TTS] 模型没输出台本 → 已从正文提取 {len(quotes)} 段对白补写"
+                  f"（共 {total} 字）")
 
     outer = {
         "id": "chatcmpl-proxy",
