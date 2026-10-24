@@ -196,7 +196,6 @@
               <span>模型来源</span>
               <div class="trial-seg">
                 <span id="seg-local" class="on" onclick="trialSetSource('local')">本机</span>
-                <span id="seg-lan" onclick="trialSetSource('lan')">局域网</span>
                 <span id="seg-api" onclick="trialSetSource('api')">API</span>
               </div>
             </div>
@@ -215,14 +214,6 @@
                 <button class="secondary tiny" onclick="trialImportGguf()">导入</button>
               </div>
             </div>
-
-            <div id="src-lan" class="src-pane" style="display:none;">
-              <label class="trial-field">
-                <span>地址</span>
-                <div class="trial-model-row">
-                  <input type="text" id="trial-lan-base" placeholder="http://192.168.0.116:11434">
-                  <button class="secondary tiny" onclick="trialLoadModels()">刷新</button>
-                </div>
               </label>
               <label class="trial-field">
                 <span>模型</span>
