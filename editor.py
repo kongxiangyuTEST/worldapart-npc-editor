@@ -1255,11 +1255,18 @@ class Api:
                 "reasoning_effort": "none",
             }
             headers = {"Content-Type": "application/json"}
-            # 密钥不出后端：前端不传时从 user_config 的 trial_source 取，
+            # 密钥不出后端：前端不传时依次从 trial_source、api_services 里找，
             # 免得明文在 JS 里流转（控制台、截图都能看到）
             api_key = str(payload.get("key") or "")
+            cfg = self._load_user_config()
             if not api_key:
-                api_key = (self._load_user_config().get("trial_source") or {}).get("key") or ""
+                api_key = (cfg.get("trial_source") or {}).get("key") or ""
+            api_id = payload.get("api_id")
+            if not api_key and api_id:
+                for a in ((cfg.get("model_sources") or {}).get("api_services") or []):
+                    if a.get("id") == api_id:
+                        api_key = a.get("key") or ""
+                        break
             if api_key:
                 headers["Authorization"] = "Bearer " + api_key
             req = urllib.request.Request(

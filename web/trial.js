@@ -1,9 +1,9 @@
 // ===== 试聊页 =====
-// 用真实卡片 + 记忆 + 可选游戏段落，跟模型对话。
+// 用真实卡片 + 记忆 + 可选的游戏段落，跟模型对话。
 //
-// 连接只有一个地址框：云端 / 局域网 / 本机都是填地址（填到端口即可），
-// 云端再加个密钥。比「三段切换」简单，也不绑死在某个人的环境上。
-// 密钥不出后端：前端拿不到明文，发请求时由 editor.py 从 user_config 取。
+// 模型来源分三段（本机 / 局域网 / API）。这三类本质上都是 OpenAI 兼容端点，
+// 差别只在地址和要不要密钥，所以底层是同一份 { base, model }，三段只是入口。
+// 云端的明文密钥不出后端：前端只传 api_id，editor.py 自己从 user_config 取。
 
 let trialCtx = null;
 let trialMessages = [];
@@ -12,13 +12,14 @@ let trialAllCards = [];
 let trialSelected = '';
 let trialFragments = [];
 let trialFragOpen = false;
-let trialSource = { base: '', model: '', has_key: false };
+let trialSource = 'local';    // local | lan | api
+let trialSources = null;      // model_sources_get 的结果
 
 async function initTrialPage() {
   const search = document.getElementById('trial-npc-search');
   if (search) search.oninput = trialRenderNpcList;
 
-  await trialLoadSource();
+  await trialLoadSources();
 
   const temp = document.getElementById('trial-temp');
   if (temp) {
@@ -41,108 +42,160 @@ async function initTrialPage() {
   }
 
   await trialLoadFragments();
-  await trialLoadGguf();
 
   trialAllCards = (typeof allCards !== 'undefined' && allCards) ? allCards : [];
   trialRenderNpcList();
   if (trialAllCards.length) await trialSelectNpc(trialAllCards[0].filename);
 }
 
-// ---------- 连接与模型 ----------
+// ---------- 模型来源 ----------
 
-async function trialLoadSource() {
+async function trialLoadSources() {
   try {
-    trialSource = await pywebview.api.trial_source_get();
+    trialSources = await pywebview.api.model_sources_get();
   } catch (e) {
-    trialSource = { ok: false, base: '', model: '', has_key: false };
+    trialSources = { ok: false, msg: String(e) };
   }
-  if (!trialSource || !trialSource.ok) {
-    trialSource = { ok: false, base: '', model: '', has_key: false };
-  }
-
-  const baseIn = document.getElementById('trial-base');
-  const keyIn = document.getElementById('trial-key');
-  if (baseIn) baseIn.value = trialSource.base || '';
-  if (keyIn) {
-    keyIn.value = '';
-    keyIn.placeholder = trialSource.has_key
-      ? ('已保存 ' + (trialSource.key_masked || '') + '，留空 = 不改')
-      : '云端 API 才需要，留空即可';
+  if (!trialSources || !trialSources.ok) {
+    trialSources = { ok: false, local_base: '', lan_nodes: [], api_services: [] };
   }
 
+  // 局域网节点下拉
+  const nodeSel = document.getElementById('trial-node');
+  if (nodeSel) {
+    const nodes = trialSources.lan_nodes || [];
+    nodeSel.innerHTML = nodes.length
+      ? nodes.map(n => '<option value="' + escapeHtml(n.id) + '">' +
+          escapeHtml(n.name) + ' · ' + escapeHtml(n.base.replace(/^https?:\/\//, '')) +
+          '</option>').join('')
+      : '<option value="">（还没配节点）</option>';
+  }
+
+  // API 段
+  const baseIn = document.getElementById('trial-api-base');
+  const modelIn = document.getElementById('trial-api-model');
+  const keyIn = document.getElementById('trial-api-key');
+  const apis = trialSources.api_services || [];
+  if (apis.length) {
+    const a = apis[0];
+    if (baseIn) baseIn.value = a.base || '';
+    if (modelIn) modelIn.value = a.model || '';
+    if (keyIn) keyIn.placeholder = a.has_key ? ('已保存 ' + a.key_masked + '（留空=不改）') : 'sk-…';
+  } else if (keyIn) {
+    keyIn.placeholder = 'sk-…';
+  }
+
+  trialSetSource(trialSource, true);
   await trialLoadModels();
+  await trialLoadGguf();
 }
 
-async function trialRefreshModels() {
-  await trialLoadModels(true);
+// 重新读节点配置（含后端兜底的默认节点）并拉模型
+async function trialReloadNodes() {
+  await trialLoadSources();
 }
 
-async function trialLoadModels(save) {
-  const sel = document.getElementById('trial-model');
-  const badge = document.getElementById('trial-model-badge');
-  const baseIn = document.getElementById('trial-base');
+// API 段：用当前地址 + 密钥拉一次模型列表，填到「模型名」里
+async function trialPullApiModels() {
+  const baseIn = document.getElementById('trial-api-base');
+  const keyIn = document.getElementById('trial-api-key');
+  const note = document.getElementById('trial-api-note');
   const base = baseIn ? baseIn.value.trim() : '';
-
   if (!base) {
-    if (sel) sel.innerHTML = '<option value="">先填连接地址</option>';
+    if (note) note.textContent = '先填地址';
+    return;
+  }
+  if (note) note.textContent = '读取中…';
+
+  let res = null;
+  try {
+    res = await pywebview.api.chat_trial_models(base, keyIn ? keyIn.value.trim() : '');
+  } catch (e) {
+    res = { ok: false, msg: String(e) };
+  }
+  if (!res || !res.ok) {
+    if (note) note.textContent = '拉取失败：' + ((res && res.msg) || '');
+    return;
+  }
+  const names = (res.models || []).map(m => m.name);
+  if (!names.length) {
+    if (note) note.textContent = '这个地址没返回模型列表，手填吧';
+    return;
+  }
+  const modelIn = document.getElementById('trial-api-model');
+  if (modelIn) modelIn.value = names[0];
+  if (note) {
+    note.textContent = '共 ' + names.length + ' 个：' + names.slice(0, 5).join('、') +
+      (names.length > 5 ? ' …' : '');
+  }
+}
+
+function trialSetSource(kind, silent) {
+  trialSource = kind;
+  ['local', 'lan', 'api'].forEach(k => {
+    const seg = document.getElementById('seg-' + k);
+    if (seg) seg.classList.toggle('on', k === kind);
+    const pane = document.getElementById('src-' + k);
+    if (pane) pane.style.display = (k === kind) ? 'block' : 'none';
+  });
+  // 切段不再自动拉模型 —— 每次点过去都要等一次网络往返，会卡一下。
+  // 改成用户点旁边的「刷新」。只有首次进页面（silent）才自动拉一次。
+  if (silent) trialLoadModels();
+}
+
+async function trialLoadModels() {
+  const badge = document.getElementById('trial-model-badge');
+  let base = '';
+  let key = '';
+  let sel = null;
+
+  if (trialSource === 'local') {
+    base = (trialSources && trialSources.local_base) || '';
+    sel = document.getElementById('trial-model-local');
+  } else if (trialSource === 'lan') {
+    const nodeSel = document.getElementById('trial-node');
+    const id = nodeSel ? nodeSel.value : '';
+    const node = ((trialSources && trialSources.lan_nodes) || []).find(n => n.id === id);
+    base = node ? node.base : '';
+    sel = document.getElementById('trial-model-lan');
+  } else {
+    const baseIn = document.getElementById('trial-api-base');
+    base = baseIn ? baseIn.value.trim() : '';
+    sel = null;   // API 段的模型名手填，不用下拉
+  }
+
+  if (sel) sel.innerHTML = '<option value="">读取中…</option>';
+  if (!base) {
+    if (sel) sel.innerHTML = '<option value="">没有可用地址</option>';
     if (badge) { badge.textContent = '未连接'; badge.className = 'trial-badge bad'; }
     return;
   }
 
-  if (sel) sel.innerHTML = '<option value="">读取中…</option>';
-
-  let res = null;
   try {
-    res = await pywebview.api.chat_trial_models(base, '');
+    const res = await pywebview.api.chat_trial_models(base, key);
+    if (!res || !res.ok) {
+      if (sel) sel.innerHTML = '<option value="">连不上</option>';
+      if (badge) { badge.textContent = '连接失败'; badge.className = 'trial-badge bad'; }
+      return;
+    }
+    const models = res.models || [];
+    if (sel) {
+      if (!models.length) {
+        sel.innerHTML = '<option value="">这个地址没有模型</option>';
+      } else {
+        sel.innerHTML = models.map(m =>
+          '<option value="' + escapeHtml(m.name) + '">' + escapeHtml(m.name) +
+          (m.size ? ' · ' + (m.size / 1073741824).toFixed(1) + 'G' : '') +
+          '</option>').join('');
+        sel.value = models[0].name;
+      }
+    }
+    if (badge) {
+      badge.textContent = models.length + ' 个模型可用';
+      badge.className = 'trial-badge ok';
+    }
   } catch (e) {
-    res = { ok: false, msg: String(e) };
-  }
-
-  if (!res || !res.ok) {
-    if (sel) sel.innerHTML = '<option value="">连不上</option>';
     if (badge) { badge.textContent = '连接失败'; badge.className = 'trial-badge bad'; }
-    return;
-  }
-
-  const models = res.models || [];
-  if (sel) {
-    if (!models.length) {
-      sel.innerHTML = '<option value="">这个地址没有模型</option>';
-    } else {
-      sel.innerHTML = models.map(m =>
-        '<option value="' + escapeHtml(m.name) + '">' + escapeHtml(m.name) +
-        (m.size ? ' · ' + (m.size / 1073741824).toFixed(1) + 'G' : '') +
-        '</option>').join('');
-      const prefer = (trialSource && trialSource.model) || '';
-      sel.value = (prefer && models.some(m => m.name === prefer)) ? prefer : models[0].name;
-    }
-  }
-  if (badge) {
-    badge.textContent = models.length + ' 个模型可用';
-    badge.className = 'trial-badge ok';
-  }
-
-  if (save) trialSaveSource(true);
-}
-
-async function trialSaveSource(silent) {
-  const baseIn = document.getElementById('trial-base');
-  const keyIn = document.getElementById('trial-key');
-  const sel = document.getElementById('trial-model');
-  try {
-    const res = await pywebview.api.trial_source_save({
-      base: baseIn ? baseIn.value.trim() : '',
-      model: sel ? sel.value : '',
-      key: keyIn ? keyIn.value.trim() : '',
-    });
-    if (res && res.ok) {
-      if (keyIn) keyIn.value = '';
-      trialSource.has_key = true;
-    } else if (!silent) {
-      alert('保存失败：' + ((res && res.msg) || ''));
-    }
-  } catch (e) {
-    if (!silent) alert('保存失败：' + e);
   }
 }
 
@@ -161,16 +214,18 @@ async function trialLoadGguf() {
     }
     const files = (res.files || []).filter(f => !f.imported);
     if (note) {
-      note.textContent = (res.files && res.files.length)
+      note.textContent = res.files && res.files.length
         ? ('models/ 里 ' + res.files.length + ' 个 GGUF，' + files.length + ' 个未导入')
         : 'models/ 是空的（把 GGUF 放进去）';
-      if (!res.local_available) note.textContent += ' · 本机没检测到 Ollama';
     }
     sel.innerHTML = files.length
       ? files.map(f => '<option value="' + escapeHtml(f.file) + '">' +
           escapeHtml(f.file) + ' · ' + (f.size / 1073741824).toFixed(1) + 'G' +
           '</option>').join('')
       : '<option value="">（没有待导入的）</option>';
+    if (!res.local_available && note) {
+      note.textContent += ' · 本机没检测到 Ollama';
+    }
   } catch (e) {
     if (note) note.textContent = '扫描失败：' + e;
   }
@@ -196,7 +251,65 @@ async function trialImportGguf() {
   }
 }
 
-// ---------- NPC ----------
+async function trialSaveApi() {
+  const baseIn = document.getElementById('trial-api-base');
+  const keyIn = document.getElementById('trial-api-key');
+  const modelIn = document.getElementById('trial-api-model');
+  const warn = document.querySelector('#src-api .trial-warn');
+  const payload = {
+    model_sources: {
+      local_base: (trialSources && trialSources.local_base) || '',
+      lan_nodes: (trialSources && trialSources.lan_nodes) || [],
+      api_services: [{
+        id: (trialSources && trialSources.api_services && trialSources.api_services[0]
+             && trialSources.api_services[0].id) || 'api-1',
+        name: 'API',
+        base: baseIn ? baseIn.value.trim() : '',
+        model: modelIn ? modelIn.value.trim() : '',
+        key: keyIn ? keyIn.value.trim() : '',
+      }],
+    },
+  };
+  try {
+    const res = await pywebview.api.model_sources_save(payload);
+    if (!res || !res.ok) {
+      if (warn) warn.textContent = '保存失败：' + ((res && res.msg) || '');
+      return;
+    }
+    if (keyIn) keyIn.value = '';
+    await trialLoadSources();
+    if (warn) {
+      warn.textContent = '已保存。密钥只存在本机 user_config.json，不上传、不进仓库。';
+    }
+  } catch (e) {
+    if (warn) warn.textContent = '保存失败：' + e;
+  }
+}
+
+// 当前在用的 { base, model, api_id }
+function trialCurrentModel() {
+  if (trialSource === 'local') {
+    const el = document.getElementById('trial-model-local');
+    return { base: (trialSources && trialSources.local_base) || '', model: el ? el.value : '', api_id: '' };
+  }
+  if (trialSource === 'lan') {
+    const nodeSel = document.getElementById('trial-node');
+    const modelSel = document.getElementById('trial-model-lan');
+    const node = ((trialSources && trialSources.lan_nodes) || [])
+      .find(n => n.id === (nodeSel ? nodeSel.value : ''));
+    return { base: node ? node.base : '', model: modelSel ? modelSel.value : '', api_id: '' };
+  }
+  const baseIn = document.getElementById('trial-api-base');
+  const modelIn = document.getElementById('trial-api-model');
+  const apis = (trialSources && trialSources.api_services) || [];
+  return {
+    base: baseIn ? baseIn.value.trim() : '',
+    model: modelIn ? modelIn.value.trim() : '',
+    api_id: apis.length ? apis[0].id : '',
+  };
+}
+
+// ---------- NPC 列表 ----------
 
 function trialRenderNpcList() {
   const sel = document.getElementById('trial-npc');
@@ -238,7 +351,7 @@ async function trialLoadFragments() {
     const def = ['守住世界观', '通用要求', '赠物通则'];
     trialFragments.forEach(f => { f.on = def.indexOf(f.title) >= 0; });
     trialRenderFrags();
-  } catch (e) { /* 没数据跳过 */ }
+  } catch (e) { /* 没数据就跳过 */ }
 }
 
 function trialRenderFrags() {
@@ -368,11 +481,8 @@ async function trialSend() {
   if (!text) return;
   if (!trialCtx || !trialCtx.ok) { alert('还没有可用的 NPC 设定'); return; }
 
-  const baseIn = document.getElementById('trial-base');
-  const sel = document.getElementById('trial-model');
-  const base = baseIn ? baseIn.value.trim() : '';
-  const model = sel ? sel.value : '';
-  if (!base || !model) { alert('先填连接地址并选一个模型'); return; }
+  const cur = trialCurrentModel();
+  if (!cur.base || !cur.model) { alert('先选一个模型'); return; }
 
   if (ta) ta.value = '';
   trialAppend('user', text);
@@ -388,8 +498,9 @@ async function trialSend() {
 
   try {
     const res = await pywebview.api.chat_trial_send({
-      base: base,
-      model: model,
+      base: cur.base,
+      model: cur.model,
+      api_id: cur.api_id,
       messages: msgs,
       temperature: tempEl ? parseFloat(tempEl.value) : 0.85,
       max_tokens: 900,
@@ -401,7 +512,7 @@ async function trialSend() {
       bubble.textContent = res.reply;
       const meta = document.createElement('div');
       meta.className = 'trial-meta';
-      meta.textContent = res.elapsed + 's · ' + res.reply.length + ' 字 · ' + model;
+      meta.textContent = res.elapsed + 's · ' + res.reply.length + ' 字 · ' + cur.model;
       bubble.appendChild(meta);
       trialMessages.push({ role: 'assistant', content: res.reply });
       const log = document.getElementById('trial-log');
