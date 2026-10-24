@@ -839,6 +839,141 @@ class Api:
         card = get_last_saved_card(filename)
         return {"ok": True, "data": card} if card else {"ok": False, "msg": "无上次保存备份"}
 
+    # ==================== 试聊：用真实卡片 + 记忆跟本地模型对话 ====================
+    # 目的：不启动游戏也能验证「改完名片 / 记忆之后，这个 NPC 说话像不像样」。
+    # 只连本地节点（Mac 上的 Ollama）—— 试聊本来就是为了挑本地模型；
+    # 云端需要游戏里填的 API Key，编辑器这边没有。
+
+    def _load_card_sections(self, filename):
+        """把卡片 md 按 '## 段名' 拆成字典"""
+        path = os.path.join(CARDS_DIR, filename)
+        with open(path, "r", encoding="utf-8") as f:
+            text = f.read()
+        sections, cur, buf = {}, None, []
+        for line in text.splitlines():
+            m = re.match(r"^##\s+(.+)$", line)
+            if m:
+                if cur:
+                    sections[cur] = "\n".join(buf).strip()
+                cur, buf = m.group(1).strip(), []
+            else:
+                buf.append(line)
+        if cur:
+            sections[cur] = "\n".join(buf).strip()
+        return sections
+
+    def chat_trial_context(self, filename):
+        """返回试聊要用的 system 片段，让前端能看清注入了什么"""
+        try:
+            secs = self._load_card_sections(filename)
+        except Exception as e:
+            return {"ok": False, "msg": "读卡片失败：" + str(e)}
+
+        def pick(prefix):
+            for k, v in secs.items():
+                if k.startswith(prefix):
+                    return v
+            return ""
+
+        name_m = re.match(r"^\d+-(.+)\.md$", filename)
+        npc_name = name_m.group(1) if name_m else filename
+
+        preset = pick("预设资料")
+        origin = pick("原游戏背景")
+        card = pick("用户名片")
+
+        base = "## 角色设定\n你是 " + npc_name + "。\n"
+        if preset:
+            base += "\n" + preset + "\n"
+        if origin:
+            base += "\n" + origin + "\n"
+
+        # 把 ai_config.json 里的注入语也带上。游戏里每轮都会注入它，
+        # 试聊不带的话效果会差一截 —— 回复变短、不写旁白、口吻松散，
+        # 容易让人误判成「这个模型不行」。
+        inject = ""
+        try:
+            ai_path = os.path.join(PROJECT_DIR, "ai_config.json")
+            with open(ai_path, "r", encoding="utf-8-sig") as f:
+                inject = (json.load(f).get("inject") or "").strip()
+        except Exception:
+            pass
+        if inject:
+            base += "\n## 通用要求\n" + inject + "\n"
+
+        mem_text = ""
+        try:
+            id_m = re.match(r"^(\d+)-", filename)
+            if id_m:
+                data = memory_manager.load_memory(int(id_m.group(1)), npc_name)
+                gist = (data.get("early_gist") or "").strip()
+                summ = (data.get("long_summary") or "").strip()
+                mem_text = "\n".join(x for x in (gist, summ) if x)
+        except Exception:
+            pass
+
+        return {
+            "ok": True,
+            "npc_name": npc_name,
+            "base": base,
+            "user_card": card,
+            "memory": mem_text,
+            "base_chars": len(base),
+            "card_chars": len(card),
+            "memory_chars": len(mem_text),
+            "has_card": bool(card.strip()),
+            "has_memory": bool(mem_text.strip()),
+        }
+
+    def chat_trial_models(self):
+        """列出本地节点上的模型"""
+        try:
+            conf_path = os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json")
+            with open(conf_path, "r", encoding="utf-8") as f:
+                conf = json.load(f)
+            base = (conf.get("local_upstream_base_url") or "").strip().rstrip("/")
+            if not base:
+                return {"ok": False, "msg": "core_proxy_config.json 里没配 local_upstream_base_url"}
+            import urllib.request
+            with urllib.request.urlopen(base + "/api/tags", timeout=10) as r:
+                d = json.loads(r.read().decode())
+            models = [{"name": m.get("name") or "", "size": m.get("size") or 0}
+                      for m in (d.get("models") or [])]
+            models.sort(key=lambda x: x["name"])
+            return {"ok": True, "base": base, "models": models}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def chat_trial_send(self, payload):
+        """发一轮对话到本地节点"""
+        try:
+            import urllib.request
+            base = (payload.get("base") or "").strip().rstrip("/")
+            model = payload.get("model")
+            messages = payload.get("messages") or []
+            if not base or not model:
+                return {"ok": False, "msg": "缺少 base 或 model"}
+            body = {
+                "model": model,
+                "messages": messages,
+                "temperature": float(payload.get("temperature", 0.85)),
+                "max_tokens": int(payload.get("max_tokens", 900)),
+                # 不关思考的话，Qwen3.5 会先吐一大段内心独白才开口
+                "reasoning_effort": "none",
+            }
+            req = urllib.request.Request(
+                base + "/v1/chat/completions",
+                data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+            )
+            t0 = time.time()
+            with urllib.request.urlopen(req, timeout=300) as r:
+                d = json.loads(r.read().decode())
+            reply = d["choices"][0]["message"].get("content") or ""
+            return {"ok": True, "reply": reply, "elapsed": round(time.time() - t0, 1)}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
     # --- AI 注入配置 ---
     def get_ai_config(self):
         if not os.path.isfile(AI_CONFIG_PATH):
@@ -862,7 +997,7 @@ class Api:
 
     def ai_fill_user_card(self, filename, user_hint="", use_samples=True,
                           use_memory=True, use_local=True):
-        """用 AI 给某张卡的「用户名片」生成内容（只生成，不写盘）。
+        r"""用 AI 给某张卡的「用户名片」生成内容（只生成，不写盘）。
 
         资料来源（都可关）：
           1. 卡片自带：预设资料 + 原游戏背景

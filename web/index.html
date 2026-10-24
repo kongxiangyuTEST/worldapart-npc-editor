@@ -26,6 +26,7 @@
     <div class="nav-item" data-page="prompts">AI 提示词</div>
     <div class="nav-item" data-page="memory">长期记忆</div>
     <div class="nav-item" data-page="tools">工具</div>
+    <div class="nav-item" data-page="trial">试聊</div>
 
     <div class="nav-group-label" style="margin-top:16px;">服务</div>
     <div class="nav-item" data-page="services">服务管理</div>
@@ -166,6 +167,53 @@
         </div>
 
         <div class="ai-tab-content" id="tools-tab-content"></div>
+      </div>
+    </div>
+
+
+    <!-- ========== 试聊 ========== -->
+    <!-- 不启动游戏，直接用真实卡片 + 记忆跟本地模型对话，用来验证改完名片后的效果。
+         只连本地节点（Mac 上的 Ollama），云端需要游戏里填的 Key，编辑器没有。 -->
+    <div class="page" id="page-trial">
+      <div id="trial-page">
+        <div class="page-header">
+          <h2>试聊</h2>
+          <span class="trial-badge" id="trial-model-badge">未连接</span>
+        </div>
+        <div class="page-subtitle">用真实卡片和记忆直接跟本地模型对话，不启动游戏也能验证效果。</div>
+
+        <div class="trial-layout">
+          <aside class="trial-side">
+            <label class="trial-field">
+              <span>NPC</span>
+              <select id="trial-npc"></select>
+            </label>
+            <label class="trial-field">
+              <span>模型</span>
+              <select id="trial-model"></select>
+            </label>
+            <label class="trial-field">
+              <span>温度 <b id="trial-temp-val">0.85</b></span>
+              <input type="range" id="trial-temp" min="0.1" max="1.2" step="0.05" value="0.85">
+            </label>
+
+            <div class="trial-toggles">
+              <label><input type="checkbox" id="trial-use-card" checked> 注入用户名片</label>
+              <label><input type="checkbox" id="trial-use-memory" checked> 注入长期记忆</label>
+            </div>
+
+            <div class="trial-stat" id="trial-stat">—</div>
+            <button class="secondary" onclick="trialReset()">重开对话</button>
+          </aside>
+
+          <section class="trial-main">
+            <div class="trial-log" id="trial-log"></div>
+            <div class="trial-input">
+              <textarea id="trial-text" placeholder="以玩家身份说点什么…（Enter 发送，Shift+Enter 换行）"></textarea>
+              <button class="primary" id="trial-send" onclick="trialSend()">发送</button>
+            </div>
+          </section>
+        </div>
       </div>
     </div>
 
@@ -496,5 +544,6 @@
 <script src="prompts.js"></script>
 <script src="app.js"></script>
 <script src="memory.js"></script>
+<script src="trial.js"></script>
 </body>
 </html>

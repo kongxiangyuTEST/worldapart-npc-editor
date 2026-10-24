@@ -12,6 +12,7 @@ const PAGE_INIT_STEPS = [
   'initLogsPage',
   'initPromptsPage',
   'initMemoryPage',
+  'initTrialPage',
 ];
 
 let initStarted = false;

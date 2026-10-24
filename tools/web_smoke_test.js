@@ -16,8 +16,8 @@ const path = require('path');
 const vm = require('vm');
 
 const WEB = path.join(__dirname, '..', 'web');
-const ORDER = ['cards.js', 'edit.js', 'services.js', 'tools.js', 'prompts.js', 'app.js', 'memory.js'];
-const STEPS = ['initCardsPage', 'initEditPage', 'initServicesPage', 'initLogsPage', 'initPromptsPage', 'initMemoryPage'];
+const ORDER = ['cards.js', 'edit.js', 'services.js', 'tools.js', 'prompts.js', 'app.js', 'memory.js', 'trial.js'];
+const STEPS = ['initCardsPage', 'initEditPage', 'initServicesPage', 'initLogsPage', 'initPromptsPage', 'initMemoryPage', 'initTrialPage'];
 
 let failed = 0;
 const fail = (msg) => { failed++; console.log('  ✗ ' + msg); };
@@ -182,6 +182,25 @@ ctx.pywebview = {
       system: '最终 system 文本',
       stats: { npc_name: '测试', rules_hit: 7, inject_chars: 108, card_chars: 0, memory_chars: 424, system_chars: 9132 },
     }),
+    // ---- 试聊页（2026-10-24）----
+    chat_trial_models: async () => ({
+      ok: true,
+      base: 'http://127.0.0.1:11434',
+      models: [
+        { name: 'wa-hauhau', size: 5620000000 },
+        { name: 'qwen3:8b', size: 5200000000 },
+      ],
+    }),
+    chat_trial_context: async () => ({
+      ok: true,
+      npc_name: '苏倾盏',
+      base: '## 角色设定\n你是 苏倾盏。\n',
+      user_card: '说话干脆，不爱绕弯子',
+      memory: '玩家帮她修好了后院的水井',
+      base_chars: 16, card_chars: 10, memory_chars: 12,
+      has_card: true, has_memory: true,
+    }),
+    chat_trial_send: async () => ({ ok: true, reply: '客官里边请。', elapsed: 1.2 }),
   },
 };
 
