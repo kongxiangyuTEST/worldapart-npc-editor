@@ -969,6 +969,22 @@ class Api:
             lan.append({"id": n.get("id") or "",
                         "name": n.get("name") or "未命名",
                         "base": n.get("base") or ""})
+
+        # 没配过节点时，用 core_proxy_config.json 的 local_upstream_base_url 兜底。
+        # 那个地址在接本地模型时早就填过了（用户填的是 Mac 的 11434），
+        # 没道理让他在这里再填一遍 —— 之前漏了这段，所以下拉是空的。
+        if not lan:
+            try:
+                conf_path = os.path.join(PROJECT_DIR, "proxy", "core_proxy_config.json")
+                with open(conf_path, "r", encoding="utf-8") as f:
+                    conf = json.load(f)
+                lb = (conf.get("local_upstream_base_url") or "").strip().rstrip("/")
+                if lb:
+                    host = lb.replace("http://", "").replace("https://", "").rstrip("/")
+                    lan.append({"id": "default", "name": host, "base": lb})
+            except Exception:
+                pass
+
         api = []
         for a in (ms.get("api_services") or []):
             k = a.get("key") or ""

@@ -90,6 +90,11 @@ async function trialLoadSources() {
   await trialLoadGguf();
 }
 
+// 重新读节点配置（含后端兜底的默认节点）并拉模型
+async function trialReloadNodes() {
+  await trialLoadSources();
+}
+
 function trialSetSource(kind, silent) {
   trialSource = kind;
   ['local', 'lan', 'api'].forEach(k => {
