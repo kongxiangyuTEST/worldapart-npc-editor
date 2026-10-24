@@ -510,9 +510,26 @@ def normalize_for_compare(s):
     return s
 
 
+# NPC 语音 MOD（A1IndexTTSMod）的风格帧：附在 content 正文末尾，
+# 形如 <a1tts_v1>{...}</a1tts_v1> 或 <a1ttsv2>...</a1ttsv2>。
+# 这段是给语音 MOD 的传输元数据，不是 JSON 残留 ——
+# 一旦被下面的清洗规则截断，NPC 就只会出文本、不会朗读。
+# 作者在协议文档里也写了「代理改写正文仍可能造成风格缺失」，
+# 所以这里必须把整段帧保护起来，洗完再拼回去。
+TTS_FRAME_RE = re.compile(r"<a1tts[^<>]*>.*?</a1tts[^<>]*>", re.S)
+
+
 def clean_tail(s):
     if not s:
         return s
+
+    # 先把风格帧整段摘出来保护，避免被当 JSON 残留清洗掉
+    frame = ""
+    m = TTS_FRAME_RE.search(s)
+    if m:
+        frame = m.group(0)
+        s = s[:m.start()] + s[m.end():]
+
     s = re.sub(r"<think>.*?</think>", "", s, flags=re.S)
 
     cut = re.search(
@@ -538,6 +555,10 @@ def clean_tail(s):
     s = re.sub(r'"\s*\+\s*"\s*$', '', s)   # 行尾的 "+ "
     s = re.sub(r'^\s*"\+"?', '', s)        # 行首的 "+
     s = re.sub(r'"\s*\+\s*"', '', s)
+
+    # 把保护起来的风格帧拼回正文末尾（语音 MOD 会自己解包并移除）
+    if frame:
+        s = s + frame
     return s
 
 
