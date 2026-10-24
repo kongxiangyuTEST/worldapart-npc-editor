@@ -1,0 +1,4592 @@
+[
+ {
+  "base": "Gemma 3",
+  "model": "QiMing-Gemma-3-Socratic-4b —Unusual conversational style",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "📦 Gemma-4-e4b-it —❌",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "16GB",
+  "size": "6.8 GB",
+  "arch": "Dense",
+  "speed": "90 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "📦 Gemma-4-e4b-it —💭",
+  "score": 51.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "6.8 GB",
+  "arch": "Dense",
+  "speed": "90 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "Hamanasu-4b-Chat-Brainrot",
+  "score": 43.0,
+  "tier": "🤪",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Granite 4 ⌥💭",
+  "model": "Granite-4.0-H-7b-heretic —Chat API 💭",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "16GB",
+  "size": "4 GB",
+  "arch": "MoE",
+  "speed": "92.8 t/s"
+ },
+ {
+  "base": "Granite 4 ⌥💭",
+  "model": "huihui-Granite-4.0-H-Tiny-abliterated —Chat API",
+  "score": 54.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "4.2 GB",
+  "arch": "MoE",
+  "speed": "83.1 t/s"
+ },
+ {
+  "base": "Granite 4 ⌥💭",
+  "model": "📦 Granite-4.0-Tiny-Preview-R1",
+  "score": 53.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "7.1 GB",
+  "arch": "MoE",
+  "speed": "48.1 t/s"
+ },
+ {
+  "base": "Granite 4 ⌥💭",
+  "model": "📦 Granite-4.0-H-Tiny",
+  "score": 33.0,
+  "tier": "💩🤪",
+  "apple": "16GB",
+  "size": "3.7 GB",
+  "arch": "MoE",
+  "speed": "158.9 t/s"
+ },
+ {
+  "base": "Mistral 7b v0.3",
+  "model": "Mistral-7b-heretic-v2",
+  "score": 55.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "4.1 GB",
+  "arch": "Dense",
+  "speed": "92.9 t/s"
+ },
+ {
+  "base": "Bonsai 1.53bit",
+  "model": "📦 Ternary-Bonsai-8b —🗜Q2_0",
+  "score": 50.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "2.3 GB",
+  "arch": "Dense",
+  "speed": "148.6 t/s"
+ },
+ {
+  "base": "Bonsai 1bit",
+  "model": "📦 Bonsai-8b —Not smart enough for RP🗜Q1_0",
+  "score": 44.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "1.2 GB",
+  "arch": "Dense",
+  "speed": "179.2 t/s"
+ },
+ {
+  "base": "Gemma 3n",
+  "model": "huihui-Gemma-3n-E4b-it-abliterated",
+  "score": 56.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 3n",
+  "model": "📦 Gemma-3n-E4b-it",
+  "score": 31.0,
+  "tier": "💩",
+  "apple": "16GB",
+  "size": "4.1 GB",
+  "arch": "Dense",
+  "speed": "16.2 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3-8b-Sunfall-v0.5-Stheno-v3.2",
+  "score": 71.0,
+  "tier": "🥈⭐",
+  "apple": "16GB",
+  "size": "6.6 GB",
+  "arch": "Dense",
+  "speed": "55.3 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3-8b-Sunfall-v0.4-Stheno-v3.2",
+  "score": 70.0,
+  "tier": "🥈",
+  "apple": "16GB",
+  "size": "8.5 GB",
+  "arch": "Dense",
+  "speed": "50.4 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3.1-Dark-Planet-Spinfire-uncensored-8b",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3.1-8b-Sunfall-Stheno-v0.6.1",
+  "score": 45.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "5.6 GB",
+  "arch": "Dense",
+  "speed": "63.4 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "📦 Llama-3.2-8b-instruct",
+  "score": 44.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Ministral 3",
+  "model": "📦 Ministral-3-8b-instruct-2512",
+  "score": 72.0,
+  "tier": "🥈⭐",
+  "apple": "16GB",
+  "size": "5.2 GB",
+  "arch": "Dense",
+  "speed": "72.5 t/s"
+ },
+ {
+  "base": "Ministral 3",
+  "model": "Egocentric-Ministral-8b-Preview — Concise and creative",
+  "score": 57.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "5.2 GB",
+  "arch": "Dense",
+  "speed": "72.5 t/s"
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Qwen3-8b-heretic —💭",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "16GB",
+  "size": "4.8 GB",
+  "arch": "Dense",
+  "speed": "79.6 t/s"
+ },
+ {
+  "base": "Gemma 2",
+  "model": "MT2-Gen11-Gemma-2-9b",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "16GB",
+  "size": "5.4 GB",
+  "arch": "Dense",
+  "speed": "60.2 t/s"
+ },
+ {
+  "base": "Gemma 2",
+  "model": "📦 Gemma-2-9b-it",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Qwen3.5-9b-Unredacted-Max —💭",
+  "score": 69.0,
+  "tier": "🥈",
+  "apple": "16GB",
+  "size": "6 GB",
+  "arch": "Dense",
+  "speed": "49.4 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Qwen3.5-9b-Uncensored-HauhauCS-Aggressive —❌",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "16GB",
+  "size": "6.6 GB",
+  "arch": "Dense",
+  "speed": "61.7 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Omega-Evolution-9b-v2.2 —❌",
+  "score": 52.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "9.8 GB",
+  "arch": "Dense",
+  "speed": "50.4 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "📦 Qwen3.5-9b —❌",
+  "score": 17.0,
+  "tier": "💩",
+  "apple": "16GB",
+  "size": "7.2 GB",
+  "arch": "Dense",
+  "speed": "50.4 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Qwen3.5-9b-Claude-4.6-HighIQ-instruct-heretic-uncensored —❌",
+  "score": 12.0,
+  "tier": "💩",
+  "apple": "16GB",
+  "size": "6.6 GB",
+  "arch": "Dense",
+  "speed": "49.6 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "theDrummer_Tiger-Gemma-12b-v3",
+  "score": 71.0,
+  "tier": "🥈⭐",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Gemma-3-12b-it-heretic —Unusually concise",
+  "score": 57.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "6.89 GB",
+  "arch": "Dense",
+  "speed": "49.2 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Gemma-3-12b-it4-k-m-heretic-abliterated",
+  "score": 54.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "8.2 GB",
+  "arch": "Dense",
+  "speed": "47.9 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Regency_Bewildered_12b —1800’s style",
+  "score": 45.0,
+  "tier": "🤪",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 3",
+  "model": "📦 Gemma-3-12b-it-qat-unquantized",
+  "score": 44.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "6.9 GB",
+  "arch": "Dense",
+  "speed": "49.6 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "QiMing-Socratic-12b",
+  "score": 44.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "📦 Gemma-4-12b-it —❌💥",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "16GB",
+  "size": "7.2 GB",
+  "arch": "Dense",
+  "speed": "47 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Melody1437-12b —❌",
+  "score": 52.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "8.6 GB",
+  "arch": "Dense",
+  "speed": "41.7 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "📦 Gemma-4-12b-it —❌",
+  "score": 45.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "7.2 GB",
+  "arch": "Dense",
+  "speed": "47 t/s"
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Impish_Bloodmoon_12b",
+  "score": 68.0,
+  "tier": "🥈",
+  "apple": "16GB",
+  "size": "6.9 GB",
+  "arch": "Dense",
+  "speed": "63.9 t/s"
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Angelic_Eclipse_12b",
+  "score": 64.0,
+  "tier": "🥉",
+  "apple": "16GB",
+  "size": "6.9 GB",
+  "arch": "Dense",
+  "speed": "63.9 t/s"
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "PatriSlush-DarkRPmax-12b",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "📦 Mistral-Nemo-instruct-2407",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "16GB",
+  "size": "6.9 GB",
+  "arch": "Dense",
+  "speed": "64.3 t/s"
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "LorablatedStock-12b",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Irix-12b-Slush-v2",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Dark-Nexus-12b-v2.0",
+  "score": 57.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "7.5 GB",
+  "arch": "Dense",
+  "speed": "56 t/s"
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "EtherealAurora-12b-v2",
+  "score": 57.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Irix-12b-Model_Stock",
+  "score": 56.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "mn-Violet-Lotus-12b",
+  "score": 55.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "6.8 GB",
+  "arch": "Dense",
+  "speed": "58 t/s"
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Silly-v0.2 —Unusually concise RP model",
+  "score": 55.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Crestf411_-Nemo-Sunfall-v0.6.1",
+  "score": 55.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "8.5 GB",
+  "arch": "Dense",
+  "speed": "42.7 t/s"
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "theDrummer_Rocinante_X_12b_v",
+  "score": 54.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "6.9 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Sunfall-NemoMix-Unleashed-12b-v0.6.1",
+  "score": 53.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Impish_Nemo_12b",
+  "score": 53.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Wayfarer-2-12b",
+  "score": 51.0,
+  "tier": "🤪",
+  "apple": "16GB",
+  "size": "6.9 GB",
+  "arch": "Dense",
+  "speed": "64.2 t/s"
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Irix-12b-Slush —=v1, use v2 instead",
+  "score": 51.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "Homunculus",
+  "score": 48.0,
+  "tier": "",
+  "apple": "16GB",
+  "size": "8 GB",
+  "arch": "Dense",
+  "speed": "51.3 t/s"
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "mn-12b-Mag-Mell-R1 —Bad at >10K context",
+  "score": 39.0,
+  "tier": "💩",
+  "apple": "16GB",
+  "size": "10 GB",
+  "arch": "Dense",
+  "speed": "46.2 t/s"
+ },
+ {
+  "base": "Nvidia Nemotron ⌥💭",
+  "model": "📦 nvidia-Nemotron-Nano-12b-v2",
+  "score": 23.0,
+  "tier": "💩",
+  "apple": "16GB",
+  "size": "6.9 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 2",
+  "model": "Xwin-MLewd-13b-v0.2 —Max context 4K",
+  "score": 56.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "9.8 GB",
+  "arch": "Dense",
+  "speed": "36.3 t/s"
+ },
+ {
+  "base": "Llama 2",
+  "model": "MythoMax-l2-13b",
+  "score": 44.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "9.8 GB",
+  "arch": "Dense",
+  "speed": "62.1 t/s"
+ },
+ {
+  "base": "Microsoft Phi-4",
+  "model": "Phi-4-heretic —ChatML",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "9.1 GB",
+  "arch": "Dense",
+  "speed": "45.2 t/s"
+ },
+ {
+  "base": "Microsoft Phi-4",
+  "model": "Phi-lthy4 —Often incoherent",
+  "score": 37.0,
+  "tier": "💩🤪",
+  "apple": "32GB",
+  "size": "7.6 GB",
+  "arch": "Dense",
+  "speed": "54.6 t/s"
+ },
+ {
+  "base": "Ministral 3",
+  "model": "📦 Ministral-3-14b-instruct-2512 —too horny",
+  "score": 70.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "8.4 GB",
+  "arch": "Dense",
+  "speed": "47.3 t/s"
+ },
+ {
+  "base": "Qwen 2.5",
+  "model": "Qwen2.5-14b-instruct-1m-abliterated",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Light-IF-14b",
+  "score": 50.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Apriel Nemotron ⌥💭",
+  "model": "theDrummer_SnowPiercer-15b-v2",
+  "score": 64.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "8.6 GB",
+  "arch": "Dense",
+  "speed": "44.5 t/s"
+ },
+ {
+  "base": "Apriel Nemotron ⌥💭",
+  "model": "theDrummer_SnowPiercer-15b-v3 — Prefer v2 instead",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Apriel Nemotron ⌥💭",
+  "model": "theDrummer_SnowPiercer-15b-v1 — Prefer v2 instead",
+  "score": 56.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "8.4 GB",
+  "arch": "Dense",
+  "speed": "51.9 t/s"
+ },
+ {
+  "base": "Apriel Nemotron ⌥💭",
+  "model": "📦 ServiceNow-AI_Apriel-Nemotron-15b-thinker",
+  "score": 47.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "8.6 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Apriel Nemotron ⌥💭",
+  "model": "theDrummer_SnowPiercer-15b-v4 — Prefer v2 instead",
+  "score": 43.0,
+  "tier": "🤪",
+  "apple": "32GB",
+  "size": "8.4 GB",
+  "arch": "Dense",
+  "speed": "52.2 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Qwopus-GLM-18b-Merged — Upscaled from 9B to 18B",
+  "score": 15.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "9.1 GB",
+  "arch": "Dense",
+  "speed": "32.7 t/s"
+ },
+ {
+  "base": "GPT-OSS 💭",
+  "model": "GPT-OSS-20b-heretic-ara-v3",
+  "score": 61.0,
+  "tier": "🥉👤",
+  "apple": "32GB",
+  "size": "12.3 GB",
+  "arch": "MoE",
+  "speed": "108.9 t/s"
+ },
+ {
+  "base": "GPT-OSS 💭",
+  "model": "GPT-OSS-20b-derestricted",
+  "score": 47.0,
+  "tier": "🤪",
+  "apple": "32GB",
+  "size": "15.8 GB",
+  "arch": "MoE",
+  "speed": "92.5 t/s"
+ },
+ {
+  "base": "GPT-OSS 💭",
+  "model": "p-e-w_GPT-OSS-20b-heretic",
+  "score": 23.0,
+  "tier": "💩🤪",
+  "apple": "32GB",
+  "size": "11.6 GB",
+  "arch": "MoE",
+  "speed": "108.1 t/s"
+ },
+ {
+  "base": "GPT-OSS 💭",
+  "model": "📦 GPT-OSS-20b",
+  "score": 0.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "12.1 GB",
+  "arch": "MoE",
+  "speed": "87.7 t/s"
+ },
+ {
+  "base": "SmallThinker",
+  "model": "📦 SmallThinker-21ba3b-instruct",
+  "score": 40.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "12.3 GB",
+  "arch": "MoE",
+  "speed": "86.3 t/s"
+ },
+ {
+  "base": "Mistral Small 2.0 2409",
+  "model": "theDrummer_Cydonia-Redux-22b-v1.1",
+  "score": 72.0,
+  "tier": "🥈⭐",
+  "apple": "32GB",
+  "size": "12.6 GB",
+  "arch": "Dense",
+  "speed": "33.4 t/s"
+ },
+ {
+  "base": "Mistral Small 2.0 2409",
+  "model": "Mistral-Small-instruct-2409-heretic",
+  "score": 55.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "13.34 GB",
+  "arch": "Dense",
+  "speed": "32.5 t/s"
+ },
+ {
+  "base": "Mistral Small 2.0 2409",
+  "model": "Pantheon-of-Cydonia-Realm",
+  "score": 53.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 2.0 2409",
+  "model": "theDrummer_Cydonia-Redux-22b-v1.0 — Prefer v1.1",
+  "score": 51.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 2.0 2409",
+  "model": "MS-Sunfall-v0.7.0",
+  "score": 46.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Josiefied-Omega-Directive-22B-uncensored-ablit —Upscaled14B",
+  "score": 51.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "13.3 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Xiaolong-Omega-Directive-22B-uncensored-ablit —Upscaled 14B",
+  "score": 50.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "13.3 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Luciole",
+  "model": "📦 Luciole-23b-instruct-1.1",
+  "score": 28.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "14.5 GB",
+  "arch": "Dense",
+  "speed": "32 t/s"
+ },
+ {
+  "base": "Mistral 4x7B",
+  "model": "Dark-MultiVerse-Uncensored-Enhanced32-24b",
+  "score": 55.0,
+  "tier": "👤",
+  "apple": "32GB",
+  "size": "14.7 GB",
+  "arch": "MoE",
+  "speed": "26.8 t/s"
+ },
+ {
+  "base": "Mistral Small 3.0 2501",
+  "model": "XortronCriminalComputingConfig",
+  "score": 67.0,
+  "tier": "🥈⭐",
+  "apple": "32GB",
+  "size": "13.3 GB",
+  "arch": "Dense",
+  "speed": "35.2 t/s"
+ },
+ {
+  "base": "Mistral Small 3.0 2501",
+  "model": "Mistral-Thinker-v1.1",
+  "score": 64.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "12.9 GB",
+  "arch": "Dense",
+  "speed": "31.4 t/s"
+ },
+ {
+  "base": "Mistral Small 3.0 2501",
+  "model": "Xortron2025",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.0 2501",
+  "model": "BlackSheep-24b",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "19.2 GB",
+  "arch": "Dense",
+  "speed": "18.1 t/s"
+ },
+ {
+  "base": "Mistral Small 3.0 2501",
+  "model": "Dolphin-Mistral-24b-Venice-Edition-heretic-2",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "25.05 GB",
+  "arch": "Dense",
+  "speed": "19.8 t/s"
+ },
+ {
+  "base": "Mistral Small 3.0 2501",
+  "model": "📦 Mistral-Small-24b-instruct-2501",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "Harbinger-24b-absolute-heresy",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "12.9 GB",
+  "arch": "Dense",
+  "speed": "32.3 t/s"
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "Broken-Tutu-24b-unslop-v2.0",
+  "score": 63.0,
+  "tier": "🥉⭐",
+  "apple": "32GB",
+  "size": "14.9 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "Protestant-Christian-Bible-Expert-v2.0-24b",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "14.9 GB",
+  "arch": "Dense",
+  "speed": "29.9 t/s"
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "Broken-Tutu-24b — Prefer \"unslop-v2\" instead",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "Dark-Nexus-24b-v2.0 —",
+  "score": 58.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "14.3 GB",
+  "arch": "Dense",
+  "speed": "31.9 t/s"
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "Christian-Bible-Expert-v2.0-24b —",
+  "score": 57.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "DarkTriad-24b —Less",
+  "score": 56.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "12.8 GB",
+  "arch": "Dense",
+  "speed": "31 t/s"
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "Omega-Darker-Gaslight_The-Final-Forgotten-Fever",
+  "score": 56.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "Broken-Tutu-24b-Transgression-v2.0",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "14.9 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "ms-Peregrine-24b-preview-20250308",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "14.3 GB",
+  "arch": "Dense",
+  "speed": "27.3 t/s"
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "Magistral-Small-2506-abliterated —💭",
+  "score": 51.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "📦 Magistral-Small-2507 —= v1.1, Prefer v1.2",
+  "score": 49.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "13.5 GB",
+  "arch": "Dense",
+  "speed": "24.4 t/s"
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "Gaslit-Transgression-24b —",
+  "score": 48.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "theDrummer_Cydonia-24b-v3 — Prefer v4.2 instead",
+  "score": 44.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "📦 Magistral-Small-2506 —=v1, Prefer v1.2",
+  "score": 43.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "13.5 GB",
+  "arch": "Dense",
+  "speed": "24.4 t/s"
+ },
+ {
+  "base": "Mistral Small 3.1 2503",
+  "model": "📦 Mistral-Small-3.1-24b-instruct-2503",
+  "score": 42.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "theDrummer_Magidonia-24b-v4.2 —💭",
+  "score": 75.0,
+  "tier": "🥈⭐",
+  "apple": "32GB",
+  "size": "13.5 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "Maginum-Cydoms-24b-absolute-heresy",
+  "score": 74.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "12.9 GB",
+  "arch": "Dense",
+  "speed": "32.1 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "theDrummer_Magidonia-24b-v4.3 —💭 Prefer v4.2",
+  "score": 69.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "14.3 GB",
+  "arch": "Dense",
+  "speed": "31.6 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "theDrummer_Cydonia-24b-v4.3-heretic-v2",
+  "score": 66.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "12.9 GB",
+  "arch": "Dense",
+  "speed": "32.3 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "Magistry-24b-v1.0",
+  "score": 64.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "12.9 GB",
+  "arch": "Dense",
+  "speed": "32.2 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "theDrummer_Cydonia-24b-v4.2",
+  "score": 64.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "13.5 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "Maginum-Cydoms-24b",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "12.9 GB",
+  "arch": "Dense",
+  "speed": "32.1 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "theDrummer_Cydonia-24b-v4.3",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "14.3 GB",
+  "arch": "Dense",
+  "speed": "31.4 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "theDrummer_Cydonia-24b-v4",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "13.5 GB",
+  "arch": "Dense",
+  "speed": "30.6 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms-Peregrine-24b-preview-20250626",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms3.2-the-Omega-Directive-24b-unslop-v2.1",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "theDrummer_Cydonia-24b-v4.1",
+  "score": 58.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "13.5 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "Magidonia-24b-v4.3-absolute-heresy —💭",
+  "score": 57.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "12.9 GB",
+  "arch": "Dense",
+  "speed": "32.3 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "magistral-2509-24b-Animus-v12.1 —💭",
+  "score": 57.0,
+  "tier": "🤪",
+  "apple": "32GB",
+  "size": "13.5 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "📦 Mistral-Small-3.2-24b-instruct-2506 —ST-Templ.3️⃣",
+  "score": 57.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "15.8 GB",
+  "arch": "Dense",
+  "speed": "29 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms3.2-the-Omega-Directive-24b-unslop-v2.0",
+  "score": 56.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "12.8 GB",
+  "arch": "Dense",
+  "speed": "31 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "BereavedCompound-v1.0-24b",
+  "score": 56.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "12.8 GB",
+  "arch": "Dense",
+  "speed": "32.6 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "📦 Mistral-Small-3.2-24b-instruct-2506 —ST-Templ.7️⃣",
+  "score": 55.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "15.8 GB",
+  "arch": "Dense",
+  "speed": "29 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms3.2-24b-Astral-Revenant",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "12.9 GB",
+  "arch": "Dense",
+  "speed": "31.9 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "Cthulhu-24b-v1.2",
+  "score": 53.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "14.3 GB",
+  "arch": "Dense",
+  "speed": "32.2 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms3.2-Painted-Fantasy-v2-24b",
+  "score": 52.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms32-24b-Magnum-Diamond",
+  "score": 51.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "14.9 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "m3.2-24b-Loki-v1.3-24b",
+  "score": 51.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "LatitudeGames_HearthFire-24b",
+  "score": 46.0,
+  "tier": "👤",
+  "apple": "32GB",
+  "size": "13.5 GB",
+  "arch": "Dense",
+  "speed": "33.5 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "📦 Magistral-Small-2509 —💭, =v1.2",
+  "score": 46.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "13.3 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms3.2-24b-Angel",
+  "score": 45.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "Mistral-Small-3.2-24b-instruct-2506-Antislop",
+  "score": 45.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "12.8 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "Codex-24b-Small-3.2",
+  "score": 44.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "15.8 GB",
+  "arch": "Dense",
+  "speed": "30 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "MS3.2-NilCall-24b-v0.1",
+  "score": 42.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms3.2-Austral-Winton —Use ChatML",
+  "score": 35.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "📦 Gemma-4-26b-a4b-it —❌",
+  "score": 50.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "16.7 GB",
+  "arch": "MoE",
+  "speed": "80.8 t/s"
+ },
+ {
+  "base": "Bonsai 1.53bit 💭",
+  "model": "📦 Ternary-Bonsai-27b —💭 🗜Q2_0",
+  "score": 10.0,
+  "tier": "💩",
+  "apple": "16GB",
+  "size": "8.5 GB",
+  "arch": "Dense",
+  "speed": "37.1 t/s"
+ },
+ {
+  "base": "Gemma 2",
+  "model": "g2-ms-Nyxora-27b",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 3",
+  "model": "theDrummer_Fallen-Gemma3-27b",
+  "score": 80.0,
+  "tier": "🥇⭐",
+  "apple": "32GB",
+  "size": "15.6 GB",
+  "arch": "Dense",
+  "speed": "23.3 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "SpikyMoth G3-heresy-mpoa-g-w99-d0.0690-r02",
+  "score": 72.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "15.7 GB",
+  "arch": "Dense",
+  "speed": "25 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "SpikyMoth G3-heresy-mpoa-g-w99-d0.0199-r08",
+  "score": 69.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "15.7 GB",
+  "arch": "Dense",
+  "speed": "25 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Gemma-3-27b-derestricted",
+  "score": 69.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "15.8 GB",
+  "arch": "Dense",
+  "speed": "24.6 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Big-Tiger-Gemma-27b-v3-heretic",
+  "score": 68.0,
+  "tier": "🥈⭐",
+  "apple": "32GB",
+  "size": "14.8 GB",
+  "arch": "Dense",
+  "speed": "25.3 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "theDrummer_Big-Tiger-Gemma-27b-v3 —NSFL bias",
+  "score": 68.0,
+  "tier": "🥈⭐",
+  "apple": "32GB",
+  "size": "17.2 GB",
+  "arch": "Dense",
+  "speed": "22.5 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "SpikyMoth G3-heresy-mpoa-g-w99-d0.0394-r03",
+  "score": 67.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "15.7 GB",
+  "arch": "Dense",
+  "speed": "25 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Gemma-3-27b-it-abliterated",
+  "score": 67.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "15.6 GB",
+  "arch": "Dense",
+  "speed": "23.3 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "SpikyMoth G3-heresy-mpoa-g-w99-d0.1099-r01",
+  "score": 67.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "15.7 GB",
+  "arch": "Dense",
+  "speed": "25 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "SpikyMoth G3-heresy-mpoa-g-w99-d0.0394-r03-i1",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "15.7 GB",
+  "arch": "Dense",
+  "speed": "25 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "SpikyMoth G3-heresy-v0.1 —Cheesy cheerful",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "15.2 GB",
+  "arch": "Dense",
+  "speed": "28.2 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Gemma-3-Glitter-27b —Unoptimised for long context",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "17.2 GB",
+  "arch": "Dense",
+  "speed": "22.1 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Gemma-3-27b-it-abliterated-refined-Novis",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "16.6 GB",
+  "arch": "Dense",
+  "speed": "24.8 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Gemma-3-27b-heretic",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "14.8 GB",
+  "arch": "Dense",
+  "speed": "25.8 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "tesslate_Synthia-S1-27b",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Amoral-Gemma3-27b-v2-qat",
+  "score": 53.0,
+  "tier": "🤪",
+  "apple": "32GB",
+  "size": "17.2 GB",
+  "arch": "Dense",
+  "speed": "22.5 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Mira-v1.17-27b-custom-heretic",
+  "score": 52.0,
+  "tier": "🤪",
+  "apple": "32GB",
+  "size": "15.8 GB",
+  "arch": "Dense",
+  "speed": "25.2 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "g3-27b-Animus-v12.0",
+  "score": 51.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "15.7 GB",
+  "arch": "Dense",
+  "speed": "25.2 t/s"
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Nidum-Gemma-3-27b-it-uncensored",
+  "score": 51.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "14.8 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 3",
+  "model": "📦 Gemma-3-27b-it-qat",
+  "score": 50.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 3",
+  "model": "Regency-Aghast-27b —Fun 1800’s style",
+  "score": 38.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "16.6 GB",
+  "arch": "Dense",
+  "speed": "25 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Xortron.CriminalComputing.2026.27b.instruct —❌",
+  "score": 74.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "15.7 GB",
+  "arch": "Dense",
+  "speed": "18.5 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Qwen-3.5-27b-derestricted —❌",
+  "score": 66.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "15.7 GB",
+  "arch": "Dense",
+  "speed": "18.4 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Omega-Evolution-27b-v2.1 —❌",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "22.8 GB",
+  "arch": "Dense",
+  "speed": "19 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Dark-Nexus-27b-v3.0 —❌",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "24.1 GB",
+  "arch": "Dense",
+  "speed": "18.4 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Omega-Evolution-27b-v2.2 —❌",
+  "score": 62.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "24.1 GB",
+  "arch": "Dense",
+  "speed": "18.4 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Qwen3.5-27b-Uncensored-HauhauCS-Aggressive —❌",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "15.6 GB",
+  "arch": "Dense",
+  "speed": "23.3 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Omega-Evolution-27b-v2.0 —❌ Use v2.1",
+  "score": 54.0,
+  "tier": "🤪",
+  "apple": "32GB",
+  "size": "17.5 GB",
+  "arch": "Dense",
+  "speed": "22.2 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "RYS-Qwen3.5-27b-fp8-xl —❌Upscaled to 30b for better EQ",
+  "score": 23.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "19.3 GB",
+  "arch": "Dense",
+  "speed": "20 t/s"
+ },
+ {
+  "base": "Qwen 3.8 ⌥💭",
+  "model": "Qwen3.8-27b-Uncensored —💭",
+  "score": 68.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "15.3 GB",
+  "arch": "Dense",
+  "speed": "24.2 t/s"
+ },
+ {
+  "base": "Qwen 3.8 ⌥💭",
+  "model": "📦 Qwen3.8-27b —💭",
+  "score": 13.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "17.3 GB",
+  "arch": "Dense",
+  "speed": "21.1 t/s"
+ },
+ {
+  "base": "Apriel Nemotron ⌥💭",
+  "model": "theDrummer_Big-Alice-28b",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "16.2 GB",
+  "arch": "Dense",
+  "speed": "22.7 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Uyu-2-28b —❌ Downscaled from 31B",
+  "score": 35.0,
+  "tier": "💩🤪",
+  "apple": "32GB",
+  "size": "17.2 GB",
+  "arch": "Dense",
+  "speed": "23.9 t/s"
+ },
+ {
+  "base": "Mistral NeMo 2407",
+  "model": "mn-Darkest-Universe-29b —Upscaled 12B",
+  "score": 60.0,
+  "tier": "🥉🤪",
+  "apple": "32GB",
+  "size": "16.6 GB",
+  "arch": "Dense",
+  "speed": "22.9 t/s"
+ },
+ {
+  "base": "GLM 4.7 Flash ⌥💭",
+  "model": "GLM-4.7-Flash-uncensored-hauhaucs-aggressive —💭",
+  "score": 64.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "18.1 GB",
+  "arch": "MoE",
+  "speed": "70.7 t/s"
+ },
+ {
+  "base": "GLM 4.7 Flash ⌥💭",
+  "model": "GLM-4.7-Flash-uncensored-heretic-neo-code-imat —💭",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "17.3 GB",
+  "arch": "MoE",
+  "speed": "65.8 t/s"
+ },
+ {
+  "base": "GLM 4.7 Flash ⌥💭",
+  "model": "GLM-4.7-Flash-heretic —💭",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "17 GB",
+  "arch": "MoE",
+  "speed": "66.3 t/s"
+ },
+ {
+  "base": "GLM 4.7 Flash ⌥💭",
+  "model": "📦 GLM-4.7-Flash —❌",
+  "score": 52.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "17.2 GB",
+  "arch": "MoE",
+  "speed": "65.8 t/s"
+ },
+ {
+  "base": "GLM 4.7 Flash ⌥💭",
+  "model": "📦 GLM-4.7-Flash —💥💭",
+  "score": 52.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "17.2 GB",
+  "arch": "MoE",
+  "speed": "65.8 t/s"
+ },
+ {
+  "base": "GLM 4.7 Flash ⌥💭",
+  "model": "huihui-GLM-4.7-Flash-abliterated —💭",
+  "score": 47.0,
+  "tier": "🤪",
+  "apple": "32GB",
+  "size": "16.9 GB",
+  "arch": "MoE",
+  "speed": "77.2 t/s"
+ },
+ {
+  "base": "GLM 4.7 Flash ⌥💭",
+  "model": "📦 GLM-4.7-Flash —💭",
+  "score": 23.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "17.2 GB",
+  "arch": "MoE",
+  "speed": "65.8 t/s"
+ },
+ {
+  "base": "Granite 4.1 ⌥💭",
+  "model": "📦 Granite-4.1-30b —❌",
+  "score": 41.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Muse Glimmer 💭",
+  "model": "📦 Muse-Glimmer-30b —❌💥",
+  "score": 49.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "17.3 GB",
+  "arch": "Dense",
+  "speed": "28.2 t/s"
+ },
+ {
+  "base": "Muse Glimmer 💭",
+  "model": "📦 Muse-Glimmer-30b —💭",
+  "score": 26.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "17.3 GB",
+  "arch": "Dense",
+  "speed": "28.2 t/s"
+ },
+ {
+  "base": "Nemotron 3 ⌥💭",
+  "model": "📦 nvidia-Nemotron-3-Nano-30b-a3b",
+  "score": 22.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "17.8 GB",
+  "arch": "MoE",
+  "speed": "137.2 t/s"
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Qwen3-30b-a3b-abliterated-Erotic",
+  "score": 71.0,
+  "tier": "🥈⭐",
+  "apple": "32GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "josiefied-Qwen3-30b-a3b-abliterated-v2",
+  "score": 55.0,
+  "tier": "👤",
+  "apple": "32GB",
+  "size": "17.3 GB",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "josiefied-Qwen3-30b-a3b-abliterated",
+  "score": 52.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "📦 Qwen3-30b-a3b",
+  "score": 50.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "17.2 GB",
+  "arch": "MoE",
+  "speed": "107.4 t/s"
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "allura-org_Q3-30b-a3b-Pentiment",
+  "score": 48.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 2507 ⌥💭",
+  "model": "Qwen3-30b-a3b-instruct-2507-abliterated —",
+  "score": 63.0,
+  "tier": "🥉🤪",
+  "apple": "32GB",
+  "size": "18.6 GB",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 2507 ⌥💭",
+  "model": "📦 Qwen3-30b-a3b-instruct-2507",
+  "score": 32.0,
+  "tier": "💩🤪",
+  "apple": "32GB",
+  "size": "21.1 GB",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma-4-Queen-31b-it —❌",
+  "score": 79.0,
+  "tier": "🥇",
+  "apple": "32GB",
+  "size": "18.1 GB",
+  "arch": "Dense",
+  "speed": "18.1 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "📦 Gemma-4-31b-it —❌💥 One sentence jailbreak",
+  "score": 79.0,
+  "tier": "🥇⭐",
+  "apple": "32GB",
+  "size": "19.6 GB",
+  "arch": "Dense",
+  "speed": "23.3 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "📦 Gemma-4-31b-it —💭💥 One sentence jailbreak",
+  "score": 79.0,
+  "tier": "🥇",
+  "apple": "32GB",
+  "size": "19.6 GB",
+  "arch": "Dense",
+  "speed": "23.3 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Sprinkle-Vanilla-Gemma-4-31b —❌💥",
+  "score": 77.0,
+  "tier": "🥇",
+  "apple": "32GB",
+  "size": "18.1 GB",
+  "arch": "Dense",
+  "speed": "18.1 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma-4-31b-Unslop-Good-LORA-v2-Full —❌",
+  "score": 75.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "18.1 GB",
+  "arch": "Dense",
+  "speed": "18.1 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma-4-GemBrain-31b —❌",
+  "score": 74.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "19.9 GB",
+  "arch": "Dense",
+  "speed": "22.6 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Melody1437-31b —❌",
+  "score": 74.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "20.4 GB",
+  "arch": "Dense",
+  "speed": "20.6 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Sprinkle-Gemma-4-31b —❌",
+  "score": 74.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "18.7 GB",
+  "arch": "Dense",
+  "speed": "22.5 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "G4-MeroMero-31b-uncensored-heretic —💭",
+  "score": 74.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "18.7 GB",
+  "arch": "Dense",
+  "speed": "22.3 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma-4-31b-it-heretic-ara —❌",
+  "score": 73.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "17.7 GB",
+  "arch": "Dense",
+  "speed": "22.7 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma-4-GemSicle-31b —❌💥",
+  "score": 71.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "18.7 GB",
+  "arch": "Dense",
+  "speed": "22.5 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Ortenzya-the-creative-wordsmith-31b-it-uncensored-heretic —❌",
+  "score": 70.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "19.9 GB",
+  "arch": "Dense",
+  "speed": "22.6 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma-4-Novelist-31b —❌ Nice creativity",
+  "score": 68.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "18.1 GB",
+  "arch": "Dense",
+  "speed": "22.5 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma-4-31b-StoryMaxxed2 —❌",
+  "score": 67.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "16.9 GB",
+  "arch": "Dense",
+  "speed": "23.1 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "G4-31b-Musica-v1 —❌",
+  "score": 67.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "16.9 GB",
+  "arch": "Dense",
+  "speed": "23.8 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Sprinkle-Vanilla-Gemma-4-31b —❌",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "18.1 GB",
+  "arch": "Dense",
+  "speed": "18.1 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "📦 Gemma-4-31b-it —❌",
+  "score": 64.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "19.6 GB",
+  "arch": "Dense",
+  "speed": "23.3 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma-4-GemBrain-X-Core-31b —❌",
+  "score": 62.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "16.7 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma-4-31b-Cognitive-Unshackled —❌",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "16.9 GB",
+  "arch": "Dense",
+  "speed": "23.8 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "For-Her-Darkside-31b-v1.3 —❌",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "18.7 GB",
+  "arch": "Dense",
+  "speed": "22.3 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma-4-31b-it-Mystery-Fine-Tune-heretic-uncensored —❌",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "17.8 GB",
+  "arch": "Dense",
+  "speed": "23.5 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "📦 Gemma-4-31b —❌ Not the Instruct model",
+  "score": 56.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "26.4 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma4-Garnet-31b —❌",
+  "score": 56.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "18.7 GB",
+  "arch": "Dense",
+  "speed": "22.5 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "Gemma-4-31b-Animus-v14.0 —❌ Mix human/animal anatomies",
+  "score": 55.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "17.8 GB",
+  "arch": "Dense",
+  "speed": "22.2 t/s"
+ },
+ {
+  "base": "Gemma 4 ⌥💭",
+  "model": "📦 Gemma-4-31b-it —💭",
+  "score": 42.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "19.6 GB",
+  "arch": "Dense",
+  "speed": "23.3 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "Skyfall-31b-v4.1-heretic-absolute",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "17.1 GB",
+  "arch": "Dense",
+  "speed": "24.5 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "theDrummer_Skyfall-31b-v4.1 —Upscaled 24B",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "17.9 GB",
+  "arch": "Dense",
+  "speed": "24.7 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "theDrummer_Skyfall-31b-v4.2 —Upscaled 24B",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "18 GB",
+  "arch": "Dense",
+  "speed": "24.7 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "theDrummer_Skyfall-31b-v4.0 —Upscaled 24B",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "17.9 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Command-R",
+  "model": "📦 c4ai-Command-R-08-2024 —=v2",
+  "score": 56.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "EXAONE 4 ⌥💭",
+  "model": "📦 EXAONE-4.0-32b —❌ Use Alpaca ST template",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "GLM 4",
+  "model": "GLM-4-32b-0414-abliterated",
+  "score": 71.0,
+  "tier": "🥈⭐",
+  "apple": "32GB",
+  "size": "19.7 GB",
+  "arch": "Dense",
+  "speed": "19.2 t/s"
+ },
+ {
+  "base": "GLM 4",
+  "model": "📦 GLM-4-32b-0414",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "18.6 GB",
+  "arch": "Dense",
+  "speed": "19.9 t/s"
+ },
+ {
+  "base": "GLM 4",
+  "model": "Squelching-Fantasies-glm-32b",
+  "score": 58.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "GLM 4",
+  "model": "Draconian-Overdrive-32b",
+  "score": 53.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "19.7 GB",
+  "arch": "Dense",
+  "speed": "19.6 t/s"
+ },
+ {
+  "base": "GLM 4",
+  "model": "Omega-Darkest_the-Broken-Tutu-glm-32b",
+  "score": 49.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "20.6 GB",
+  "arch": "Dense",
+  "speed": "22.2 t/s"
+ },
+ {
+  "base": "GLM 4",
+  "model": "Allura-org_Remnant-GLM4-32b",
+  "score": 49.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "18.6 GB",
+  "arch": "Dense",
+  "speed": "20.4 t/s"
+ },
+ {
+  "base": "GLM 4",
+  "model": "Allura-org_GLM4-32b-Neon-v2",
+  "score": 41.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "18.6 GB",
+  "arch": "Dense",
+  "speed": "19.7 t/s"
+ },
+ {
+  "base": "Granite 4 ⌥💭",
+  "model": "📦 Granite-4.0-H-Small",
+  "score": 20.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Olmo 3",
+  "model": "📦 Olmo-3.1-32b-instruct —Use Chat Completion API",
+  "score": 47.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "18.4 GB",
+  "arch": "Dense",
+  "speed": "24.1 t/s"
+ },
+ {
+  "base": "Olmo 3",
+  "model": "📦 Olmo-3-1125-32b —Use Chat Completion API",
+  "score": 34.0,
+  "tier": "💩🤪",
+  "apple": "32GB",
+  "size": "26.2 GB",
+  "arch": "Dense",
+  "speed": "24.8 t/s"
+ },
+ {
+  "base": "Olmo 3 💭",
+  "model": "elbaz-Olmo-3-32b-Think-abliterated",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "19.5 GB",
+  "arch": "Dense",
+  "speed": "22.8 t/s"
+ },
+ {
+  "base": "Olmo 3 💭",
+  "model": "📦 Olmo-3-32b-Think —Nice creativity",
+  "score": 46.0,
+  "tier": "🤪",
+  "apple": "32GB",
+  "size": "34.3 GB",
+  "arch": "Dense",
+  "speed": "13.9 t/s"
+ },
+ {
+  "base": "Olmo 3.1 💭",
+  "model": "📦 Olmo-3.1-32b-Think —use Chat Completion API",
+  "score": 58.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "18.1 GB",
+  "arch": "Dense",
+  "speed": "24.9 t/s"
+ },
+ {
+  "base": "Qwen 2.5 💭",
+  "model": "AM-Thinking-v1-abliterated —💭",
+  "score": 66.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "20.6 GB",
+  "arch": "Dense",
+  "speed": "19.4 t/s"
+ },
+ {
+  "base": "Qwen 2.5 💭",
+  "model": "Phr00tymix-v2-32b —❌",
+  "score": 53.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 2.5 QWQ 💭",
+  "model": "QWQ-32b-abliterated",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 2.5 QWQ 💭",
+  "model": "QWQ-32b-ArliAI-RpR-v4",
+  "score": 62.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 2.5 QWQ 💭",
+  "model": "QWQ-RPmax-Planet-32b-ablated",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "19.9 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 2.5 QWQ 💭",
+  "model": "TrashPanda-org-QWQ-32b-SnowDrop-v0",
+  "score": 58.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Light-IF-32b",
+  "score": 65.0,
+  "tier": "🥈⭐",
+  "apple": "32GB",
+  "size": "22.5 GB",
+  "arch": "Dense",
+  "speed": "20.2 t/s"
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Dark-Nexus-32b-v2.0",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "19.8 GB",
+  "arch": "Dense",
+  "speed": "22.5 t/s"
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Q3-NilCall-32b-v0.2",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "📦 Qwen3-32b —💭 & ❌",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "18.5 GB",
+  "arch": "Dense",
+  "speed": "24.5 t/s"
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Qwen3-32b-uncensored",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Skywork_MindLink-32b-0801",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "18.7 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Hivemind_Preview_32b — ❌",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "17.7 GB",
+  "arch": "Dense",
+  "speed": "24 t/s"
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Q3-NilCall-32b-v0.3",
+  "score": 51.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Q3-NilCall-32b-v0.1",
+  "score": 47.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "HER-32b-absolute-heresy",
+  "score": 47.0,
+  "tier": "🤪",
+  "apple": "32GB",
+  "size": "17.9 GB",
+  "arch": "Dense",
+  "speed": "22.3 t/s"
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "HER-32b",
+  "score": 35.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "17.9 GB",
+  "arch": "Dense",
+  "speed": "22.3 t/s"
+ },
+ {
+  "base": "Qwen 3 VL",
+  "model": "Qwen3-VL-32b-instruct-abliterated-v1",
+  "score": 79.0,
+  "tier": "🥇⭐",
+  "apple": "32GB",
+  "size": "19.1 GB",
+  "arch": "Dense",
+  "speed": "22.1 t/s"
+ },
+ {
+  "base": "Qwen 3 VL",
+  "model": "Qwen3-VL-32b-instruct-heretic —",
+  "score": 73.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "18.8 GB",
+  "arch": "Dense",
+  "speed": "23 t/s"
+ },
+ {
+  "base": "Qwen 3 VL",
+  "model": "📦 Qwen3-VL-32b-instruct —",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "19.6 GB",
+  "arch": "Dense",
+  "speed": "24 t/s"
+ },
+ {
+  "base": "Qwen 3 VL 💭",
+  "model": "Qwen3-VL-32b-thinking-heretic",
+  "score": 62.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "20 GB",
+  "arch": "Dense",
+  "speed": "26.8 t/s"
+ },
+ {
+  "base": "EXAONE 4 ⌥💭",
+  "model": "📦 EXAONE-4.5-33b —💭 ChatML",
+  "score": 38.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "20.1 GB",
+  "arch": "Dense",
+  "speed": "22.9 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms3.2-PaintedFantasy-Visage-33b —= v1, Upscaled 24B",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms3.2-PaintedFantasy-Visage-33b-v2 —Upscaled 24B",
+  "score": 55.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Falcon-H1",
+  "model": "📦 Falcon-H1-34b-instruct —Plays dumb with NSFW",
+  "score": 30.0,
+  "tier": "💩👤",
+  "apple": "32GB",
+  "size": "19.3 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms3.2-PaintedFantasy-Visage-v3-34b —Upscaled 24B",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "ms3.2-PaintedFantasy-Visage-v4-34b —Upscaled 24B",
+  "score": 46.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "18.4 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Yi 1.5",
+  "model": "Dolphin-2.9.3-Yi-1.5-34b-32k",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Command-R",
+  "model": "📦 c4ai-Command-R-v01 —03-2024, Max context 8K",
+  "score": 62.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "19.1 GB",
+  "arch": "Dense",
+  "speed": "22.6 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Qwen3.5-35b-a3b-Uncensored-HauhauCS-Aggressive —❌",
+  "score": 74.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "19.6 GB",
+  "arch": "MoE",
+  "speed": "82.6 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "huihui-Qwen3.5-35b-a3b-abliterated —💭 Awful dialog tone",
+  "score": 60.0,
+  "tier": "🥉🤪",
+  "apple": "32GB",
+  "size": "18.5 GB",
+  "arch": "MoE",
+  "speed": "108.1 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "📦 Qwen3.5-35b-a3b —💭",
+  "score": 26.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "19.6 GB",
+  "arch": "MoE",
+  "speed": "52.5 t/s"
+ },
+ {
+  "base": "Mistral Small 3.0 2501",
+  "model": "theDrummer_Skyfall-36b-v2 —Upscaled from 24B",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "21 GB",
+  "arch": "Dense",
+  "speed": "17.9 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "magistral-2509-36b-Animus-v12.1 —💭 Upscaled 24B",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "32GB",
+  "size": "19.7 GB",
+  "arch": "Dense",
+  "speed": "22.2 t/s"
+ },
+ {
+  "base": "Seed-OSS ⌥💭",
+  "model": "Seed-OSS-36b-instruct-biprojected —💭",
+  "score": 79.0,
+  "tier": "🥇",
+  "apple": "32GB",
+  "size": "19.7 GB",
+  "arch": "Dense",
+  "speed": "20.4 t/s"
+ },
+ {
+  "base": "Seed-OSS ⌥💭",
+  "model": "Seed-OSS-36b-instruct-abliterated —💭",
+  "score": 72.0,
+  "tier": "🥈⭐",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Seed-OSS ⌥💭",
+  "model": "📦 Seed-OSS-36b-instruct —💭",
+  "score": 66.0,
+  "tier": "🥈⭐",
+  "apple": "32GB",
+  "size": "20.6 GB",
+  "arch": "Dense",
+  "speed": "12.6 t/s"
+ },
+ {
+  "base": "Seed-OSS ⌥💭",
+  "model": "Seed-OSS-36b-Erotic —💭",
+  "score": 64.0,
+  "tier": "🥉",
+  "apple": "32GB",
+  "size": "19.5 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Seed-OSS ⌥💭",
+  "model": "📦 Seed-OSS-36b-instruct —❌",
+  "score": 54.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "20.6 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Seed-OSS ⌥💭",
+  "model": "Hermes-4.3-36b-heretic —❌",
+  "score": 53.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "29.4 GB",
+  "arch": "Dense",
+  "speed": "15.9 t/s"
+ },
+ {
+  "base": "Seed-OSS ⌥💭",
+  "model": "Hermes-4.3-36b —💭",
+  "score": 50.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "20.8 GB",
+  "arch": "Dense",
+  "speed": "22.3 t/s"
+ },
+ {
+  "base": "Seed-OSS ⌥💭",
+  "model": "Hermes-4.3-36b —❌",
+  "score": 39.0,
+  "tier": "💩",
+  "apple": "32GB",
+  "size": "20.8 GB",
+  "arch": "Dense",
+  "speed": "22.3 t/s"
+ },
+ {
+  "base": "Mistral Small 3.2 2506",
+  "model": "the-Brilliant-Raconteur —Upscaled from 24B",
+  "score": 43.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "28.3 GB",
+  "arch": "Dense",
+  "speed": "8 t/s"
+ },
+ {
+  "base": "Llama 3 ⌥💭",
+  "model": "theDrummer_Valkyrie-49b-v2.1",
+  "score": 53.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "28.4 GB",
+  "arch": "Dense",
+  "speed": "15.3 t/s"
+ },
+ {
+  "base": "Llama 3 ⌥💭",
+  "model": "nvidia_llama-3_3-Nemotron-Super-49b-v1",
+  "score": 48.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "31.4 GB",
+  "arch": "Dense",
+  "speed": "12.7 t/s"
+ },
+ {
+  "base": "Llama 3 ⌥💭",
+  "model": "theDrummer_Valkyrie-49b-v1 —based on Nemotron v1",
+  "score": 47.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "28.4 GB",
+  "arch": "Dense",
+  "speed": "13.1 t/s"
+ },
+ {
+  "base": "Llama 3 ⌥💭",
+  "model": "Magnum-49b-sft",
+  "score": 44.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3 ⌥💭",
+  "model": "nvidia_llama-3_3-Nemotron-Super-49b-v1.5",
+  "score": 42.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "28.4 GB",
+  "arch": "Dense",
+  "speed": "13.5 t/s"
+ },
+ {
+  "base": "Llama 3 ⌥💭",
+  "model": "theDrummer_Valkyrie-49b-v2 —based on NS v1.5",
+  "score": 42.0,
+  "tier": "",
+  "apple": "32GB",
+  "size": "28.4 GB",
+  "arch": "Dense",
+  "speed": "13.1 t/s"
+ },
+ {
+  "base": "Jamba Mini",
+  "model": "📦 ai21-Jamba-Mini-1.7 —Softcore",
+  "score": 50.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "27.5 GB",
+  "arch": "MoE",
+  "speed": "27.9 t/s"
+ },
+ {
+  "base": "Apertus 1.0",
+  "model": "📦 Apertus-70b-instruct-2509",
+  "score": 33.0,
+  "tier": "💩",
+  "apple": "48GB",
+  "size": "40.1 GB",
+  "arch": "Dense",
+  "speed": "10.2 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "Llama-3.3-70b-instruct-heretic",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "48GB",
+  "size": "37.9 GB",
+  "arch": "Dense",
+  "speed": "9.9 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "Sapphira-l3.3-70b-0.1 —Loose coherence after 7-10K",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "48GB",
+  "size": "37.9 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "Sapphira-l3.3-70b-0.2 —Loose coherence after 7-10K",
+  "score": 61.0,
+  "tier": "🥉⭐",
+  "apple": "48GB",
+  "size": "37.9 GB",
+  "arch": "Dense",
+  "speed": "9.6 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "theDrummer_Anubis-70b-v1.2",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "48GB",
+  "size": "40.1 GB",
+  "arch": "Dense",
+  "speed": "10.2 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "theDrummer_Anubis-70b-v1.1",
+  "score": 59.0,
+  "tier": "🥉⭐",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "Hermes-4-70b —Optimised against refusals",
+  "score": 57.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "39.7 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "Llama-3.3-70b-instruct-heretic-abliterated",
+  "score": 56.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "42.5 GB",
+  "arch": "Dense",
+  "speed": "10.6 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "Steelskull_L3.3-Shakudo-70b",
+  "score": 55.0,
+  "tier": "⭐",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3.3-TRP-Base-80-70b",
+  "score": 54.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3.3-The-Omega-Directive-70b-unslop-v2.0",
+  "score": 53.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "38.3 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "Forgotten-Abomination-70b-v5.0",
+  "score": 53.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "44.3 GB",
+  "arch": "Dense",
+  "speed": "10.1 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "Omega-Evolution-70b-v2.1",
+  "score": 52.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "42.8 GB",
+  "arch": "Dense",
+  "speed": "9.8 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "Pinecone-Titan-70b",
+  "score": 52.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "70b-l3.3-Cirrus-X1",
+  "score": 50.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "40.1 GB",
+  "arch": "Dense",
+  "speed": "9.5 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3.3-GeneticLemonade-final-70b",
+  "score": 50.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "44.3 GB",
+  "arch": "Dense",
+  "speed": "10.5 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "Legion-v2.1-llama-70b-elarablated-v0.8-hf",
+  "score": 49.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "Pernicious_Prophecy_70b",
+  "score": 48.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3.3-ms-Nevoria-70b",
+  "score": 48.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "40.1 GB",
+  "arch": "Dense",
+  "speed": "10.6 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3.3-GeneticLemonade-unleashed-70b-v2.2",
+  "score": 47.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "L3.3-70b-Loki-v2.0 —TTRPG-Style DM",
+  "score": 47.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "40.4 GB",
+  "arch": "Dense",
+  "speed": "9.6 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "ds-r1-distill-70b-ArliAI-RpR-v4-Large",
+  "score": 47.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3.3-70b-Animus-v12.1",
+  "score": 46.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "42.5 GB",
+  "arch": "Dense",
+  "speed": "10 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "Stylizer-Dark-v2-llama-70b",
+  "score": 44.0,
+  "tier": "🤪",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3.1-Nemotron-Sunfall-v0.7.0",
+  "score": 43.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "40.1 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3.3-70b-Magnum-Nexus",
+  "score": 42.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "l3.3-GeneticLemonade-unleashed-70b-v3",
+  "score": 38.0,
+  "tier": "💩",
+  "apple": "48GB",
+  "size": "39.7 GB",
+  "arch": "Dense",
+  "speed": "11.7 t/s"
+ },
+ {
+  "base": "Llama 3",
+  "model": "📦 Llama-3.3-70b-instruct",
+  "score": 36.0,
+  "tier": "💩",
+  "apple": "48GB",
+  "size": "39.7 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "Wayfarer-large-70b-llama-3.3",
+  "score": 27.0,
+  "tier": "💩",
+  "apple": "48GB",
+  "size": "40.1 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "llama-3.1-Nemotron-70b-instruct-hf",
+  "score": 23.0,
+  "tier": "💩",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral 'Medium’ 2309",
+  "model": "Midnight-Miqu-70b-v1.5",
+  "score": 53.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 2",
+  "model": "Unhinged-Qwen2-72b",
+  "score": 48.0,
+  "tier": "",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 2.5",
+  "model": "Qwen2.5-72b-instruct-abliterated",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 2.5",
+  "model": "Qwen2.5-72b-ArliAI-RPmax-v1.4",
+  "score": 58.0,
+  "tier": "🥉⭐",
+  "apple": "48GB",
+  "size": "45.7 GB",
+  "arch": "Dense",
+  "speed": "9.5 t/s"
+ },
+ {
+  "base": "Qwen 2.5",
+  "model": "📦 Qwen2.5-72b-instruct-awq",
+  "score": 32.0,
+  "tier": "💩",
+  "apple": "48GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Hunyuan ⌥💭",
+  "model": "📦 Hunyuan-a13b-instruct",
+  "score": 43.0,
+  "tier": "🤪",
+  "apple": "64GB",
+  "size": "45.9 GB",
+  "arch": "MoE",
+  "speed": "31.8 t/s"
+ },
+ {
+  "base": "Qwen 3 Coder Next",
+  "model": "📦 Qwen3-Coder-Next",
+  "score": 45.0,
+  "tier": "",
+  "apple": "64GB",
+  "size": "44.9 GB",
+  "arch": "MoE",
+  "speed": "80.9 t/s"
+ },
+ {
+  "base": "Qwen 3 Next",
+  "model": "Huihui-Qwen3-Next-80B-A3B-Instruct-abliterated",
+  "score": 71.0,
+  "tier": "🥈",
+  "apple": "64GB",
+  "size": "44.9 GB",
+  "arch": "MoE",
+  "speed": "77 t/s"
+ },
+ {
+  "base": "Qwen 3 Next",
+  "model": "📦 Qwen3-Next-80B-a3B-instruct —Awful style",
+  "score": 14.0,
+  "tier": "💩",
+  "apple": "64GB",
+  "size": "44.9 GB",
+  "arch": "MoE",
+  "speed": "79.7 t/s"
+ },
+ {
+  "base": "Qwen 3 Next  💭",
+  "model": "📦 Qwen3-Next-80B-a3B-thinking —Awful style",
+  "score": 18.0,
+  "tier": "💩",
+  "apple": "64GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "GLM 4.5 ⌥💭",
+  "model": "GLM-4.5-Air-REAP-82b-A12b",
+  "score": 64.0,
+  "tier": "🥉",
+  "apple": "64GB",
+  "size": "48.7 GB",
+  "arch": "MoE",
+  "speed": "39.9 t/s"
+ },
+ {
+  "base": "Solar Open ⌥💭",
+  "model": "📦 Solar-Open-100B —❌",
+  "score": 34.0,
+  "tier": "💩",
+  "apple": "96GB",
+  "size": "57.8 GB",
+  "arch": "MoE",
+  "speed": "52.1 t/s"
+ },
+ {
+  "base": "Ling 2",
+  "model": "huihui-Ling-Flash-2.0-abliterated —Chat API",
+  "score": 72.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "62.4 GB",
+  "arch": "MoE",
+  "speed": "73.3 t/s"
+ },
+ {
+  "base": "Ling 2",
+  "model": "📦 Ling-Flash-2.0 —ChatAPI, Quite creative",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "57.9 GB",
+  "arch": "MoE",
+  "speed": "92 t/s"
+ },
+ {
+  "base": "Ring 2",
+  "model": "📦 Ring-Flash-Linear-2.0 —Use Chat API",
+  "score": 17.0,
+  "tier": "💩",
+  "apple": "96GB",
+  "size": "84.7 GB",
+  "arch": "MoE",
+  "speed": "59 t/s"
+ },
+ {
+  "base": "Command-R+",
+  "model": "📦 c4ai-Command-R-plus-08-2024 —=v2",
+  "score": 56.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3",
+  "model": "theDrummer_Anubis-Pro-105b —Upscaled from 70B",
+  "score": 42.0,
+  "tier": "👤",
+  "apple": "96GB",
+  "size": "59 GB",
+  "arch": "Dense",
+  "speed": "6.7 t/s"
+ },
+ {
+  "base": "GLM 4.5 ⌥💭",
+  "model": "GLM-4.5-Iceblink-106b-a12b",
+  "score": 69.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "63.1 GB",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "GLM 4.5 ⌥💭",
+  "model": "huihui-GLM-4.5-Air-abliterated —ChatML",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "GLM 4.5 ⌥💭",
+  "model": "GLM-4.5-Air-derestricted —ChatML",
+  "score": 62.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "63.34 GB",
+  "arch": "MoE",
+  "speed": "31.5 t/s"
+ },
+ {
+  "base": "GLM 4.5 ⌥💭",
+  "model": "GLM-4.5-Iceblink-v2-106b-a12b",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "64.4 GB",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "GLM 4.5 ⌥💭",
+  "model": "GLM-Air-4.5-106b-Animus-v12.0",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "63 GB",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "GLM 4.5 ⌥💭",
+  "model": "📦 GLM-4.5-Air —ChatML template",
+  "score": 58.0,
+  "tier": "⭐",
+  "apple": "96GB",
+  "size": "60.2 GB",
+  "arch": "MoE",
+  "speed": "43.4 t/s"
+ },
+ {
+  "base": "GLM 4.5 ⌥💭",
+  "model": "Derestricted-Iceblink",
+  "score": 57.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "58.7 GB",
+  "arch": "MoE",
+  "speed": "43.9 t/s"
+ },
+ {
+  "base": "GLM 4.5 ⌥💭",
+  "model": "theDrummer_GLM-Steam-106b-a12B-v1 —chatML",
+  "score": 57.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "60.2 GB",
+  "arch": "MoE",
+  "speed": "43.4 t/s"
+ },
+ {
+  "base": "GLM 4.6V ⌥💭",
+  "model": "📦 GLM-4.6V —💥💭 GML4 Template",
+  "score": 77.0,
+  "tier": "🥇",
+  "apple": "96GB",
+  "size": "64 GB",
+  "arch": "MoE",
+  "speed": "43.2 t/s"
+ },
+ {
+  "base": "GLM 4.6V ⌥💭",
+  "model": "📦 GLM-4.6V —❌  ChatML",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "64 GB",
+  "arch": "MoE",
+  "speed": "43.2 t/s"
+ },
+ {
+  "base": "GLM 4.6V ⌥💭",
+  "model": "📦 GLM-4.6V —💭 GML4 Template",
+  "score": 34.0,
+  "tier": "💩",
+  "apple": "96GB",
+  "size": "64 GB",
+  "arch": "MoE",
+  "speed": "43.2 t/s"
+ },
+ {
+  "base": "Llama 4",
+  "model": "📦 Llama-4-Scout-17b-16e-instruct",
+  "score": 38.0,
+  "tier": "💩",
+  "apple": "96GB",
+  "size": "61.1 GB",
+  "arch": "MoE",
+  "speed": "36.1 t/s"
+ },
+ {
+  "base": "Llama 4",
+  "model": "Cogito-v2-Preview-Llama-109B",
+  "score": 37.0,
+  "tier": "💩",
+  "apple": "96GB",
+  "size": "67.4 GB",
+  "arch": "MoE",
+  "speed": "38.2 t/s"
+ },
+ {
+  "base": "Command-A",
+  "model": "theDrummer_Fallen-Command-A-111b-v1.1",
+  "score": 75.0,
+  "tier": "🥈⭐",
+  "apple": "96GB",
+  "size": "63.4 GB",
+  "arch": "Dense",
+  "speed": "5.4 t/s"
+ },
+ {
+  "base": "Command-A",
+  "model": "📦 c4ai-Command-A-03-2025",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Command-A",
+  "model": "theDrummer_Agatha-111b-v1",
+  "score": 55.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "63.4 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Command-A",
+  "model": "c4ai-Command-A-03-2025-abliterated",
+  "score": 54.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "70 GB",
+  "arch": "Dense",
+  "speed": "6.2 t/s"
+ },
+ {
+  "base": "GPT-OSS 💭",
+  "model": "llmfan46/GPT-OSS-120b-ultra-heretic",
+  "score": 72.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "65.4 GB",
+  "arch": "MoE",
+  "speed": "66.3 t/s"
+ },
+ {
+  "base": "GPT-OSS 💭",
+  "model": "llmfan46/GPT-OSS-120b-heretic-v2",
+  "score": 70.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "65.4 GB",
+  "arch": "MoE",
+  "speed": "64.5 t/s"
+ },
+ {
+  "base": "GPT-OSS 💭",
+  "model": "GPT-OSS-120b-heretic",
+  "score": 64.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "63.4 GB",
+  "arch": "MoE",
+  "speed": "80.7 t/s"
+ },
+ {
+  "base": "GPT-OSS 💭",
+  "model": "GPT-OSS-120b-derestricted",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "63.4 GB",
+  "arch": "MoE",
+  "speed": "72.2 t/s"
+ },
+ {
+  "base": "GPT-OSS 💭",
+  "model": "GPT-OSS-120b-heretic-v2",
+  "score": 41.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "63.4 GB",
+  "arch": "MoE",
+  "speed": "79.9 t/s"
+ },
+ {
+  "base": "GPT-OSS 💭",
+  "model": "📦 GPT-OSS-120b —use Chat API",
+  "score": 9.0,
+  "tier": "💩",
+  "apple": "96GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Small 4.0 2603 ⌥💭",
+  "model": "Mistral-Small-4-119b-jang_4m-crack —❌Softcore",
+  "score": 65.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "69 GB",
+  "arch": "MoE",
+  "speed": "57.2 t/s"
+ },
+ {
+  "base": "Nvidia Nemotron 3 ⌥💭",
+  "model": "Nemotron-3-Super-120b-a12b-mlx-crack-uncensored —❌",
+  "score": 56.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "68 GB",
+  "arch": "MoE",
+  "speed": "52.1 t/s"
+ },
+ {
+  "base": "Nvidia Nemotron 3 ⌥💭",
+  "model": "Nemotron-3-Super-120b-a12b-heretic —💭",
+  "score": 51.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "75.8 GB",
+  "arch": "MoE",
+  "speed": "33.1 t/s"
+ },
+ {
+  "base": "Nvidia Nemotron 3 ⌥💭",
+  "model": "📦 Nemotron-3-Super-120b-a12b —💭",
+  "score": 35.0,
+  "tier": "💩",
+  "apple": "96GB",
+  "size": "67.2 GB",
+  "arch": "MoE",
+  "speed": "32.5 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Qwen3.5-122b-a10b-Uncensored-HauhauCS-Aggressive —❌",
+  "score": 71.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "79.6 GB",
+  "arch": "MoE",
+  "speed": "39.1 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Qwen3.5-122b-a10b-Prism-Lite —💭",
+  "score": 64.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "62.9 GB",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "Qwen3.5-VL-122b-a10b-Crack —💭",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "69.6 GB",
+  "arch": "MoE",
+  "speed": "52.7 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "📦 Qwen3.5-122b-a10b —💭",
+  "score": 26.0,
+  "tier": "💩",
+  "apple": "96GB",
+  "size": "63.2 GB",
+  "arch": "MoE",
+  "speed": "25 t/s"
+ },
+ {
+  "base": "Devstral 2 2512",
+  "model": "📦 Devstral-2-123b-instruct-2512",
+  "score": 77.0,
+  "tier": "🥇",
+  "apple": "96GB",
+  "size": "66.4 GB",
+  "arch": "Dense",
+  "speed": "7.1 t/s"
+ },
+ {
+  "base": "Devstral 2 2512",
+  "model": "huihui-Devstral-2-123b-instruct-2512-abiterated",
+  "score": 71.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "74.9 GB",
+  "arch": "Dense",
+  "speed": "5.7 t/s"
+ },
+ {
+  "base": "Mistral Large 2407",
+  "model": "Monstral-123b-v2",
+  "score": 74.0,
+  "tier": "🥈⭐",
+  "apple": "96GB",
+  "size": "69.2 GB",
+  "arch": "Dense",
+  "speed": "5 t/s"
+ },
+ {
+  "base": "Mistral Large 2407",
+  "model": "theDrummer_Behemoth-123b-v1.2",
+  "score": 68.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "69 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Large 2407",
+  "model": "theDrummer_Behemoth-Redux-123b-v1.1",
+  "score": 67.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Large 2407",
+  "model": "Monstral-123b",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "69.3 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Large 2407",
+  "model": "📦 Mistral-Large-instruct-2407",
+  "score": 52.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Large 2407",
+  "model": "theDrummer_Behemoth-Redux-123b-v1.0",
+  "score": 52.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "69 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Large 2411",
+  "model": "theDrummer_Behemoth-X-123b-v2",
+  "score": 73.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "73.2 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Large 2411",
+  "model": "ml2-123b-Magnum-Diamond",
+  "score": 73.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "69.2 GB",
+  "arch": "Dense",
+  "speed": "5.2 t/s"
+ },
+ {
+  "base": "Mistral Large 2411",
+  "model": "theDrummer_Behemoth-X-123b-v2.1",
+  "score": 66.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "69.2 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Large 2411",
+  "model": "📦 Mistral-Large-instruct-2411",
+  "score": 66.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "69.3 GB",
+  "arch": "Dense",
+  "speed": "6.6 t/s"
+ },
+ {
+  "base": "Mistral Large 2411",
+  "model": "theDrummer_Behemoth-R1-123b-v2 —💭",
+  "score": 62.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Large 2411",
+  "model": "m2411-123b-Animus-v12.0",
+  "score": 62.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "69.7 GB",
+  "arch": "Dense",
+  "speed": "5 t/s"
+ },
+ {
+  "base": "Mistral Large 2411",
+  "model": "Behemoth-T1-123b —💭",
+  "score": 61.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "66 GB",
+  "arch": "Dense",
+  "speed": "5.3 t/s"
+ },
+ {
+  "base": "Mistral Large 2411",
+  "model": "Cakrawala-123b",
+  "score": 59.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "76.7 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Large 2411",
+  "model": "Writer-Large-2411-v2.1-123b",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Large 2411",
+  "model": "Xortron.CriminalComputing.Large.2026.3",
+  "score": 58.0,
+  "tier": "🥉",
+  "apple": "96GB",
+  "size": "66 GB",
+  "arch": "Dense",
+  "speed": "5.4 t/s"
+ },
+ {
+  "base": "Mistral Large 2411",
+  "model": "theDrummer_Behemoth-123b-v2.2",
+  "score": 57.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "69 GB",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Medium 3.5 ⌥💭",
+  "model": "📦 Mistral-Medium-3.5-128b —❌",
+  "score": 74.0,
+  "tier": "🥈",
+  "apple": "96GB",
+  "size": "81.6 GB",
+  "arch": "Dense",
+  "speed": "4.8 t/s"
+ },
+ {
+  "base": "Dots1",
+  "model": "📦 Dots.llm1",
+  "score": 46.0,
+  "tier": "",
+  "apple": "96GB",
+  "size": "80.6 GB",
+  "arch": "MoE",
+  "speed": "23.8 t/s"
+ },
+ {
+  "base": "Step Flash 3.5 💭",
+  "model": "Step-3.5-Flash-prism —💭",
+  "score": 81.0,
+  "tier": "🥇⭐",
+  "apple": "128GB",
+  "size": "111.5 GB",
+  "arch": "MoE",
+  "speed": "41.2 t/s"
+ },
+ {
+  "base": "Step Flash 3.5 💭",
+  "model": "📦 Step-3.5-Flash —💭💥",
+  "score": 66.0,
+  "tier": "🥈⭐",
+  "apple": "128GB",
+  "size": "111.5 GB",
+  "arch": "MoE",
+  "speed": "41.2 t/s"
+ },
+ {
+  "base": "Step Flash 3.5 💭",
+  "model": "Step-3.5-Flash-ablitirated —💭",
+  "score": 28.0,
+  "tier": "💩",
+  "apple": "128GB",
+  "size": "105 GB",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Step Flash 3.5 💭",
+  "model": "📦 Step-3.5-Flash —💭",
+  "score": 28.0,
+  "tier": "💩",
+  "apple": "128GB",
+  "size": "110.8 GB",
+  "arch": "MoE",
+  "speed": "50.7 t/s"
+ },
+ {
+  "base": "Command-A+ ⌥💭",
+  "model": "📦 c4ai-Command-A-05-2026 —❌",
+  "score": 26.0,
+  "tier": "💩",
+  "apple": "256GB",
+  "size": "118.8 GB",
+  "arch": "MoE",
+  "speed": "19.1 t/s"
+ },
+ {
+  "base": "MiniMax M2 ⌥💭",
+  "model": "MiniMax-M2.5-prism-Lite —💭 🗜IQ2_M",
+  "score": 56.0,
+  "tier": "",
+  "apple": "256GB",
+  "size": "74.8 GB",
+  "arch": "MoE",
+  "speed": "46.1 t/s"
+ },
+ {
+  "base": "MiniMax M2 ⌥💭",
+  "model": "📦 MiniMax-M2 —❌ 🗜3bit_DWQ",
+  "score": 25.0,
+  "tier": "💩",
+  "apple": "256GB",
+  "size": "100.1 GB",
+  "arch": "MoE",
+  "speed": "51.4 t/s"
+ },
+ {
+  "base": "MiniMax M2.5 ⌥💭",
+  "model": "MiniMax-M2.5-Uncensored-JANG_2L —💭 🗜2bit",
+  "score": 56.0,
+  "tier": "",
+  "apple": "256GB",
+  "size": "67.2 GB",
+  "arch": "MoE",
+  "speed": "53.7 t/s"
+ },
+ {
+  "base": "MiniMax M2.5 ⌥💭",
+  "model": "📦 MiniMax-M2.5 —💭 🗜3bit_3-6",
+  "score": 17.0,
+  "tier": "💩",
+  "apple": "256GB",
+  "size": "113.9 GB",
+  "arch": "MoE",
+  "speed": "51.5 t/s"
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "Qwen3-235b-a22b-abliterated — 🗜Q3_K_L",
+  "score": 73.0,
+  "tier": "🥈",
+  "apple": "256GB",
+  "size": "112.5 GB",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "📦 Qwen3-235b-a22b —2504 =v1, 🗜Q3_K_XL",
+  "score": 68.0,
+  "tier": "🥈⭐",
+  "apple": "256GB",
+  "size": "103.7 GB",
+  "arch": "MoE",
+  "speed": "22 t/s"
+ },
+ {
+  "base": "Qwen 3 2507",
+  "model": "Qwen3-235b-a22b-instruct-2507-abliterated",
+  "score": 71.0,
+  "tier": "🥈",
+  "apple": "256GB",
+  "size": "101.4 GB",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 2507",
+  "model": "📦 Qwen3-235b-a22b-instruct-2507 —=v2 🗜3bit_DWQ",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "256GB",
+  "size": "102.9 GB",
+  "arch": "MoE",
+  "speed": "30.3 t/s"
+ },
+ {
+  "base": "Qwen 3 VL",
+  "model": "Qwen3-VL-235b-a22b-instruct-abliterated —🗜3bit",
+  "score": 76.0,
+  "tier": "🥈⭐",
+  "apple": "256GB",
+  "size": "119.1 GB",
+  "arch": "MoE",
+  "speed": "25.1 t/s"
+ },
+ {
+  "base": "Qwen 3 VL",
+  "model": "📦 Qwen3-VL-235b-a22b-instruct  =v3",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "256GB",
+  "size": "106 GB",
+  "arch": "MoE",
+  "speed": "15.2 t/s"
+ },
+ {
+  "base": "Qwen 3 VL 💭",
+  "model": "📦 Qwen3-VL-235b-a22b-Thinking —💥 🗜Q3",
+  "score": 91.0,
+  "tier": "🥇",
+  "apple": "256GB",
+  "size": "114.8 GB",
+  "arch": "MoE",
+  "speed": "21.1 t/s"
+ },
+ {
+  "base": "Qwen 3 VL 💭",
+  "model": "Qwen3-VL-235b-a22b-Thinking-heretic —🗜Q3",
+  "score": 80.0,
+  "tier": "🥇🤪",
+  "apple": "256GB",
+  "size": "113.6 GB",
+  "arch": "MoE",
+  "speed": "20.6 t/s"
+ },
+ {
+  "base": "Qwen 3 VL 💭",
+  "model": "📦 Qwen3-VL-235b-a22b-Thinking —🗜Q3",
+  "score": 27.0,
+  "tier": "💩",
+  "apple": "256GB",
+  "size": "114.8 GB",
+  "arch": "MoE",
+  "speed": "21.1 t/s"
+ },
+ {
+  "base": "Deepseek v2.5",
+  "model": "📦 DeepSeek-v2.5-1210 —🗜3bit",
+  "score": 26.0,
+  "tier": "💩",
+  "apple": "256GB",
+  "size": "103.2 GB",
+  "arch": "MoE",
+  "speed": "30.2 t/s"
+ },
+ {
+  "base": "Llama 3 ⌥💭",
+  "model": "nvidia.llama-3_1-Nemotron-Ultra-253b —🗜IQ3_XSS",
+  "score": 55.0,
+  "tier": "",
+  "apple": "256GB",
+  "size": "97.6 GB",
+  "arch": "Dense",
+  "speed": "1.8 t/s"
+ },
+ {
+  "base": "Grok 2",
+  "model": "📦 Grok-2 —🗜IQ3_XSS",
+  "score": 69.0,
+  "tier": "🥈",
+  "apple": "256GB",
+  "size": "117.3 GB",
+  "arch": "MoE",
+  "speed": "6.1 t/s"
+ },
+ {
+  "base": "Deepseek v4 ⌥💭",
+  "model": "📦 DeepSeek-V4-Flash —💭 Chat API 🗜IQ2_K_S",
+  "score": 44.0,
+  "tier": "",
+  "apple": "256GB",
+  "size": "86.7 GB",
+  "arch": "MoE",
+  "speed": "31.1 t/s"
+ },
+ {
+  "base": "Deepseek v4 0731 ⌥💭",
+  "model": "huihui-DeepSeek-v4-Flash-0731-abliterated —💭 🗜IQ2_K_M",
+  "score": 64.0,
+  "tier": "🥈",
+  "apple": "256GB",
+  "size": "97.6 GB",
+  "arch": "MoE",
+  "speed": "27.7 t/s"
+ },
+ {
+  "base": "Deepseek v4 0731 ⌥💭",
+  "model": "📦 DeepSeek-V4-Flash-0731 —❌ 🗜IQ3_XXS",
+  "score": 57.0,
+  "tier": "",
+  "apple": "256GB",
+  "size": "104.2 GB",
+  "arch": "MoE",
+  "speed": "28.1 t/s"
+ },
+ {
+  "base": "Deepseek v4 0731 ⌥💭",
+  "model": "📦 DeepSeek-V4-Flash-0731 —💭 🗜IQ3_XXS",
+  "score": 46.0,
+  "tier": "",
+  "apple": "256GB",
+  "size": "104.2 GB",
+  "arch": "MoE",
+  "speed": "28.1 t/s"
+ },
+ {
+  "base": "Hy 3 ⌥💭",
+  "model": "📦 HY3-295b-a21b —❌ 🗜IQ3_XSS",
+  "score": 55.0,
+  "tier": "",
+  "apple": "256GB",
+  "size": "116.7 GB",
+  "arch": "MoE",
+  "speed": "42.6 t/s"
+ },
+ {
+  "base": "Hy 3 ⌥💭",
+  "model": "📦 HY3-295b-a21b —💭 Chat API 🗜IQ3_XSS",
+  "score": 48.0,
+  "tier": "",
+  "apple": "256GB",
+  "size": "116.7 GB",
+  "arch": "MoE",
+  "speed": "42.6 t/s"
+ },
+ {
+  "base": "Ernie 4.5",
+  "model": "📦 Ernie-4.5-300b-a47b-pt — 🗜IQ2_K_XL",
+  "score": 49.0,
+  "tier": "",
+  "apple": "256GB",
+  "size": "114.6 GB",
+  "arch": "MoE",
+  "speed": "9.6 t/s"
+ },
+ {
+  "base": "Ernie 4.5",
+  "model": "📦 Ernie-4.5-300b-a47b-base —Cloud",
+  "score": 34.0,
+  "tier": "💩",
+  "apple": "256GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "MiMo V2 Flash ⌥💭",
+  "model": "📦 MiMo-V2-Flash —💭 🗜IQ2_M",
+  "score": 17.0,
+  "tier": "💩🤪",
+  "apple": "256GB",
+  "size": "96.7 GB",
+  "arch": "MoE",
+  "speed": "33.7 t/s"
+ },
+ {
+  "base": "MiMo V2.5 ⌥💭",
+  "model": "📦 MiMo-V2.5 —💭 Chat API 🗜IQ3_S_UD",
+  "score": 1.0,
+  "tier": "💩",
+  "apple": "256GB",
+  "size": "114.9 GB",
+  "arch": "MoE",
+  "speed": "38 t/s"
+ },
+ {
+  "base": "GLM 5.3 Flash ⌥💭",
+  "model": "📦 GLM-5.3-Flash —💭💥 Text API 🗜Q2_K_XL",
+  "score": 85.0,
+  "tier": "🥇",
+  "apple": "256GB",
+  "size": "110GB",
+  "arch": "MoE",
+  "speed": "21 t/s"
+ },
+ {
+  "base": "GLM 5.3 Flash ⌥💭",
+  "model": "📦 GLM-5.3-Flash —💭 🗜Q2_K_XL",
+  "score": 31.0,
+  "tier": "💩",
+  "apple": "256GB",
+  "size": "110GB",
+  "arch": "MoE",
+  "speed": "21 t/s"
+ },
+ {
+  "base": "GLM 4.5 ⌥💭",
+  "model": "📦 GLM-4.5 —ChatML template, Cloud",
+  "score": 81.0,
+  "tier": "🥇",
+  "apple": "256GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "GLM 4.5 ⌥💭",
+  "model": "📦 GLM-4.5 —ChatML template 🗜IQ2_XSS",
+  "score": 76.0,
+  "tier": "🥈",
+  "apple": "256GB",
+  "size": "115.8 GB",
+  "arch": "MoE",
+  "speed": "17.4 t/s"
+ },
+ {
+  "base": "GLM 4.6 ⌥💭",
+  "model": "ArliAI GLM-4.6-derestricted —🗜IQ3_XSS",
+  "score": 88.0,
+  "tier": "🥇",
+  "apple": "256GB",
+  "size": "114.4 GB",
+  "arch": "MoE",
+  "speed": "16.1 t/s"
+ },
+ {
+  "base": "GLM 4.6 ⌥💭",
+  "model": "📦 GLM-4.6 —🗜IQ2_XSS",
+  "score": 88.0,
+  "tier": "🥇⭐",
+  "apple": "256GB",
+  "size": "115.4 GB",
+  "arch": "MoE",
+  "speed": "17.7 t/s"
+ },
+ {
+  "base": "GLM 4.6 ⌥💭",
+  "model": "📦 GLM-4.6 — Cloud",
+  "score": 86.0,
+  "tier": "🥇",
+  "apple": "256GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "GLM 4.7 ⌥💭",
+  "model": "📦 GLM-4.7 —💥💭 🗜IQ2_XSS_UD",
+  "score": 90.0,
+  "tier": "🥇⭐",
+  "apple": "256GB",
+  "size": "115.9 GB",
+  "arch": "MoE",
+  "speed": "17.3 t/s"
+ },
+ {
+  "base": "GLM 4.7 ⌥💭",
+  "model": "GLM-4.7-PRISM-Unsloth —💭 🗜IQ2_XSS_UD",
+  "score": 86.0,
+  "tier": "🥇",
+  "apple": "256GB",
+  "size": "113.9 GB",
+  "arch": "MoE",
+  "speed": "18.1 t/s"
+ },
+ {
+  "base": "GLM 4.7 ⌥💭",
+  "model": "📦 GLM-4.7 —💥❌ 🗜IQ2_XSS_UD",
+  "score": 82.0,
+  "tier": "🥇",
+  "apple": "256GB",
+  "size": "115.9 GB",
+  "arch": "MoE",
+  "speed": "17.3 t/s"
+ },
+ {
+  "base": "GLM 4.7 ⌥💭",
+  "model": "📦 GLM-4.7 —💭 🗜IQ2_XSS_UD",
+  "score": 40.0,
+  "tier": "💩",
+  "apple": "256GB",
+  "size": "115.9 GB",
+  "arch": "MoE",
+  "speed": "17.3 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "📦 Qwen3.5-397b-a17b —❌💥🗜IQ2_XXS",
+  "score": 45.0,
+  "tier": "🤪",
+  "apple": "256GB",
+  "size": "116.7 GB",
+  "arch": "MoE",
+  "speed": "18.7 t/s"
+ },
+ {
+  "base": "Qwen 3.5 ⌥💭",
+  "model": "📦 Qwen3.5-397b-a17b —💭 🗜IQ1_S",
+  "score": 20.0,
+  "tier": "💩",
+  "apple": "256GB",
+  "size": "108.9 GB",
+  "arch": "MoE",
+  "speed": "19.8 t/s"
+ },
+ {
+  "base": "Jamba Large",
+  "model": "📦 ai21-Jamba-Large-1.6 —Softcore Cloud",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "256GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Trinity Large",
+  "model": "📦 Arcee-AI_Trinity-Large-Preview —🗜IQ2_S",
+  "score": 34.0,
+  "tier": "💩",
+  "apple": "256GB",
+  "size": "110.1 GB",
+  "arch": "MoE",
+  "speed": "38.1 t/s"
+ },
+ {
+  "base": "Llama 4",
+  "model": "📦 Maverick-17b-128e-instruct —Cloud",
+  "score": 43.0,
+  "tier": "",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3 ⌥💭",
+  "model": "Hermes-4-405b —Low refusal rate ❌ Cloud",
+  "score": 66.0,
+  "tier": "🥈",
+  "apple": "512GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "Llama 3 ⌥💭",
+  "model": "📦 Meta-Llama-3.1-405b —❌ Cloud",
+  "score": 38.0,
+  "tier": "💩",
+  "apple": "512GB",
+  "size": "",
+  "arch": "Dense",
+  "speed": ""
+ },
+ {
+  "base": "MiniMax M1",
+  "model": "📦 MiniMax-M1-456b-a46b —Cloud",
+  "score": 44.0,
+  "tier": "",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Qwen 3 ⌥💭",
+  "model": "📦 Qwen3-Coder-480b-a35b-instruct —Cloud",
+  "score": 40.0,
+  "tier": "💩",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Nvidia Nemotron 3 ⌥💭",
+  "model": "📦 Nemotron-3-Ultra-550b-a55b —❌ Cloud",
+  "score": 10.0,
+  "tier": "💩",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Mistral Large 3 2512",
+  "model": "📦 Mistral-Large-3-675b-instruct-2512 —Cloud",
+  "score": 66.0,
+  "tier": "🥈",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Deepseek R1 💭",
+  "model": "DeepSeek-TNG-R1T2-Chimera —Cloud",
+  "score": 79.0,
+  "tier": "🥇",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Deepseek R1 💭",
+  "model": "📦 DeepSeek-R1 —= v1. Cloud",
+  "score": 74.0,
+  "tier": "🥈",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Deepseek R1 💭",
+  "model": "DeepSeek-TNG-R1T-Chimera —Cloud",
+  "score": 73.0,
+  "tier": "🥈",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Deepseek R1 💭",
+  "model": "MAI-DS-R1 —❌ Cloud",
+  "score": 44.0,
+  "tier": "",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Deepseek R1.0528 💭",
+  "model": "📦 DeepSeek-R1-0528 —= v2 Cloud",
+  "score": 85.0,
+  "tier": "🥇⭐",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Deepseek v3",
+  "model": "📦 DeepSeek-v3 —Cloud",
+  "score": 41.0,
+  "tier": "",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Deepseek v3 0324",
+  "model": "📦 DeepSeek-v3-0324 —= v3 2nd edition Cloud",
+  "score": 80.0,
+  "tier": "🥇⭐",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Deepseek v3.1 ⌥💭",
+  "model": "📦 DeepSeek-v3.1 —Cloud",
+  "score": 52.0,
+  "tier": "",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Deepseek v3.2 ⌥💭",
+  "model": "📦 DeepSeek-v3.2 —💭 Cloud",
+  "score": 63.0,
+  "tier": "🥉",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "GLM 5.0 ⌥💭",
+  "model": "📦 GLM-5.0 —💭 Cloud",
+  "score": 26.0,
+  "tier": "💩",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "GLM 5.1 ⌥💭",
+  "model": "📦 GLM-5.1 —💭 Cloud",
+  "score": 25.0,
+  "tier": "💩",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "GLM 5.2 ⌥💭",
+  "model": "📦 GLM-5.2 —💥💭 Cloud Text Completion API / AtlasCloud provider",
+  "score": 85.0,
+  "tier": "🥇",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "GLM 5.2 ⌥💭",
+  "model": "📦 GLM-5.2 —💭 Cloud",
+  "score": 38.0,
+  "tier": "💩",
+  "apple": "512GB",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Kimi K2",
+  "model": "📦 Kimi-K2-instruct —= v0711 Cloud",
+  "score": 75.0,
+  "tier": "🥈",
+  "apple": "Cloud and clusters",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Kimi K2 0905",
+  "model": "📦 Kimi-K2-0905 —= v2 Cloud",
+  "score": 73.0,
+  "tier": "🥈",
+  "apple": "Cloud and clusters",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Kimi K2.5 ⌥💭",
+  "model": "📦 Kimi-K2.5 —💭 Cloud",
+  "score": 16.0,
+  "tier": "💩",
+  "apple": "Cloud and clusters",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Ling 2",
+  "model": "📦 Ling-1T —Text C. API + ChatML Cloud",
+  "score": 60.0,
+  "tier": "🥉",
+  "apple": "Cloud and clusters",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Ling 2.6",
+  "model": "📦 Ling-2.6-1T — Cloud",
+  "score": 46.0,
+  "tier": "",
+  "apple": "Cloud and clusters",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "MiMo V2.5 ⌥💭",
+  "model": "📦 MiMo-V2.5-Pro —💭 Cloud",
+  "score": 35.0,
+  "tier": "💩",
+  "apple": "Cloud and clusters",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Deepseek v4 ⌥💭",
+  "model": "📦 DeepSeek-V4-Pro —💭 Analysis Mode Cloud",
+  "score": 71.0,
+  "tier": "🥈",
+  "apple": "Cloud and clusters",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "LongCat 2 ⌥💭",
+  "model": "📦 LongCat-2.0 —💭 Cloud",
+  "score": 24.0,
+  "tier": "💩",
+  "apple": "Cloud and clusters",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ },
+ {
+  "base": "Kimi K3 💭",
+  "model": "📦 Kimi-K3 —💭 Cloud",
+  "score": 30.0,
+  "tier": "💩",
+  "apple": "Cloud and clusters",
+  "size": "",
+  "arch": "MoE",
+  "speed": ""
+ }
+]
