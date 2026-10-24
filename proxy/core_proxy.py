@@ -587,6 +587,47 @@ def extract_content_value(text, field="content"):
     return raw
 
 
+def _strip_code_fence(text):
+    """剥掉模型爱加的 ```json ... ``` 围栏和前后说明文字，只留 JSON 本体。
+
+    不做这步的后果很具体：模型一加代码围栏，json.loads 就失败，
+    于是走到下面的「半截」分支 —— 那个分支只挑 emotion / control 两个字段，
+    TTS Mod 需要的扩展字段（a1ttsv2 之类）会被丢掉。
+    表现是 NPC 文本照常出、但不会朗读。
+    """
+    s = (text or "").strip()
+    if not s:
+        return s
+
+    m = re.search(r"```(?:json)?\s*(.*?)```", s, re.S)
+    if m:
+        return m.group(1).strip()
+
+    # 没有围栏：取第一个 { 到最后一个 }，去掉前后的客套话
+    i, j = s.find("{"), s.rfind("}")
+    if i >= 0 and j > i:
+        return s[i:j + 1]
+    return s
+
+
+def _try_repair_json(text):
+    """JSON 被 max_tokens 截断时，补上缺失的右括号再试一次。
+
+    能救回多少算多少：至少 content 完整，且保住它之前的字段。
+    """
+    s = (text or "").strip()
+    if not s:
+        return None
+    for cand in (s, s + "}" * max(0, s.count("{") - s.count("}"))):
+        try:
+            obj = json.loads(cand)
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            continue
+    return None
+
+
 def normalize_response(raw_body):
     clean_text = ""
     extra_fields = None
@@ -618,13 +659,32 @@ def normalize_response(raw_body):
                 return "", None
 
             if True:
-                try:
-                    inner = json.loads(inner_text)
-                    if isinstance(inner, dict) and isinstance(inner.get("content"), str):
-                        return clean_tail(inner["content"]), inner
-                except Exception:
-                    pass
+                # 先剥掉 ```json 围栏再整体解析。成功的话返回的是完整的
+                # 内层 dict，TTS Mod 需要的扩展字段（a1ttsv2 等）才能保住。
+                candidate = _strip_code_fence(inner_text)
+                inner = None
+                for txt in (inner_text, candidate):
+                    try:
+                        obj = json.loads(txt)
+                        if isinstance(obj, dict) and isinstance(obj.get("content"), str):
+                            inner = obj
+                            break
+                    except Exception:
+                        pass
 
+                if inner is not None:
+                    if candidate != inner_text:
+                        print("[清洗] 剥掉代码围栏后解析成功 → 保留全部字段")
+                    return clean_tail(inner["content"]), inner
+
+                # 被 max_tokens 截断（末尾少括号）：补齐再试一次
+                repaired = _try_repair_json(candidate)
+                if isinstance(repaired, dict) and isinstance(repaired.get("content"), str):
+                    print("[清洗] JSON 被截断，补括号后解析成功")
+                    return clean_tail(repaired["content"]), repaired
+
+                # 实在解析不出来才退化 —— 这里只能保住 emotion / control，
+                # 扩展字段会丢，TTS 那几轮就不会朗读
                 if '"content"' in inner_text:
                     value = extract_content_value(inner_text, "content")
                     if value and value.strip():
@@ -635,7 +695,7 @@ def normalize_response(raw_body):
                                 extra[f] = v
                         if extra:
                             extra_fields = extra
-                        print("[清洗] 内层半截 JSON → 括号配对扫描")
+                        print("[清洗] 内层半截 JSON → 括号配对扫描（只保住 emotion/control）")
                         return clean_tail(value), extra_fields
 
                 if inner_text:
