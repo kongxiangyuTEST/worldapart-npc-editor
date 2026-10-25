@@ -1780,8 +1780,25 @@ class Api:
         except Exception as e:
             return {"ok": False, "msg": f"请求失败（{upstream}）: {e}"}
         if r.status_code != 200:
+            # 别只丢一个状态码让人猜。按状态码给能动手改的提示。
+            detail = ""
+            try:
+                detail = (r.text or "").strip()[:160]
+            except Exception:
+                pass
+            hint = ""
+            if r.status_code == 404:
+                hint = ("\n→ 两种可能：① 地址路径写错了；"
+                        "② 模型名在这个服务上不存在。\n"
+                        "   去「AI 提示词」页检查「记忆总结」的地址，"
+                        "以及本地模型名（留空会自动选一个）。")
+            elif r.status_code in (401, 403):
+                hint = "\n→ 地址或密钥不对。本地模型一般不需要 key。"
+            elif r.status_code >= 500:
+                hint = "\n→ 服务端自己报错了，去那台机器上看模型服务的日志。"
             return {"ok": False,
-                    "msg": f"模型报错: HTTP {r.status_code}（{upstream}）"}
+                    "msg": f"模型报错: HTTP {r.status_code}（{upstream}）{hint}"
+                           + (f"\n{detail}" if detail else "")}
 
         try:
             raw = r.json()["choices"][0]["message"]["content"].strip()
