@@ -278,6 +278,54 @@ async function ensureGameDir() {
 // ==================== 统一确认弹窗 ====================
 // 原生 confirm() 在 WebView 里又丑又贴顶，换成主题一致的居中弹窗。
 // 用法：const ok = await uiConfirm('消息', { danger: true, okText: '删除' });
+// 多行版输入框（粘贴配置 JSON 这类长文本用；uiPrompt 只有单行）
+function uiPromptTextarea(message, opts) {
+  return new Promise((resolve) => {
+    const root = document.getElementById('ui-modal-root');
+    if (!root) { resolve(null); return; }
+    const o = opts || {};
+
+    const mask = document.createElement('div');
+    mask.className = 'ui-mask';
+    mask.innerHTML = `
+      <div class="ui-dialog" role="dialog" aria-modal="true">
+        <div class="ui-dialog-msg">${escapeHtml(message).replace(/\n/g, '<br>')}</div>
+        <textarea class="form-input" rows="12"
+          style="width:100%;box-sizing:border-box;margin:0 0 14px;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.55;"
+          placeholder="${escapeHtml(o.placeholder || '')}"></textarea>
+        <div class="ui-dialog-actions">
+          <button class="ui-btn ui-btn-ghost" data-act="cancel">取消</button>
+          <button class="ui-btn ui-btn-primary" data-act="ok">${escapeHtml(o.okText || '确定')}</button>
+        </div>
+      </div>`;
+
+    const ta = mask.querySelector('textarea');
+    if (o.value) ta.value = o.value;
+
+    let done = false;
+    const close = (val) => {
+      if (done) return;
+      done = true;
+      document.removeEventListener('keydown', onKey);
+      if (mask.parentNode) mask.parentNode.removeChild(mask);
+      resolve(val);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') close(null);
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) close(ta.value);
+    };
+    document.addEventListener('keydown', onKey);
+    mask.addEventListener('click', (e) => {
+      if (e.target === mask) return close(null);
+      const act = e.target.getAttribute && e.target.getAttribute('data-act');
+      if (act === 'ok') close(ta.value);
+      if (act === 'cancel') close(null);
+    });
+    root.appendChild(mask);
+    setTimeout(() => ta.focus(), 30);
+  });
+}
+
 function uiConfirm(message, opts) {
   return new Promise((resolve) => {
     const root = document.getElementById('ui-modal-root');
