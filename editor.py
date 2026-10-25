@@ -1717,11 +1717,17 @@ class Api:
         headers = {"Content-Type": "application/json"}
         if fallback_key:
             headers["Authorization"] = "Bearer " + fallback_key
+        # 模型名要用配置里的 local_model_name。
+        # 以前写死 "local-model"：llama.cpp 的 llama-server 不校验模型名，
+        # 随便填都能跑；换成 Ollama（比如放 Mac 上）后它严格校验，
+        # 找不到这个名字就直接 404 model not found。
+        model_name = (acfg.get("local_model_name") or "").strip() or "local-model"
         body = {
-            "model": "local-model",
+            "model": model_name,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.4,
             "max_tokens": 4000,
+            "reasoning_effort": "none",
             "thinking": {"type": "disabled"},
         }
 
@@ -1830,11 +1836,19 @@ class Api:
         headers = {"Content-Type": "application/json"}
         if fallback_key:
             headers["Authorization"] = "Bearer " + fallback_key
+        # 同 AI 补全名片：模型名要读配置，写死 "local-model" 在 Ollama 下会 404
+        _mname = "local-model"
+        try:
+            with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as _mf:
+                _mname = (json.load(_mf).get("local_model_name") or "").strip() or _mname
+        except Exception:
+            pass
         body = {
-            "model": "local-model",
+            "model": _mname,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.2,
             "max_tokens": 4000,
+            "reasoning_effort": "none",
             "thinking": {"type": "disabled"},
         }
 
