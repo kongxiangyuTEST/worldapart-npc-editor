@@ -1131,7 +1131,8 @@ header .header-btn.warn {
 .upstream-box .link:hover { text-decoration: underline; }
 
 /* ===== 关于页 ===== */
-#about-page {
+#about-page,
+#update-page {
   padding: 30px 40px;
   display: flex;
   flex-direction: column;

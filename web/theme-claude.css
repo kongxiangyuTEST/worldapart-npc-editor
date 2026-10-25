@@ -2409,7 +2409,7 @@ button.tiny { font-size: 11px; padding: 4px 8px; white-space: nowrap; }
 .update-icon {
   width: 24px; height: 24px; border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
-  background: #eef7f1; color: #2f8f5b; font-size: 14px;
+  background: var(--cl-surface-soft); color: var(--cl-ink); font-size: 14px;
 }
 .update-title { font-size: 14px; font-weight: 500; color: var(--cl-ink); }
 .update-btns { display: flex; gap: 10px; }
@@ -2417,8 +2417,8 @@ button.tiny { font-size: 11px; padding: 4px 8px; white-space: nowrap; }
   flex: 1; height: 38px; border-radius: 8px; font-size: 13px; cursor: pointer;
   border: 1px solid var(--cl-hairline); background: #fff; color: var(--cl-body);
 }
-.update-btn.primary { background: #2f8f5b; border-color: #2f8f5b; color: #fff; }
-.update-btn.primary:hover { background: #287c4f; }
+.update-btn.primary { background: var(--cl-coral); border-color: var(--cl-coral); color: #fff; }
+.update-btn.primary:hover { background: var(--cl-coral-active); border-color: var(--cl-coral-active); }
 .update-btn.secondary:hover { background: var(--cl-surface-soft); }
 .update-btn:disabled { opacity: .6; cursor: default; }
 
@@ -2427,7 +2427,7 @@ button.tiny { font-size: 11px; padding: 4px 8px; white-space: nowrap; }
   background: var(--cl-surface-soft); font-size: 12px; line-height: 1.7;
   color: var(--cl-body);
 }
-.update-result.good { background: #f2faf5; border: 1px solid #d6ecdf; }
+.update-result.good { background: var(--cl-surface-soft); border: 1px solid var(--cl-hairline); }
 .update-result.bad { background: #fdf3f3; border: 1px solid #f3d9d9; color: #a33; }
 .update-ver { font-size: 13px; color: var(--cl-ink); margin-bottom: 6px; }
 .update-size { color: var(--cl-muted); font-size: 12px; }
