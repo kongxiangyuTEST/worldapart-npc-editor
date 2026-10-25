@@ -132,6 +132,24 @@ python tools/check_web_refs.py   # 元素 id 引用是否对得上
 python -m py_compile editor.py proxy/core_proxy.py
 ```
 
+## 发版（让用户能自动更新）
+
+编辑器启动 6 秒后会静默查 GitHub 的 latest release，发现新版就在右下角
+浮出提示。所以每次发版都要走一遍 Releases：
+
+1. `build_all.bat` 出干净包
+2. 把 `dist\WorldApartEditor\` 压成 zip
+3. 改 `config.py` 的 `APP_VERSION`（比如 `0.5` → `0.6`）
+4. GitHub → Releases → Draft a new release
+   - **Tag 必须写成 `v0.6`，和 APP_VERSION 完全一致** —— 检查更新就是拿
+     tag 和 APP_VERSION 比数字，对不上会一直提示有新版
+   - 附件传那个 zip（检查更新只认 `.zip` 资产）
+5. 发布
+
+用户端更新只覆盖程序文件，`editor_cards/`、`memory/`、`ai_config.json` 等
+一律不碰（清单在 `config.py` 的 `KEEP_ON_UPDATE_*`）。覆盖前会自动备份到
+`backup/update_<时间戳>/`。
+
 ---
 
 ## 常见问题

@@ -460,7 +460,11 @@
         <div class="about-header">
           <div class="about-icon">W</div>
           <h1>WorldApart 人物卡编辑器</h1>
-                    <div class="about-version">版本 0.4</div>
+                    <div class="about-version">
+            版本 <span id="about-version-num">—</span>
+            <button class="secondary tiny" id="about-check-update"
+                    onclick="checkUpdate(true)">检查更新</button>
+          </div>
         </div>
 
         <div class="about-card">
@@ -602,5 +606,17 @@
 <script src="app.js"></script>
 <script src="memory.js"></script>
 <script src="trial.js"></script>
+<script src="update.js"></script>
+  <!-- 更新提示：右下角轻量浮层，不挡操作、可随手关掉。
+       只有真的发现新版本才出现，平时完全不存在。 -->
+  <div class="update-toast" id="update-toast">
+    <div class="update-toast-head">
+      <span id="update-toast-title">发现新版本</span>
+      <button class="update-toast-x" onclick="updateToastHide()" title="稍后再说">×</button>
+    </div>
+    <div class="update-toast-body" id="update-toast-body"></div>
+    <div class="update-toast-actions" id="update-toast-actions"></div>
+  </div>
+
 </body>
 </html>

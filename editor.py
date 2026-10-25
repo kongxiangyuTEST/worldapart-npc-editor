@@ -21,7 +21,9 @@ if not os.path.exists(memory_manager.MEMORY_DIR):
 
 import threading
 from datetime import datetime
-from config import CARDS_DIR, WEB_DIR, IGNORED_FILES, CARD_NAME_PREFIX_RE
+from config import (CARDS_DIR, WEB_DIR, IGNORED_FILES, CARD_NAME_PREFIX_RE,
+                    APP_VERSION, UPDATE_REPO,
+                    KEEP_ON_UPDATE_DIRS, KEEP_ON_UPDATE_FILES)
 import services
 from services import CORE_PROXY, CADDY
 
@@ -983,6 +985,152 @@ class Api:
         if len(k) <= 10:
             return "•" * len(k)
         return k[:5] + "•" * 6 + k[-4:]
+
+    # ==================== 版本与自动更新 ====================
+    # 更新原则：只覆盖程序文件，用户的卡片 / 记忆 / 调过的配置一律不碰
+    # （清单在 config.py 的 KEEP_ON_UPDATE_*）。
+    # 覆盖动作不能在本进程里做 —— Windows 锁着正在运行的 exe，
+    # 所以交给一个等 3 秒的 bat：先备份、再 robocopy、最后重新启动。
+
+    def app_version(self):
+        return {"ok": True, "version": APP_VERSION, "repo": UPDATE_REPO}
+
+    def check_update(self):
+        """查 GitHub 最新 release。网络不通时给可读的原因（用户常忘开加速器）。"""
+        try:
+            import urllib.request
+            url = f"https://api.github.com/repos/{UPDATE_REPO}/releases/latest"
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "wa-editor",
+                "Accept": "application/vnd.github+json",
+            })
+            with urllib.request.urlopen(req, timeout=15) as r:
+                d = json.loads(r.read().decode("utf-8"))
+
+            latest = (d.get("tag_name") or "").lstrip("vV")
+            asset = {}
+            for a in (d.get("assets") or []):
+                if (a.get("name") or "").lower().endswith(".zip"):
+                    asset = a
+                    break
+
+            def _tup(v):
+                return tuple(int(x) for x in re.findall(r"\d+", v or "")[:3]) or (0,)
+
+            return {
+                "ok": True,
+                "current": APP_VERSION,
+                "latest": latest,
+                "has_update": _tup(latest) > _tup(APP_VERSION),
+                "notes": (d.get("body") or "")[:600],
+                "size": asset.get("size") or 0,
+                "url": asset.get("browser_download_url") or "",
+                "page": d.get("html_url") or "",
+            }
+        except Exception as e:
+            msg = str(e)
+            low = msg.lower()
+            if "timed out" in low or "timeout" in low:
+                msg = "连接 GitHub 超时 —— 确认加速器已开启后再试"
+            elif "urlopen" in low or "getaddrinfo" in low or "name or service" in low:
+                msg = "连不上 GitHub —— 确认网络（或加速器）已开启"
+            return {"ok": False, "msg": msg}
+
+    def download_update(self, url):
+        """下载 zip 到 update/ 并解压。解压目录里可能还套一层文件夹，自动下钻。"""
+        if not url:
+            return {"ok": False, "msg": "没有下载地址（该 release 没传 zip）"}
+        import urllib.request
+        import zipfile
+        upd = os.path.join(PROJECT_DIR, "update")
+        try:
+            if os.path.isdir(upd):
+                shutil.rmtree(upd, ignore_errors=True)
+            os.makedirs(upd, exist_ok=True)
+
+            zip_path = os.path.join(upd, "package.zip")
+            req = urllib.request.Request(url, headers={"User-Agent": "wa-editor"})
+            with urllib.request.urlopen(req, timeout=600) as r, open(zip_path, "wb") as f:
+                shutil.copyfileobj(r, f)
+            size = os.path.getsize(zip_path)
+
+            with zipfile.ZipFile(zip_path) as z:
+                names = z.namelist()
+                # 防目录穿越：包里出现绝对路径或 .. 直接拒绝
+                for n in names:
+                    if n.startswith("/") or n.startswith("\\") or ".." in n:
+                        return {"ok": False, "msg": "压缩包里有异常路径，已中止"}
+                z.extractall(os.path.join(upd, "pkg"))
+
+            root = os.path.join(upd, "pkg")
+            items = [i for i in os.listdir(root) if not i.startswith(".")]
+            if len(items) == 1 and os.path.isdir(os.path.join(root, items[0])):
+                root = os.path.join(root, items[0])
+
+            return {"ok": True, "dir": root, "size": size, "files": len(names)}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def apply_update(self, src_dir):
+        """备份当前程序 → 生成覆盖脚本 → 启动脚本（主程序随后退出）。"""
+        if not src_dir or not os.path.isdir(src_dir):
+            return {"ok": False, "msg": "更新包目录不存在"}
+
+        ts = time.strftime("%Y%m%d-%H%M%S")
+        bak = os.path.join(PROJECT_DIR, "backup", f"update_{ts}")
+        try:
+            os.makedirs(bak, exist_ok=True)
+            # 备份当前程序文件（用户数据目录跳过，省时间也避免误碰）
+            for name in os.listdir(PROJECT_DIR):
+                if name in KEEP_ON_UPDATE_DIRS or name in KEEP_ON_UPDATE_FILES:
+                    continue
+                if name in ("backup", "update", ".git", ".venv", "__pycache__"):
+                    continue
+                src = os.path.join(PROJECT_DIR, name)
+                try:
+                    if os.path.isdir(src):
+                        shutil.copytree(src, os.path.join(bak, name), dirs_exist_ok=True)
+                    else:
+                        shutil.copy2(src, bak)
+                except Exception:
+                    pass
+        except Exception as e:
+            return {"ok": False, "msg": f"备份失败，已中止更新：{e}"}
+
+        exe = sys.executable if getattr(sys, "frozen", False) \
+            else os.path.join(PROJECT_DIR, "WorldApartEditor.exe")
+
+        xd = " ".join(f'"{d}"' for d in KEEP_ON_UPDATE_DIRS)
+        xf = " ".join(f'"{f}"' for f in KEEP_ON_UPDATE_FILES)
+        bat_path = os.path.join(PROJECT_DIR, "update", "apply_update.bat")
+        script = (
+            "@echo off\r\n"
+            "chcp 65001 >nul\r\n"
+            "rem 等编辑器进程完全退出，否则 exe 被锁住覆盖不了\r\n"
+            "timeout /t 3 /nobreak >nul\r\n"
+            f'robocopy "{src_dir}" "{PROJECT_DIR}" /E /XD {xd} /XF {xf} '
+            "/NFL /NDL /NJH /NJS\r\n"
+            f'start "" "{exe}"\r\n'
+            "exit\r\n"
+        )
+        try:
+            with open(bat_path, "w", encoding="utf-8", newline="") as f:
+                f.write(script)
+        except Exception as e:
+            return {"ok": False, "msg": f"写更新脚本失败：{e}"}
+
+        try:
+            import subprocess
+            DETACHED = 0x00000008
+            subprocess.Popen(["cmd", "/c", bat_path], creationflags=DETACHED)
+        except Exception as e:
+            return {"ok": False, "msg": f"启动更新脚本失败：{e}"}
+
+        # 1.5 秒后自己退出：Windows 锁着运行中的 exe，bat 要等锁释放才能覆盖。
+        # 留 1.5 秒是让前端把「正在更新」的提示画出来。
+        threading.Timer(1.5, lambda: os._exit(0)).start()
+
+        return {"ok": True, "backup": bak}
 
     def model_sources_get(self):
         """读模型源（密钥脱敏后返回）"""

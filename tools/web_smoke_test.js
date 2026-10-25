@@ -201,6 +201,11 @@ ctx.pywebview = {
       has_card: true, has_memory: true,
     }),
     chat_trial_send: async () => ({ ok: true, reply: '客官里边请。', elapsed: 1.2 }),
+    // ---- 版本与更新（2026-10-25）----
+    app_version: async () => ({ ok: true, version: '0.5', repo: 'test/repo' }),
+    check_update: async () => ({ ok: true, current: '0.5', latest: '0.5', has_update: false }),
+    download_update: async () => ({ ok: true, dir: 'update/pkg', size: 100, files: 5 }),
+    apply_update: async () => ({ ok: true, backup: 'backup/update_x' }),
     chat_trial_fragments: async () => ({
       ok: true, total_samples: 57,
       fragments: [

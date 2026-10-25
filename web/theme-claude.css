@@ -2401,6 +2401,55 @@ button.tiny { font-size: 11px; padding: 4px 8px; white-space: nowrap; }
   color: var(--cl-body);
 }
 
+/* ===== 更新提示浮层（右下角）=====
+   平时不存在，只有发现新版本才 show。不用模态框是因为更新不是急事，
+   挡着人操作反而烦。 */
+.update-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 320px;
+  background: #fff;
+  border: 1px solid var(--cl-hairline);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .14);
+  padding: 14px 16px;
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+}
+.update-toast.show { display: flex; }
+.update-toast-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cl-ink);
+}
+.update-toast-x {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--cl-muted);
+  cursor: pointer;
+  padding: 0 2px;
+}
+.update-toast-x:hover { color: var(--cl-ink); }
+.update-toast-body {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--cl-body);
+}
+.update-toast-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.about-version button { margin-left: 8px; }
+
 
 
 

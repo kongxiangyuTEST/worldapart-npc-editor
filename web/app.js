@@ -13,6 +13,7 @@ const PAGE_INIT_STEPS = [
   'initPromptsPage',
   'initMemoryPage',
   'initTrialPage',
+  'initUpdateCheck',
 ];
 
 let initStarted = false;
