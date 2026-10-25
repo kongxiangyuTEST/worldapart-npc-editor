@@ -995,16 +995,37 @@ class Api:
     def app_version(self):
         return {"ok": True, "version": APP_VERSION, "repo": UPDATE_REPO}
 
-    def check_update(self):
-        """查 GitHub 最新 release。网络不通时给可读的原因（用户常忘开加速器）。"""
+    def update_proxy_get(self):
+        """读已保存的更新代理（用户那边要靠加速器才能连 GitHub）"""
+        return {"ok": True, "proxy": self._load_user_config().get("update_proxy") or ""}
+
+    def check_update(self, proxy=None):
+        """查 GitHub 最新 release。
+
+        proxy 传了就顺手存进 user_config —— 用户那边要靠加速器才能连 GitHub，
+        每次重新填太烦。支持 http:// 和 socks5://。
+        """
         try:
             import urllib.request
+            if proxy is not None:
+                cfg = self._load_user_config()
+                if (cfg.get("update_proxy") or "") != proxy:
+                    cfg["update_proxy"] = proxy
+                    self._save_user_config(cfg)
+            else:
+                proxy = self._load_user_config().get("update_proxy") or ""
+
             url = f"https://api.github.com/repos/{UPDATE_REPO}/releases/latest"
             req = urllib.request.Request(url, headers={
                 "User-Agent": "wa-editor",
                 "Accept": "application/vnd.github+json",
             })
-            with urllib.request.urlopen(req, timeout=15) as r:
+            if proxy:
+                opener = urllib.request.build_opener(
+                    urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+            else:
+                opener = urllib.request.build_opener()
+            with opener.open(req, timeout=15) as r:
                 d = json.loads(r.read().decode("utf-8"))
 
             latest = (d.get("tag_name") or "").lstrip("vV")
@@ -1050,7 +1071,13 @@ class Api:
 
             zip_path = os.path.join(upd, "package.zip")
             req = urllib.request.Request(url, headers={"User-Agent": "wa-editor"})
-            with urllib.request.urlopen(req, timeout=600) as r, open(zip_path, "wb") as f:
+            proxy = self._load_user_config().get("update_proxy") or ""
+            if proxy:
+                opener = urllib.request.build_opener(
+                    urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+            else:
+                opener = urllib.request.build_opener()
+            with opener.open(req, timeout=600) as r, open(zip_path, "wb") as f:
                 shutil.copyfileobj(r, f)
             size = os.path.getsize(zip_path)
 

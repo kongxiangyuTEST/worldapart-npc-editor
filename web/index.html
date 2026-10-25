@@ -462,8 +462,6 @@
           <h1>WorldApart 人物卡编辑器</h1>
                     <div class="about-version">
             版本 <span id="about-version-num">—</span>
-            <button class="secondary tiny" id="about-check-update"
-                    onclick="checkUpdate(true)">检查更新</button>
           </div>
         </div>
 
@@ -582,6 +580,31 @@
             </div>
           </div>
         </div>
+
+        <!-- 更新频道：不弹窗、不打扰，想查的时候自己来查 -->
+        <div class="about-card update-card">
+          <div class="update-head">
+            <span class="update-icon">↓</span>
+            <span class="update-title">更新频道</span>
+          </div>
+
+          <div class="update-btns">
+            <button class="update-btn primary" id="about-check-update"
+                    onclick="checkUpdate(true)">检查更新</button>
+            <button class="update-btn secondary" onclick="updateOpenGitHub()">GitHub</button>
+          </div>
+
+          <div class="update-result" id="update-result" style="display:none;"></div>
+
+          <div class="update-proxy-block">
+            <div class="update-sub-title">网络代理</div>
+            <input type="text" id="update-proxy"
+                   placeholder="例如：http://127.0.0.1:7890">
+            <div class="update-hint">支持 HTTP / SOCKS5，留空则不使用代理</div>
+          </div>
+
+          <div class="update-foot" id="update-foot">当前版本 —</div>
+        </div>
       </div>
     </div>
 
@@ -607,16 +630,5 @@
 <script src="memory.js"></script>
 <script src="trial.js"></script>
 <script src="update.js"></script>
-  <!-- 更新提示：右下角轻量浮层，不挡操作、可随手关掉。
-       只有真的发现新版本才出现，平时完全不存在。 -->
-  <div class="update-toast" id="update-toast">
-    <div class="update-toast-head">
-      <span id="update-toast-title">发现新版本</span>
-      <button class="update-toast-x" onclick="updateToastHide()" title="稍后再说">×</button>
-    </div>
-    <div class="update-toast-body" id="update-toast-body"></div>
-    <div class="update-toast-actions" id="update-toast-actions"></div>
-  </div>
-
 </body>
 </html>

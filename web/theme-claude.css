@@ -2401,54 +2401,62 @@ button.tiny { font-size: 11px; padding: 4px 8px; white-space: nowrap; }
   color: var(--cl-body);
 }
 
-/* ===== 更新提示浮层（右下角）=====
-   平时不存在，只有发现新版本才 show。不用模态框是因为更新不是急事，
-   挡着人操作反而烦。 */
-.update-toast {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  width: 320px;
-  background: #fff;
-  border: 1px solid var(--cl-hairline);
-  border-radius: 12px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, .14);
-  padding: 14px 16px;
-  display: none;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 9999;
+/* ===== 关于页 · 更新频道 =====
+   不做弹窗：更新不是急事，弹出来打断人反而烦。
+   自动检查只点个小红点，详情都在这里看。 */
+.update-card { margin-top: 16px; }
+.update-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.update-icon {
+  width: 24px; height: 24px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  background: #eef7f1; color: #2f8f5b; font-size: 14px;
 }
-.update-toast.show { display: flex; }
-.update-toast-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--cl-ink);
+.update-title { font-size: 14px; font-weight: 500; color: var(--cl-ink); }
+.update-btns { display: flex; gap: 10px; }
+.update-btn {
+  flex: 1; height: 38px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  border: 1px solid var(--cl-hairline); background: #fff; color: var(--cl-body);
 }
-.update-toast-x {
-  border: none;
-  background: transparent;
-  font-size: 18px;
-  line-height: 1;
-  color: var(--cl-muted);
-  cursor: pointer;
-  padding: 0 2px;
-}
-.update-toast-x:hover { color: var(--cl-ink); }
-.update-toast-body {
-  font-size: 12px;
-  line-height: 1.7;
+.update-btn.primary { background: #2f8f5b; border-color: #2f8f5b; color: #fff; }
+.update-btn.primary:hover { background: #287c4f; }
+.update-btn.secondary:hover { background: var(--cl-surface-soft); }
+.update-btn:disabled { opacity: .6; cursor: default; }
+
+.update-result {
+  margin-top: 12px; padding: 12px 14px; border-radius: 8px;
+  background: var(--cl-surface-soft); font-size: 12px; line-height: 1.7;
   color: var(--cl-body);
 }
-.update-toast-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
+.update-result.good { background: #f2faf5; border: 1px solid #d6ecdf; }
+.update-result.bad { background: #fdf3f3; border: 1px solid #f3d9d9; color: #a33; }
+.update-ver { font-size: 13px; color: var(--cl-ink); margin-bottom: 6px; }
+.update-size { color: var(--cl-muted); font-size: 12px; }
+.update-notes { color: var(--cl-muted); white-space: pre-line; }
+.update-actions { margin-top: 10px; display: flex; gap: 8px; }
+.update-actions .update-btn { flex: 0 0 auto; padding: 0 18px; height: 32px; }
+
+.update-proxy-block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--cl-hairline); }
+.update-sub-title { font-size: 13px; color: var(--cl-ink); margin-bottom: 8px; }
+.update-proxy-block input {
+  width: 100%; height: 36px; padding: 0 12px; font-size: 12px;
+  border: 1px solid var(--cl-hairline); border-radius: 8px;
+  background: var(--cl-surface-soft); color: var(--cl-body);
 }
-.about-version button { margin-left: 8px; }
+.update-hint { margin-top: 6px; font-size: 11px; color: var(--cl-muted); }
+
+.update-foot {
+  margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--cl-hairline);
+  text-align: center; font-size: 12px; color: var(--cl-muted);
+}
+
+/* 侧栏「关于」有新版本时点个小红点 */
+.nav-item.has-update { position: relative; }
+.nav-item.has-update::after {
+  content: ''; position: absolute; right: 12px; top: 50%;
+  width: 6px; height: 6px; margin-top: -3px; border-radius: 50%;
+  background: #e05353;
+}
+
 
 
 
