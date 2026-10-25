@@ -37,6 +37,36 @@ LAST_SAVED_DIR = os.path.join(PROJECT_DIR, "last_saved")
 AI_CONFIG_PATH = os.path.join(PROJECT_DIR, "ai_config.json")
 
 
+def _resolve_local_model(url, configured):
+    """决定用哪个模型名：填了就用填的，没填就问服务要一个。
+
+    Ollama 会严格校验模型名（找不到直接 404 model not found），
+    所以不能像 llama-server 那样随便写。但用户只填了地址、没填模型名时，
+    与其报错，不如自动取服务上的第一个（Ollama 按最近使用排序，
+    第一个通常就是上次用过的那个）。
+    """
+    if (configured or "").strip():
+        return configured.strip()
+    import urllib.request as _u
+    base = re.sub(r"/v1/.*$", "", (url or "").rstrip("/"))
+    if not base:
+        return ""
+    try:
+        if _no_proxy_for(base):
+            opener = _u.build_opener(_u.ProxyHandler({}))
+        else:
+            opener = _u.build_opener()
+        with opener.open(base + "/api/tags", timeout=5) as r:
+            models = json.loads(r.read().decode("utf-8")).get("models") or []
+        for m in models:
+            nm = (m.get("name") or "").strip()
+            if nm:
+                return nm
+    except Exception:
+        pass
+    return ""
+
+
 def _no_proxy_for(url):
     """内网/本地地址返回「禁用代理」的 proxies 参数，外网返回 None。
 
@@ -1721,7 +1751,8 @@ class Api:
         # 以前写死 "local-model"：llama.cpp 的 llama-server 不校验模型名，
         # 随便填都能跑；换成 Ollama（比如放 Mac 上）后它严格校验，
         # 找不到这个名字就直接 404 model not found。
-        model_name = (acfg.get("local_model_name") or "").strip() or "local-model"
+        model_name = (_resolve_local_model(upstream, acfg.get("local_model_name"))
+                      or "local-model")
         body = {
             "model": model_name,
             "messages": [{"role": "user", "content": prompt}],
@@ -1840,7 +1871,8 @@ class Api:
         _mname = "local-model"
         try:
             with open(AI_CONFIG_PATH, "r", encoding="utf-8-sig") as _mf:
-                _mname = (json.load(_mf).get("local_model_name") or "").strip() or _mname
+                _cfg_name = json.load(_mf).get("local_model_name")
+            _mname = _resolve_local_model(upstream, _cfg_name) or "local-model"
         except Exception:
             pass
         body = {
