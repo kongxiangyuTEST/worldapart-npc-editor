@@ -43,7 +43,6 @@ function renderInjectPage() {
     <div id="rules-container"></div>
     <div class="inject-actions">
       <button class="secondary" onclick="addRule()">+ 添加规则</button>
-      <button class="secondary" onclick="importAiConfig()" title="粘贴别人分享的配置 JSON，合并进来">导入配置</button>
     </div>
 
     <div class="inject-footer">
@@ -151,56 +150,4 @@ async function restartCoreProxy() {
     status.textContent = '✗ ' + (res.msg || '重启失败');
     status.className = 'inject-status error';
   }
-}
-
-// ===== 导入配置 =====
-// 别人分享的通常是整个 ai_config.json，也可能只有 inject + replace_rules 片段。
-// 只取认识的键，交给 save_ai_config（合并保存），其余字段一概不动。
-const IMPORT_KEYS = [
-  'inject', 'replace_rules', 'memory_merge_url', 'memory_slot',
-  'memory_budget', 'save_guard', 'tts_style_inject', 'local_model_name',
-];
-
-async function importAiConfig() {
-  const text = await uiPromptTextarea(
-    '把配置 JSON 粘贴进来。\n支持整个 ai_config.json，也支持只含 inject / replace_rules 的片段。\n只导入认识的字段，其余配置保持不变。',
-    {
-      placeholder: '{"inject": "……", "replace_rules": [{"from": "旧", "to": "新"}]}',
-      okText: '导入',
-    });
-  if (!text || !text.trim()) return;
-
-  let data;
-  try {
-    data = JSON.parse(text.trim());
-  } catch (e) {
-    uiConfirm('不是合法的 JSON：\n' + e.message, { okText: '知道了' });
-    return;
-  }
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    uiConfirm('顶层要是一个对象（大括号包起来的），不是数组或纯文本。', { okText: '知道了' });
-    return;
-  }
-
-  const patch = {};
-  const hit = [];
-  for (const k of IMPORT_KEYS) {
-    if (k in data) { patch[k] = data[k]; hit.push(k); }
-  }
-  if (!hit.length) {
-    uiConfirm('没找到认识的字段。\n认识的字段：' + IMPORT_KEYS.join('、'),
-      { okText: '知道了' });
-    return;
-  }
-
-  const res = await pywebview.api.save_ai_config(patch);
-  if (!res || !res.ok) {
-    uiConfirm('导入失败：' + ((res && res.msg) || '未知错误'), { okText: '知道了' });
-    return;
-  }
-
-  await loadAiConfig();
-  const st = document.getElementById('inject-status');
-  if (st) st.textContent = '已导入 ' + hit.length + ' 项：' + hit.join('、');
-  uiConfirm('已导入：' + hit.join('、') + '\n\n其他配置保持不变。', { okText: '好' });
 }
