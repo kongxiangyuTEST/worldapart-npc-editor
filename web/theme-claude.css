@@ -2412,9 +2412,21 @@ button.tiny { font-size: 11px; padding: 4px 8px; white-space: nowrap; }
 }
 .update-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
 .update-icon {
-  width: 24px; height: 24px; border-radius: 6px;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--cl-surface-soft); color: var(--cl-ink); font-size: 14px;
+  /* 小小的实心圆，当标题前的装饰点 */
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--cl-coral);
+  flex: 0 0 auto;
+}
+
+/* 页面顶部标识：原来是 48px 的大字母 W / 箭头，改成英文小标签 */
+.about-icon {
+  font-family: var(--cl-sans);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 3px;
+  color: var(--cl-coral);
+  margin-bottom: 10px;
 }
 .update-title { font-size: 14px; font-weight: 500; color: var(--cl-ink); }
 .update-btns { display: flex; gap: 10px; }
