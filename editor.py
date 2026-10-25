@@ -36,6 +36,20 @@ ORIGINALS_DIR = os.path.join(PROJECT_DIR, "originals")
 LAST_SAVED_DIR = os.path.join(PROJECT_DIR, "last_saved")
 AI_CONFIG_PATH = os.path.join(PROJECT_DIR, "ai_config.json")
 
+
+def _no_proxy_for(url):
+    """内网/本地地址返回「禁用代理」的 proxies 参数，外网返回 None。
+
+    加速器（Clash 之类）会给系统设 HTTPS_PROXY，requests 默认走它 ——
+    发往 192.168.x / 127.x 的内网请求会被代理直接拒掉，表现成 HTTP 404。
+    """
+    m = re.match(r"https?://([^/:]+)", url or "")
+    if m and re.match(
+            r"^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)",
+            m.group(1)):
+        return {"http": None, "https": None}
+    return None
+
 # ==================== 注入方案（预设） ====================
 # 把"注入语 + 替换规则 + 名片开关 + 记忆/预算参数"打包成一套方案，
 # 存多套、一键切换、方便 A/B 对比。
@@ -1483,7 +1497,16 @@ class Api:
                 headers=headers,
             )
             t0 = time.time()
-            with urllib.request.urlopen(req, timeout=300) as r:
+            # 内网/本地地址禁用系统代理 —— 加速器的代理管到内网会把请求
+            # 直接拒掉（实测表现为 HTTP 404）。urlopen 默认也会读环境代理。
+            _opener = urllib.request.build_opener()
+            _bh = re.match(r"https?://([^/:]+)", base or "")
+            if _bh and re.match(
+                    r"^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)",
+                    _bh.group(1)):
+                _opener = urllib.request.build_opener(
+                    urllib.request.ProxyHandler({}))
+            with _opener.open(req, timeout=300) as r:
                 d = json.loads(r.read().decode())
             reply = d["choices"][0]["message"].get("content") or ""
             return {"ok": True, "reply": reply, "elapsed": round(time.time() - t0, 1)}
@@ -1704,7 +1727,8 @@ class Api:
 
         try:
             import requests
-            r = requests.post(upstream, json=body, headers=headers, timeout=180)
+            r = requests.post(upstream, json=body, headers=headers, timeout=180,
+                              proxies=_no_proxy_for(upstream))
         except Exception as e:
             return {"ok": False, "msg": f"请求失败（{upstream}）: {e}"}
         if r.status_code != 200:
@@ -1815,7 +1839,8 @@ class Api:
         }
 
         try:
-            r = requests.post(upstream, json=body, headers=headers, timeout=180)
+            r = requests.post(upstream, json=body, headers=headers, timeout=180,
+                              proxies=_no_proxy_for(upstream))
         except Exception as e:
             return {"ok": False, "msg": f"请求失败（{upstream}）: {e}"}
 
