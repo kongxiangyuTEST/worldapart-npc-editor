@@ -72,3 +72,6 @@ memory/
 other/
 # 世界信息是用户自己的设定数据，不进仓库
 lorebook.json
+
+# 本机脚本：含内网 IP / SSH 用户名，不提交也不进分享包
+关机.bat
