@@ -1502,9 +1502,32 @@ class Api:
             return {"ok": False, "msg": f"读取失败: {e}"}
 
     def save_ai_config(self, data):
+        r"""保存注入配置。
+
+        合并而不是整体重写：前端页面各管一块（注入语、替换规则、模型设置…），
+        只传自己那部分字段。直接 json.dump(data) 会把没传的字段清空 ——
+        历史上 replace_rules 就这么丢过一次（12 条规则全没）。
+        现在的做法是读现有文件、用新值覆盖同名键，其余保持不动。
+        """
         try:
+            existing = {}
             if os.path.isfile(AI_CONFIG_PATH):
-                shutil.copy2(AI_CONFIG_PATH, AI_CONFIG_PATH + ".bak")
+                try:
+                    with open(AI_CONFIG_PATH, encoding="utf-8") as f:
+                        existing = json.load(f) or {}
+                except Exception:
+                    existing = {}
+                # 留一份上一版，方便手动回滚
+                try:
+                    shutil.copy2(AI_CONFIG_PATH, AI_CONFIG_PATH + ".bak")
+                except Exception:
+                    pass
+
+            if isinstance(data, dict):
+                merged = dict(existing) if isinstance(existing, dict) else {}
+                merged.update(data)
+                data = merged
+
             with open(AI_CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             return {"ok": True}
