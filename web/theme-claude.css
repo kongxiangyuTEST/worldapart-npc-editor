@@ -2464,3 +2464,26 @@ button.tiny { font-size: 11px; padding: 4px 8px; white-space: nowrap; }
 
 
 
+
+/* ===== 侧栏底部：版本号 + 更新提示 =====
+   平时就是一行灰字，不占注意力；有新版本才亮个绿标签。 */
+.nav-version {
+  margin: 4px 12px 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--cl-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-version:hover { background: var(--cl-surface-soft); }
+.nav-version-tag {
+  font-size: 10px;
+  line-height: 1.6;
+  color: #2f8f5b;
+  background: #eef7f1;
+  padding: 0 6px;
+  border-radius: 4px;
+}

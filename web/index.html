@@ -35,6 +35,13 @@
     <div class="nav-group-label" style="margin-top:16px;">关于</div>
     <div class="nav-item" data-page="about">关于</div>
 
+    <!-- 版本与更新：平时只有一行灰字版本号；有新版本时右边亮一个
+         「有新版本」小标签，点一下跳到关于页的更新卡片 -->
+    <div class="nav-version" id="nav-version" onclick="switchPage('about')">
+      <span id="nav-version-text">v—</span>
+      <span class="nav-version-tag" id="nav-version-tag" style="display:none;">有新版本</span>
+    </div>
+
     <div class="nav-spacer"></div>
     <div id="nav-footer">
       <div><span class="dot-on">●</span> 配置保存在编辑器项目</div>
