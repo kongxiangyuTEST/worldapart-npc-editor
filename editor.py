@@ -740,7 +740,17 @@ class Api:
         
         # 2. 发请求（这次我们不用线程，直接同步等待，如果出错了直接把错误扔给网页）
         try:
-            res = requests.post(upstream, json=body, headers=headers, timeout=60)
+            # 内网/本地地址禁用系统代理 —— 加速器的代理管到内网会把请求拒掉
+            # （实测表现为 HTTP 404）。另外模型冷加载 + 生成可能要一两分钟，
+            # timeout 60 秒根本不够。
+            _proxies = None
+            _h = re.match(r"https?://([^/:]+)", upstream or "")
+            if _h and re.match(
+                    r"^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)",
+                    _h.group(1)):
+                _proxies = {"http": None, "https": None}
+            res = requests.post(upstream, json=body, headers=headers,
+                                timeout=240, proxies=_proxies)
             if res.status_code != 200:
                 # 带上地址：401 到底是本地模型要 key，还是打到了第三方，一眼能看出
                 hint = ""

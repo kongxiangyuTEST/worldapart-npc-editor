@@ -1929,9 +1929,18 @@ def forward_local(req_json, game_auth):
     body["reasoning_effort"] = "none"
 
     data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+    # 内网/本地地址禁用系统代理 —— 加速器的代理只该管外网，
+    # 管到内网会把请求直接拒掉（实测：editor 报 404，curl 报 000）。
+    proxies = None
+    _host = re.match(r"https?://([^/:]+)", url or "")
+    if _host and re.match(
+            r"^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)",
+            _host.group(1)):
+        proxies = {"http": None, "https": None}
     try:
         r = requests.post(url, data=data,
-                          headers={"Content-Type": "application/json"}, timeout=600)
+                          headers={"Content-Type": "application/json"},
+                          timeout=600, proxies=proxies)
     except Exception as e:
         return None, 502, str(e)
     return r.text, r.status_code, None
