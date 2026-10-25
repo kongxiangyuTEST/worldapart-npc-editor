@@ -132,6 +132,19 @@ python tools/check_web_refs.py   # 元素 id 引用是否对得上
 python -m py_compile editor.py proxy/core_proxy.py
 ```
 
+## 版本历史
+
+### v0.5
+- 试聊页：不开游戏就能用真实卡片 + 记忆 + 游戏段落跟模型对话
+- 更新页：自动检测新版本，一键原地更新（只覆盖程序，卡片/记忆/配置不动）
+- 语音 MOD 兼容：配合 A1IndexTTSMod 让 NPC 朗读（注入台本要求 + 字段保留 + 漏输出兜底）
+- 打包双轨：build_all（干净）/ build_test（带游玩数据）
+
+### v0.4
+- 用户名片升级为结构化设定，注入标题改为「角色演绎要求」
+- AI 补全名片、记忆总结走本地模型、固定段落 AI 精简
+- 工具页合并、原生弹窗换成主题弹窗
+
 ## 发版（让用户能自动更新）
 
 编辑器启动 6 秒后会静默查 GitHub 的 latest release，发现新版就在右下角
