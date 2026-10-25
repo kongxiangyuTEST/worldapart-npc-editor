@@ -13,10 +13,10 @@ async function initUpdateCheck() {
     if (v && v.ok) {
       const num = document.getElementById('about-version-num');
       const foot = document.getElementById('update-foot');
-      const navVer = document.getElementById('nav-version-text');
+      const updNum = document.getElementById('update-version-num');
       if (num) num.textContent = v.version;
       if (foot) foot.textContent = '当前版本 v' + v.version;
-      if (navVer) navVer.textContent = 'v' + v.version;
+      if (updNum) updNum.textContent = v.version;
     }
   } catch (e) { /* 拿不到版本号不影响使用 */ }
 
@@ -97,17 +97,13 @@ async function checkUpdate(manual) {
 }
 
 function updateSetBadge() {
-  const tag = document.getElementById('nav-version-tag');
-  if (tag) tag.style.display = '';
-  const navVer = document.getElementById('nav-version-text');
-  if (navVer) navVer.style.color = '#2f8f5b';
+  const nav = document.querySelector('.nav-item[data-page="update"]');
+  if (nav) nav.classList.add('has-update');
 }
 
 function updateClearBadge() {
-  const tag = document.getElementById('nav-version-tag');
-  if (tag) tag.style.display = 'none';
-  const navVer = document.getElementById('nav-version-text');
-  if (navVer) navVer.style.color = '';
+  const nav = document.querySelector('.nav-item[data-page="update"]');
+  if (nav) nav.classList.remove('has-update');
 }
 
 function updateOpenGitHub() {

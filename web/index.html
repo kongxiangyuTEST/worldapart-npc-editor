@@ -35,12 +35,7 @@
     <div class="nav-group-label" style="margin-top:16px;">关于</div>
     <div class="nav-item" data-page="about">关于</div>
 
-    <!-- 版本与更新：平时只有一行灰字版本号；有新版本时右边亮一个
-         「有新版本」小标签，点一下跳到关于页的更新卡片 -->
-    <div class="nav-version" id="nav-version" onclick="switchPage('about')">
-      <span id="nav-version-text">v—</span>
-      <span class="nav-version-tag" id="nav-version-tag" style="display:none;">有新版本</span>
-    </div>
+    <div class="nav-item" data-page="update">更新</div>
 
     <div class="nav-spacer"></div>
     <div id="nav-footer">
@@ -588,7 +583,18 @@
           </div>
         </div>
 
-        <!-- 更新频道：不弹窗、不打扰，想查的时候自己来查 -->
+      </div>
+
+      <!-- ========== 更新 ========== -->
+    <div class="page" id="page-update">
+      <div id="update-page">
+        <div class="about-header">
+          <div class="about-icon">↓</div>
+          <h1>更新</h1>
+          <div class="about-version">当前版本 <span id="update-version-num">—</span></div>
+        </div>
+
+        <!-- 更新频道 -->
         <div class="about-card update-card">
           <div class="update-head">
             <span class="update-icon">↓</span>
@@ -611,8 +617,8 @@
           </div>
 
           <div class="update-foot" id="update-foot">当前版本 —</div>
-        </div>
-      </div>
+        </div>      </div>
+    </div>
     </div>
 
   </div>
