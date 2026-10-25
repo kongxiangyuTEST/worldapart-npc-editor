@@ -542,6 +542,18 @@
           </div>
 
           <div class="about-item">
+            <div class="about-item-title">0.5.1 更新</div>
+            <div class="about-item-text">
+              · 修复：把模型地址填成局域网里另一台机器（比如 Mac 上跑的 Ollama）后用不了，
+                一直报 404 —— 加速器的系统代理会把发往内网 IP 的请求拦掉，
+                现在对内网地址自动不走代理<br>
+              · 记忆总结的等待时间从 60 秒放宽到 240 秒：模型第一次加载就要几十秒，
+                原来那个超时经常等不到结果<br>
+              · 更新页的检查更新支持填代理（HTTP / SOCKS5），填一次就记住
+            </div>
+          </div>
+
+          <div class="about-item">
             <div class="about-item-title">0.5 更新</div>
             <div class="about-item-text">
               · 新增「试聊」页：不启动游戏就能用真实卡片 + 长期记忆 + 游戏段落跟模型对话，
