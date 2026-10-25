@@ -38,32 +38,43 @@ AI_CONFIG_PATH = os.path.join(PROJECT_DIR, "ai_config.json")
 
 
 def _resolve_local_model(url, configured):
-    """决定用哪个模型名：填了就用填的，没填就问服务要一个。
+    """决定用哪个模型名：填了就用填的，没填就探测一个。
 
-    Ollama 会严格校验模型名（找不到直接 404 model not found），
-    所以不能像 llama-server 那样随便写。但用户只填了地址、没填模型名时，
-    与其报错，不如自动取服务上的第一个（Ollama 按最近使用排序，
-    第一个通常就是上次用过的那个）。
+    分享出去的用户本地接入方式五花八门（llama.cpp / Ollama / LM Studio /
+    vLLM / 各种 OpenAI 兼容服务），我们只知道「有个地址、能连」，
+    不能假设是哪一种。所以探测顺序按标准优先：
+
+      1. /v1/models  —— OpenAI 规范，绝大多数后端都实现
+      2. /api/tags   —— Ollama 专有，标准端点没有时才试
+
+    两个都拿不到就返回空串，调用方回落到一个常见名字（可能报错，
+    但至少能给出可读提示）。
     """
     if (configured or "").strip():
         return configured.strip()
+
     import urllib.request as _u
     base = re.sub(r"/v1/.*$", "", (url or "").rstrip("/"))
     if not base:
         return ""
-    try:
-        if _no_proxy_for(base):
-            opener = _u.build_opener(_u.ProxyHandler({}))
-        else:
-            opener = _u.build_opener()
-        with opener.open(base + "/api/tags", timeout=5) as r:
-            models = json.loads(r.read().decode("utf-8")).get("models") or []
-        for m in models:
-            nm = (m.get("name") or "").strip()
-            if nm:
-                return nm
-    except Exception:
-        pass
+    if _no_proxy_for(base):
+        opener = _u.build_opener(_u.ProxyHandler({}))
+    else:
+        opener = _u.build_opener()
+
+    probes = (
+        ("/v1/models", lambda d: [m.get("id") for m in (d.get("data") or [])]),
+        ("/api/tags", lambda d: [m.get("name") for m in (d.get("models") or [])]),
+    )
+    for path, picker in probes:
+        try:
+            with opener.open(base + path, timeout=5) as r:
+                d = json.loads(r.read().decode("utf-8"))
+            for nm in picker(d):
+                if (nm or "").strip():
+                    return nm.strip()
+        except Exception:
+            continue
     return ""
 
 
