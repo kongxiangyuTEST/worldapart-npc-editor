@@ -40,12 +40,9 @@ async function checkUpdate(manual) {
   const proxyEl = document.getElementById('update-proxy');
   const proxy = proxyEl ? proxyEl.value.trim() : '';
 
+  // 不先占位显示「正在连接」：没有更新时结果区会隐藏，
+  // 先显示再收起会闪一下。进度只体现在按钮文字上。
   if (btn) { btn.disabled = true; btn.textContent = '检查中…'; }
-  if (manual && result) {
-    result.style.display = 'block';
-    result.className = 'update-result';
-    result.textContent = '正在连接 GitHub…';
-  }
 
   let res = null;
   try {

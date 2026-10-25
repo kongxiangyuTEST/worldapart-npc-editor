@@ -2404,7 +2404,12 @@ button.tiny { font-size: 11px; padding: 4px 8px; white-space: nowrap; }
 /* ===== 关于页 · 更新频道 =====
    不做弹窗：更新不是急事，弹出来打断人反而烦。
    自动检查只点个小红点，详情都在这里看。 */
-.update-card { margin-top: 16px; }
+.update-card {
+  margin-top: 16px;
+  /* 和关于卡对齐：卡片 8px + about-item 18px = 26px */
+  padding-top: 26px;
+  padding-bottom: 20px;
+}
 .update-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
 .update-icon {
   width: 24px; height: 24px; border-radius: 6px;
