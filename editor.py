@@ -1101,7 +1101,7 @@ class Api:
                     break
 
             def _tup(v):
-                return tuple(int(x) for x in re.findall(r"\d+", v or "")[:3]) or (0,)
+                return tuple(int(x) for x in re.findall(r"\d+", v or "")) or (0,)
 
             return {
                 "ok": True,

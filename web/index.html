@@ -542,6 +542,21 @@
           </div>
 
           <div class="about-item">
+            <div class="about-item-title">0.5.3 更新</div>
+            <div class="about-item-text">
+              · 修复：AI 补全名片、提示词压缩调本地模型时报 404 —— 请求里的模型名
+                写死成 local-model，Ollama 严格校验模型名，找不到就拒。现在读你配置的模型名，
+                留空则自动向服务要一个<br>
+              · 修复：补全名片和试聊的请求会被加速器的系统代理拦掉（内网地址），
+                现在对内网自动不走代理<br>
+              · 新增：注入规则页「导入配置」—— 粘贴别人分享的 JSON 直接合并导入，
+                不用一条条手填<br>
+              · 模型报错时给具体建议（404 是地址还是模型名、401 是密钥、5xx 去看服务端日志），
+                不再只丢一个状态码
+            </div>
+          </div>
+
+          <div class="about-item">
             <div class="about-item-title">0.5.2 更新</div>
             <div class="about-item-text">
               · 修复：注入语里的替换规则会在保存配置时被清空 —— 各页面只管自己那部分字段，

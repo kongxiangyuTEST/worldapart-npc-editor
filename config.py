@@ -5,7 +5,7 @@ import json
 # ==================== 版本与自动更新 ====================
 # 版本号只在这里定义：前端「关于」页和更新检查都读它。
 # 以前硬编码在 web/index.html 里，改版本要改两处，容易漏。
-APP_VERSION = "0.5.2"
+APP_VERSION = "0.5.3"
 UPDATE_REPO = "kongxiangyuTEST/worldapart-npc-editor"
 
 # 自动更新时绝对不能碰的东西 —— 用户的卡片、记忆、调过的配置。
