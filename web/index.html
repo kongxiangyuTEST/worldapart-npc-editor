@@ -542,6 +542,17 @@
           </div>
 
           <div class="about-item">
+            <div class="about-item-title">0.5.2 更新</div>
+            <div class="about-item-text">
+              · 修复：注入语里的替换规则会在保存配置时被清空 —— 各页面只管自己那部分字段，
+                保存时没传的字段被一起抹掉了。现在改成合并保存，只更新你改的那部分<br>
+              · 修复：重新打测试包时，测试包里改过的注入配置会被项目目录的旧版本覆盖。
+                现在测试包已有配置就保留<br>
+              · 打包脚本里的双重换行符清理掉，命令行偶发执行异常的问题一并修了
+            </div>
+          </div>
+
+          <div class="about-item">
             <div class="about-item-title">0.5.1 更新</div>
             <div class="about-item-text">
               · 修复：把模型地址填成局域网里另一台机器（比如 Mac 上跑的 Ollama）后用不了，
