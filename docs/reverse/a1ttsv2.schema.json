@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "A1TTS v2 reply field value",
+  "description": "Top-level a1ttsv2 value; null only when no speech. Merge into the game schema.",
+  "anyOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instruct", "segments"],
+      "properties": {
+        "instruct": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Overall delivery in Chinese, usually 20–40 characters; preserve speaker identity."
+        },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "description": "All spoken dialogue in order, without narration; one untagged segment for ordinary speech.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text", "tag"],
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "description": "Dialogue only; preserve wording and punctuation. No narration or embedded tags."
+              },
+              "tag": {
+                "type": "string",
+                "maxLength": 6,
+                "pattern": "^(|[\u3400-\u9fff]{2,6})$",
+                "description": "Empty or 2–6 Han characters describing local audible delivery."
+              }
+            }
+          }
+        }
+      }
+    },
+    { "type": "null" }
+  ]
+}

@@ -22,7 +22,7 @@ if not os.path.exists(memory_manager.MEMORY_DIR):
 import threading
 from datetime import datetime
 from config import (CARDS_DIR, WEB_DIR, IGNORED_FILES, CARD_NAME_PREFIX_RE,
-                    APP_VERSION, UPDATE_REPO,
+                    APP_VERSION, UPDATE_REPO, GAME_DIR,
                     KEEP_ON_UPDATE_DIRS, KEEP_ON_UPDATE_FILES)
 import services
 from services import CORE_PROXY, CADDY
@@ -542,6 +542,112 @@ def get_last_saved_card(filename):
     if not os.path.isfile(path):
         return None
     return parse_card_file(path)
+
+
+# ==================== MOD 诊断（stage2a 捕获）====================
+# MOD 的 Stage2A 捕获落盘在：
+#   <游戏目录>/A1IndexTTSMod/.state/stage2a/*.json
+# 每份记录里最关键的两个字段：
+#   ActualReplyJson  —— MOD 实际收到的回复（看 a1ttsv2 有没有到它手上）
+#   TtsRequestJson   —— MOD 实际发给 Breeze 的请求（看 instruct 有没有进 options）
+MOD_NAME = "A1IndexTTSMod"
+
+
+def _mod_diag_dir():
+    """MOD 的 stage2a 捕获目录。游戏目录没配就返回空串。"""
+    if not GAME_DIR:
+        return ""
+    return os.path.join(GAME_DIR, MOD_NAME, ".state", "stage2a")
+
+
+def _mod_config_path():
+    """MOD 的 BepInEx 配置文件（判断捕获是否开启）。"""
+    if not GAME_DIR:
+        return ""
+    return os.path.join(GAME_DIR, "BepInEx", "config", "org.a1indextts.mod.cfg")
+
+
+def _mod_diag_files():
+    """捕获文件列表，按 mtime 倒序（最新在前）。
+
+    实际格式是「会话目录/events.jsonl」：
+        .state/stage2a/20261027T161307948Z-5ca7903d/events.jsonl
+    也兼容顶层直接放 *.json 的老格式。
+    """
+    d = _mod_diag_dir()
+    if not d or not os.path.isdir(d):
+        return []
+    out = []
+    try:
+        for fn in os.listdir(d):
+            p = os.path.join(d, fn)
+            if os.path.isdir(p):
+                # 会话目录：找里面的 events.jsonl
+                for sub in ("events.jsonl",):
+                    q = os.path.join(p, sub)
+                    if os.path.isfile(q):
+                        out.append(q)
+            elif fn.lower().endswith((".jsonl", ".json")):
+                out.append(p)
+    except OSError:
+        return []
+    out.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    return out
+
+
+def _bepinex_log_path():
+    """BepInEx 运行日志（MOD 的 Info/Warning 都写这里）。"""
+    if not GAME_DIR:
+        return ""
+    return os.path.join(GAME_DIR, "BepInEx", "LogOutput.log")
+
+
+def _mod_last_error():
+    """MOD 自己记的最近一次失败（.state/tts-diagnostics/last-error.json）。"""
+    if not GAME_DIR:
+        return {}
+    p = os.path.join(GAME_DIR, MOD_NAME, ".state", "tts-diagnostics", "last-error.json")
+    if not os.path.isfile(p):
+        return {}
+    try:
+        with open(p, "r", encoding="utf-8-sig", errors="replace") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
+# MOD 的恢复结果 -> 人话（2026-10-28 从实机日志归纳）
+_RECOVERY_HINTS = {
+    "task_result": ("ok", "正常：MOD 用本轮缓存的台本"),
+    "round_unavailable": (
+        "bad",
+        "本轮取不到对话编号，MOD 拿不到缓存台本 → 静音。"
+        "实测集中在 NPC 送礼那轮（游戏走另一条调用路径，没带编号），属 MOD 内部缺陷。"),
+    "unparseable": (
+        "bad",
+        "归一化后的文本已不含台本，MOD 想从正文重解析也失败 → 静音。"),
+}
+
+
+def _mod_audio_files():
+    """已合成的音频列表（stage3-audio/*.wav）。这是「真的出声了」的硬证据。"""
+    d = _mod_diag_dir()
+    if not d:
+        return []
+    audio_dir = os.path.join(os.path.dirname(d), "stage3-audio")
+    if not os.path.isdir(audio_dir):
+        return []
+    out = []
+    try:
+        for fn in os.listdir(audio_dir):
+            if fn.lower().endswith(".wav"):
+                p = os.path.join(audio_dir, fn)
+                if os.path.isfile(p):
+                    out.append(p)
+    except OSError:
+        return []
+    out.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    return out
 
 
 # ==================== 日志缓冲 ====================
@@ -1551,6 +1657,362 @@ class Api:
                 d = json.loads(r.read().decode())
             reply = d["choices"][0]["message"].get("content") or ""
             return {"ok": True, "reply": reply, "elapsed": round(time.time() - t0, 1)}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    # --- 语音风格层（实验性）---
+    #
+    # 这一页是「看得见、可试算、能开关」的最小入口。功能本身不完善：
+    # 双层 delivery 只在部分模型上验证过，规则补表演也还没调够，
+    # 所以默认关闭（ai_config 里 tts_style_v2=false），由用户自己决定开不开。
+    def speech_style_status(self):
+        """返回语音风格层现状：开关、词表规模、个性原型覆盖、口吻档案加载情况。"""
+        try:
+            sys.path.insert(0, os.path.join(PROJECT_DIR, "proxy"))
+            import speech_layer as sl
+            import archetype_voice as av
+            import npc_voice_profile as nvp
+
+            conf = _read_ai_conf() if os.path.isfile(AI_CONFIG_PATH) else {}
+            # NPC 精简列表（id + 名字），给「按角色查看」下拉用。
+            # 不用 list_cards()：那个会逐张触发备份，1591 张太慢。
+            npcs = []
+            try:
+                for fn in os.listdir(nvp.CARDS_DIR):
+                    m = CARD_RE.match(fn)
+                    if m:
+                        npcs.append({"id": m.group(1), "name": m.group(2)})
+                npcs.sort(key=lambda x: x["id"])
+            except Exception:
+                pass
+
+            return {
+                "ok": True,
+                "enabled": bool(conf.get("tts_style_v2", False)),
+                "inject": bool(conf.get("tts_style_inject", True)),
+                "auto_perf": bool(conf.get("tts_style_auto_perf", True)),
+                "script_v2": bool(conf.get("tts_script_v2", False)),
+                "profiles": len(sl.PROFILE_DELIVERY),
+                "performances": len(sl.PERFORMANCE_DELIVERY),
+                "emotion_words": len(sl.EMOTION_TAGS_CORE),
+                "delivery_max": sl.DELIVERY_MAX,
+                "cards": nvp.stats(),
+                "archetypes": av.all_mappings(),
+                "archetype_fallback": av.FALLBACK_PROFILE,
+                "performances_list": sl.all_performances(),
+                "profiles_list": sl.all_profiles(),
+                "npcs": npcs,
+            }
+        except Exception as e:
+            return {"ok": False, "msg": f"语音风格层不可用: {e}"}
+
+    def speech_style_preview(self, profile, performance, delivery="", npc_text="",
+                             player_text=""):
+        """试算两层 delivery：给 actor_profile 与 performance，返回合成结果。
+
+        也给「规整」功能：传入模型可能写出的任意 delivery，看会被怎么改正。
+        不写任何文件，纯展示用。
+        """
+        try:
+            sys.path.insert(0, os.path.join(PROJECT_DIR, "proxy"))
+            import speech_layer as sl
+
+            out = {"ok": True}
+            # 1) 正式合成（两层）
+            out["composed"] = sl.compose(profile or None, performance or None)
+            # 2) 只看基线
+            out["base"] = sl.delivery_for(profile or None)
+            # 3) 规整给定的 delivery（模拟模型跑偏）
+            if (delivery or "").strip():
+                out["normalized"] = sl.normalize_delivery(
+                    delivery, profile or None, max_len=sl.DELIVERY_MAX)
+            # 4) 规则判定表演类型
+            if (npc_text or "").strip():
+                perf, reason = sl.perceive(npc_text, player_text or "")
+                out["perceived"] = perf
+                out["perceived_zh"] = sl.perceive_reason_zh(reason)
+                out["perceived_delivery"] = sl.compose(profile or None, perf)
+            out["length"] = len(out["composed"])
+            return out
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def speech_style_npc(self, npc_id, performance=""):
+        """按 NPC 看它自己的口吻：读卡片「个性」→ 映射原型 → 合成 delivery。
+
+        这是这一页最实用的入口：不用记 actor_profile 的英文键，
+        直接看「这个角色会怎么念」。
+        """
+        try:
+            sys.path.insert(0, os.path.join(PROJECT_DIR, "proxy"))
+            import speech_layer as sl
+            import archetype_voice as av
+            import npc_voice_profile as nvp
+
+            raw = nvp.personality_for(npc_id)
+            arch = av.normalize_archetype(raw) if raw else None
+            profile = av.profile_for_archetype(raw) if raw else av.FALLBACK_PROFILE
+
+            out = {
+                "ok": True,
+                "npc_id": str(npc_id),
+                "personality": raw or "",
+                "archetype": arch or "",
+                "matched": bool(arch),
+                "profile": profile,
+                "profile_desc": sl.delivery_for(profile),
+            }
+            if (performance or "").strip():
+                out["performance"] = performance
+                out["composed"] = sl.compose(profile, performance)
+            return out
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    # --- MOD 诊断（stage2a 捕获）---
+    #
+    # 为什么需要：MOD 自带的 Stage2A 捕获会把它实际收到的回复
+    # （ActualReplyJson）和实际发给 TTS 的请求体（TtsRequestJson）落盘。
+    # 这是唯一能判定「我们写的 a1ttsv2 有没有被 MOD 看到」的手段 ——
+    # 静态分析看不出来，编辑器日志页也读不到（那页只读 core_proxy 的 stdout）。
+    #
+    # 所以这里直接把 MOD 的捕获目录接进编辑器，省得去游戏目录翻文件。
+    def mod_diag_status(self):
+        """返回捕获目录状态 + 是否已开启。"""
+        try:
+            info = services.get_game_dir() if hasattr(services, "get_game_dir") else ""
+        except Exception:
+            info = ""
+        mod_dir = _mod_diag_dir()
+        cfg = _mod_config_path()
+
+        enabled = None
+        cfg_exists = bool(cfg and os.path.isfile(cfg))
+        if cfg_exists:
+            try:
+                with open(cfg, "r", encoding="utf-8", errors="replace") as f:
+                    txt = f.read()
+                seg = txt.split("[Stage2A]", 1)
+                if len(seg) > 1:
+                    body = seg[1].split("[", 1)[0]
+                    enabled = "Enabled = true" in body
+            except Exception:
+                enabled = None
+
+        files = _mod_diag_files()
+        return {
+            "ok": True,
+            "dir": mod_dir,
+            "dir_exists": os.path.isdir(mod_dir),
+            "count": len(files),
+            "enabled": enabled,
+            "config_path": cfg,
+            "config_exists": cfg_exists,
+        }
+
+    def mod_diag_list(self, limit=30):
+        """列出捕获文件（最新在前）。返回相对路径，便于回读。"""
+        try:
+            files = _mod_diag_files()
+            base = _mod_diag_dir()
+            out = []
+            for p in files[:max(1, int(limit))]:
+                try:
+                    st = os.stat(p)
+                except OSError:
+                    continue
+                try:
+                    rel = os.path.relpath(p, base).replace("\\", "/")
+                except Exception:
+                    rel = os.path.basename(p)
+                # 会话目录名比 events.jsonl 有意义
+                label = rel[:-len("/events.jsonl")] if rel.endswith("/events.jsonl") else rel
+                out.append({
+                    "name": rel,
+                    "label": label,
+                    "size": st.st_size,
+                    "mtime": datetime.fromtimestamp(st.st_mtime).strftime("%m-%d %H:%M:%S"),
+                })
+            return {"ok": True, "files": out, "total": len(files)}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def mod_diag_read(self, name):
+        """读一份捕获并按「轮」汇总。
+
+        文件实际是 JSON Lines（每行一个事件），不是单个 JSON。
+        事件类型（kind）里对我们有用的：
+            player_input                        玩家说了什么
+            llm_content_before_game_reply_mapping
+                                                归一化前的回复，带
+                                                a1ttsv2Status / voiceStyleStatus
+            npc_reply_raw_observation           带 mapped / recovered /
+                                                effectiveA1ttsv2Status
+        返回每轮：玩家说了啥、台本状态、最终生效状态。
+        """
+        try:
+            # name 可能是「会话目录名」或带子目录的相对路径
+            d = _mod_diag_dir()
+            path = os.path.join(d, name)
+            if os.path.isdir(path):
+                path = os.path.join(path, "events.jsonl")
+            if not os.path.isfile(path):
+                return {"ok": False, "msg": f"文件不存在: {name}"}
+
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                raw_lines = [ln for ln in f if ln.strip()]
+
+            rounds = []
+            cur = None
+            bad_lines = 0
+            for ln in raw_lines:
+                try:
+                    o = json.loads(ln)
+                except Exception:
+                    bad_lines += 1
+                    continue
+                r = o.get("record") or {}
+                kind = r.get("kind") or ""
+
+                if kind == "player_input":
+                    # 新一轮开始
+                    cur = {
+                        "player": (r.get("text") or "")[:200],
+                        "npc": r.get("npcId") or "",
+                        "script_status": "",
+                        "voice_status": "",
+                        "effective": "",
+                        "mapped": "",
+                    }
+                    rounds.append(cur)
+
+                elif kind == "llm_content_before_game_reply_mapping" and cur is not None:
+                    # 第一次拿到就记（后续重复事件不覆盖）
+                    if not cur["script_status"]:
+                        cur["script_status"] = r.get("a1ttsv2Status") or ""
+                        cur["voice_status"] = r.get("voiceStyleStatus") or ""
+                        if r.get("a1ttsv2FailureReason"):
+                            cur["script_status"] += f"({r['a1ttsv2FailureReason']})"
+
+                elif kind == "npc_reply_raw_observation" and cur is not None:
+                    cur["mapped"] = r.get("mappedA1ttsv2Status") or ""
+                    cur["effective"] = r.get("effectiveA1ttsv2Status") or ""
+
+            # 汇总统计
+            with_script = sum(1 for x in rounds if "valid" in (x["effective"] or x["script_status"]))
+            audio = _mod_audio_files()
+
+            return {
+                "ok": True,
+                "parsed": True,
+                "name": os.path.basename(os.path.dirname(path)) or os.path.basename(path),
+                "rounds": rounds,
+                "round_count": len(rounds),
+                "rounds_with_script": with_script,
+                "audio_count": len(audio),
+                "audio_files": [
+                    {"name": os.path.basename(p),
+                     "kb": round(os.path.getsize(p) / 1024)}
+                    for p in audio[:12]
+                ],
+                "bad_lines": bad_lines,
+            }
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def mod_diag_errors(self, lines=300):
+        """最近几轮为什么没出声。
+
+        两个数据源：
+        - `.state/tts-diagnostics/last-error.json`：MOD 记的最近一次失败
+        - `BepInEx/LogOutput.log` 尾部：每轮的恢复结果（round / result / effective）
+
+        为什么需要这个（2026-10-28 实测）：
+            用户听到某轮 NPC 没声音，但 stage2a 里 a1ttsv2Status 是 valid，
+            看不出问题。真正的原因在 MOD 日志里 ——
+            `TTS-V2 recovery round=0 result=round_unavailable`，
+            也就是「这一轮取不到对话编号，拿不到缓存台本」。实测 108 轮里 2 次，
+            都发生在 NPC 送礼那轮，属 MOD 内部缺陷，我们改不了，但要让用户看得见。
+        """
+        try:
+            out = {"ok": True, "last_error": None, "rounds": [], "warnings": []}
+
+            le = _mod_last_error()
+            if le:
+                out["last_error"] = {
+                    "stage": str(le.get("Stage") or ""),
+                    "context": str(le.get("Context") or ""),
+                    "first_seen": str(le.get("FirstSeenUtc") or "")[:19].replace("T", " "),
+                    "occurrences": le.get("Occurrences") or 0,
+                    "recovered": bool(le.get("RecoveredAtUtc")),
+                }
+
+            lp = _bepinex_log_path()
+            if lp and os.path.isfile(lp):
+                with open(lp, "r", encoding="utf-8", errors="replace") as f:
+                    tail = f.readlines()[-max(50, int(lines)):]
+                for ln in tail:
+                    if "TTS-V2 recovery" in ln:
+                        m = re.search(
+                            r"round=(\d+)\s+result=(\S+)\s+effective=(\S+)", ln)
+                        if not m:
+                            continue
+                        res = m.group(2)
+                        level, hint = _RECOVERY_HINTS.get(
+                            res, ("warn", "未识别的恢复结果"))
+                        out["rounds"].append({
+                            "round": int(m.group(1)),
+                            "result": res,
+                            "effective": m.group(3),
+                            "level": level,
+                            "hint": hint,
+                        })
+                    elif "not-submitted" in ln:
+                        m = re.search(r"reason=([^\n]+?)\s*$", ln.strip())
+                        out["warnings"].append({
+                            "level": "bad",
+                            "hint": (m.group(1) if m else ln.strip())[:160],
+                        })
+
+            out["rounds"] = out["rounds"][-15:]
+            out["warnings"] = out["warnings"][-5:]
+            out["silent_rounds"] = sum(
+                1 for r in out["rounds"] if r["effective"] != "valid")
+            return out
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def mod_diag_open_dir(self):
+        """打开捕获目录（不存在就先建）。"""
+        try:
+            d = _mod_diag_dir()
+            os.makedirs(d, exist_ok=True)
+            os.startfile(d)
+            return {"ok": True, "dir": d}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def save_speech_style_flags(self, enabled=None, inject=None, auto_perf=None,
+                                script_v2=None):
+        """只改语音风格这几个开关，其余 ai_config 字段原样保留。"""
+        try:
+            conf = _read_ai_conf() if os.path.isfile(AI_CONFIG_PATH) else {}
+            if enabled is not None:
+                conf["tts_style_v2"] = bool(enabled)
+            if inject is not None:
+                conf["tts_style_inject"] = bool(inject)
+            if auto_perf is not None:
+                conf["tts_style_auto_perf"] = bool(auto_perf)
+            if script_v2 is not None:
+                conf["tts_script_v2"] = bool(script_v2)
+            try:
+                shutil.copy2(AI_CONFIG_PATH, AI_CONFIG_PATH + ".bak")
+            except Exception:
+                pass
+            with open(AI_CONFIG_PATH, "w", encoding="utf-8") as f:
+                json.dump(conf, f, ensure_ascii=False, indent=2)
+            return {"ok": True, "enabled": bool(conf.get("tts_style_v2", False)),
+                    "script_v2": bool(conf.get("tts_script_v2", False))}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 

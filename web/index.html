@@ -26,6 +26,7 @@
     <div class="nav-item" data-page="prompts">AI 提示词</div>
     <div class="nav-item" data-page="memory">长期记忆</div>
     <div class="nav-item" data-page="tools">工具</div>
+    <div class="nav-item" data-page="speech">语音风格</div>
     <div class="nav-item" data-page="trial">试聊</div>
 
     <div class="nav-group-label" style="margin-top:16px;">服务</div>
@@ -169,6 +170,161 @@
         </div>
 
         <div class="ai-tab-content" id="tools-tab-content"></div>
+      </div>
+    </div>
+
+
+    <!-- ========== 语音风格（实验性） ========== -->
+    <!-- 说明：这一页是「双层 delivery」的入口。功能不完善，默认关闭。
+         编辑器本身有「检查更新」会检测上传内容，所以开关默认关，
+         由用户确认后再打开。 -->
+    <div class="page" id="page-speech">
+      <div id="speech-page">
+        <div class="page-header">
+          <h2>语音风格</h2>
+          <span class="speech-badge" id="speech-badge">读取中…</span>
+        </div>
+
+        <!-- 标题固定、以下内容自己滚（.page 是 overflow:hidden，不要漏这层） -->
+        <div id="speech-scroll">
+        <div class="page-subtitle">
+          让 NPC 的朗读多一层「这一句怎么演」。不改声音本身，只在文本侧给 TTS 更具体的表演要求。
+        </div>
+
+        <div class="speech-warn" id="speech-warn">
+          <b>实验功能</b>：双层 delivery 只在部分模型上验证过，规则补表演也还在调。默认<b>关闭</b>，
+          打开后若发现朗读变怪，随时关掉即可恢复原样。编辑器「更新」页会检查上传内容，因此这里不会自动开启。
+          <br>口吻基线来自<b>你自己的角色卡</b>「个性」字段（14 种原型 → 对应说话方式），不使用任何外部角色数据。
+        </div>
+
+        <!-- MOD 诊断：验证「我们的台本有没有到 MOD 手里」的唯一手段 -->
+        <section class="speech-card">
+          <h3>MOD 诊断记录 <span class="speech-badge" id="moddiag-badge">读取中…</span></h3>
+          <div class="speech-note" id="moddiag-status">
+            读取 MOD 的 stage2a 捕获。这里能看到 MOD 实际收到的回复，判断我们写的台本有没有传过去。
+          </div>
+          <div class="speech-actions" style="margin-top:8px;">
+            <button class="secondary tiny" onclick="modDiagRefresh()">刷新</button>
+            <button class="secondary tiny" onclick="modDiagOpenDir()">打开捕获目录</button>
+          </div>
+          <div class="moddiag-layout" id="moddiag-layout" style="display:none;">
+            <select id="moddiag-files" size="6" onchange="modDiagRead(this.value)"></select>
+            <div class="moddiag-detail" id="moddiag-detail">选一份记录查看</div>
+          </div>
+        </section>
+
+        <!-- 开关区 -->
+        <section class="speech-card">
+          <h3>开关</h3>
+          <div class="speech-switch-row">
+            <label class="speech-switch">
+              <input type="checkbox" id="speech-toggle-script" onchange="speechToggle(this)">
+              <span><b>让 NPC 说话（输出朗读台本 a1ttsv2）</b></span>
+            </label>
+            <div class="speech-hint">
+              游戏本体没有 NPC 语音，台本只能由模型产出。不开这一项，NPC 永远不会出声。
+            </div>
+          </div>
+          <div class="speech-switch-row">
+            <label class="speech-switch">
+              <input type="checkbox" id="speech-toggle-v2" onchange="speechToggle(this)">
+              <span>启用双层 delivery（角色基线 + 逐句表演）</span>
+            </label>
+          </div>
+          <div class="speech-switch-row">
+            <label class="speech-switch">
+              <input type="checkbox" id="speech-toggle-inject" onchange="speechToggle(this)">
+              <span>注入风格帧要求（关掉后模型不会输出风格数据）</span>
+            </label>
+          </div>
+          <div class="speech-switch-row">
+            <label class="speech-switch">
+              <input type="checkbox" id="speech-toggle-auto" onchange="speechToggle(this)">
+              <span>模型没给表演段时，按台词规则自动补一层</span>
+            </label>
+          </div>
+          <div class="speech-note" id="speech-stat"></div>
+        </section>
+
+        <!-- 按 NPC 查（最实用：直接看这个角色会怎么念） -->
+        <section class="speech-card">
+          <h3>按角色查看</h3>
+          <div class="speech-note">
+            读你自己的角色卡「个性」字段，映射到对应口吻基线。改了卡片的个性，这里立刻跟着变。
+          </div>
+          <div class="speech-grid">
+            <label class="speech-field">
+              <span>NPC（可搜索）</span>
+              <input type="text" id="speech-npc-search" placeholder="输入名字或 ID 过滤…"
+                     autocomplete="off" oninput="speechFilterNpc(this.value)">
+              <select id="speech-npc" onchange="speechLookupNpc()"></select>
+            </label>
+            <label class="speech-field">
+              <span>这一句的表演</span>
+              <select id="speech-npc-performance" onchange="speechLookupNpc()"></select>
+            </label>
+          </div>
+          <div class="speech-out">
+            <div class="speech-out-label">这个角色的口吻</div>
+            <div class="speech-out-body" id="speech-npc-result">—</div>
+          </div>
+        </section>
+
+        <!-- 试算区 -->
+        <section class="speech-card">
+          <h3>按原型试算</h3>
+          <div class="speech-grid">
+            <label class="speech-field">
+              <span>角色口吻（actor_profile）</span>
+              <select id="speech-profile" onchange="speechPreview()"></select>
+            </label>
+            <label class="speech-field">
+              <span>这一句的表演（performance）</span>
+              <select id="speech-performance" onchange="speechPreview()"></select>
+            </label>
+          </div>
+          <div class="speech-out">
+            <div class="speech-out-label">合成结果 <b id="speech-len"></b></div>
+            <div class="speech-out-body" id="speech-composed">—</div>
+          </div>
+          <div class="speech-out-sub">
+            <div>仅角色基线：<span id="speech-base">—</span></div>
+          </div>
+        </section>
+
+        <!-- 规整 / 规则判定 -->
+        <section class="speech-card">
+          <h3>检验</h3>
+          <div class="speech-note">
+            贴一段模型可能写出来的 delivery，看会被规整成什么样；也可以贴台词，看规则会判成哪种表演。
+          </div>
+          <label class="speech-field">
+            <span>Delivery 原文（模拟模型跑偏）</span>
+            <textarea id="speech-raw" rows="2" placeholder="例：语速平缓；句尾微扬；不显得过于急切。"></textarea>
+          </label>
+          <div class="speech-out">
+            <div class="speech-out-label">规整后</div>
+            <div class="speech-out-body" id="speech-normalized">—</div>
+          </div>
+          <div class="speech-grid">
+            <label class="speech-field">
+              <span>NPC 台词</span>
+              <input type="text" id="speech-npc-text" placeholder="例：小心，那处别靠近。">
+            </label>
+            <label class="speech-field">
+              <span>玩家上一句（可空）</span>
+              <input type="text" id="speech-player-text" placeholder="例：你这人怎么这么蠢！">
+            </label>
+          </div>
+          <div class="speech-out">
+            <div class="speech-out-label">规则判定</div>
+            <div class="speech-out-body" id="speech-perceived">—</div>
+          </div>
+          <div class="speech-actions">
+            <button class="primary" onclick="speechPreview()">试算</button>
+          </div>
+        </section>
+        </div><!-- /#speech-scroll -->
       </div>
     </div>
 
@@ -691,6 +847,7 @@
 <script src="edit.js"></script>
 <script src="services.js"></script>
 <script src="tools.js"></script>
+<script src="speech.js"></script>
 <script src="prompts.js"></script>
 <script src="app.js"></script>
 <script src="memory.js"></script>

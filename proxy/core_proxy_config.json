@@ -1,11 +1,15 @@
 {
   "_说明_": "此配置只用于选择上游和监听地址。API Key 直接在游戏的『自定义 AI 模型』设置里填写，本程序自动从游戏请求头里取用。",
-  "_说明_1": "上游是 gcli.ggchan.dev 网关，不是 DeepSeek 官方。网关把请求再转发到实际模型提供方。",
-  "_说明_2": "local_upstream_base_url 填本地推理节点（如 Mac 上的 Ollama：http://192.168.0.116:11434，注意不要带 /v1）。填了之后：游戏自带的记忆压缩请求转投本地，主对话仍走云端，本地失败自动回落。留空 = 全部走云端。改完要重启 core_proxy 才生效。",
+  "_说明_1": "上游是 deepseek 官方，主对话默认走这里。",
+  "_说明_2": "【游戏自带记忆压缩分流】local_upstream_base_url 填本地推理节点，游戏 summary(talk_type=3) 请求转投本地，主对话仍走云端，本地失败自动回落。改完要重启 core_proxy。",
+  "_说明_3": "【本机 llama.cpp】fast_upstream_base_url 填本机 llama.cpp（启动参数 --host 127.0.0.1 --port 8080 --alias local-model）。速度快于 Mac，用于记忆总结等后台任务。留空 = 不用。",
+  "_说明_4": "【三处别搞混】上游地址=主对话(云端) / local=游戏记忆压缩(Mac) / fast=记忆总结(本机 llama.cpp)。编辑器『设置→模型』页可直接改。",
   "upstream_base_url": "https://api.deepseek.com/",
   "local_upstream_base_url": "http://192.168.0.116:11434",
   "local_model_name": "wa-unred",
   "local_route_passthrough": true,
+  "fast_upstream_base_url": "http://127.0.0.1:8080",
+  "fast_model_name": "local-model",
   "listen_host": "127.0.0.1",
   "listen_port": 8789
 }

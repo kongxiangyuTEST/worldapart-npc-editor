@@ -2481,3 +2481,123 @@ button.tiny { font-size: 11px; padding: 4px 8px; white-space: nowrap; }
 
 
 
+
+/* ===== 语音风格页（实验性）===== */
+#speech-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px 24px;
+  overflow: hidden;
+}
+
+/* 内容区自己滚。.page 是 overflow:hidden，外层不滚，
+   所以必须有一个「flex:1 + min-height:0 + overflow-y:auto」的子容器，
+   否则内容一长就被直接截断（试聊页当初也踩过这个坑）。 */
+#speech-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  padding-bottom: 24px;
+}
+
+.speech-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  font-size: 12px; background: var(--cl-surface-soft);
+  color: var(--cl-muted); border: 1px solid var(--cl-hairline);
+}
+.speech-badge.on { background: var(--cl-coral); color: #fff; border-color: var(--cl-coral); }
+
+.speech-warn {
+  margin: 12px 0 16px; padding: 12px 14px; border-radius: 10px;
+  background: var(--cl-surface-soft); border-left: 3px solid var(--cl-amber);
+  font-size: 12.5px; line-height: 1.7; color: var(--cl-body);
+}
+
+.speech-card {
+  margin-bottom: 16px; padding: 16px 18px; border-radius: 12px;
+  background: var(--cl-card); border: 1px solid var(--cl-hairline);
+}
+.speech-card h3 {
+  margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--cl-ink);
+}
+
+.speech-switch-row { margin-bottom: 10px; }
+.speech-switch {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--cl-body); cursor: pointer;
+}
+.speech-switch input { width: 16px; height: 16px; cursor: pointer; }
+
+.speech-note { margin-top: 10px; font-size: 12px; color: var(--cl-muted); line-height: 1.7; }
+
+.speech-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;
+}
+.speech-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.speech-field span { font-size: 12px; color: var(--cl-muted); }
+.speech-field select,
+.speech-field input,
+.speech-field textarea {
+  width: 100%; padding: 8px 10px; font-size: 12.5px;
+  border: 1px solid var(--cl-hairline); border-radius: 8px;
+  background: var(--cl-surface-soft); color: var(--cl-body);
+  font-family: inherit; resize: vertical;
+}
+
+.speech-out {
+  margin-bottom: 12px; padding: 10px 12px; border-radius: 8px;
+  background: var(--cl-surface-soft); border: 1px solid var(--cl-hairline-soft);
+}
+.speech-out-label { font-size: 11.5px; color: var(--cl-muted); margin-bottom: 6px; }
+.speech-out-body {
+  font-size: 13px; line-height: 1.75; color: var(--cl-body-strong);
+  word-break: break-word;
+}
+.speech-out-sub { font-size: 12px; color: var(--cl-muted); line-height: 1.7; }
+.speech-dim { color: var(--cl-muted); }
+.speech-actions { margin-top: 12px; }
+
+.speech-hint {
+  margin: 4px 0 0 24px; font-size: 11.5px; line-height: 1.6;
+  color: var(--cl-muted);
+}
+
+/* ===== MOD 诊断块 ===== */
+.moddiag-layout {
+  display: flex; gap: 12px; margin-top: 10px; align-items: flex-start;
+}
+.moddiag-layout select {
+  width: 220px; flex: none; padding: 6px; font-size: 11.5px;
+  border: 1px solid var(--cl-hairline); border-radius: 8px;
+  background: var(--cl-surface-soft); color: var(--cl-body);
+  font-family: var(--cl-mono); min-height: 120px;
+}
+.moddiag-detail {
+  flex: 1; min-width: 0; font-size: 12px; line-height: 1.7;
+  color: var(--cl-body); word-break: break-word;
+}
+.moddiag-detail pre {
+  margin: 4px 0 10px; padding: 8px 10px; border-radius: 6px;
+  background: var(--cl-surface-soft); border: 1px solid var(--cl-hairline-soft);
+  font-family: var(--cl-mono); font-size: 11px; line-height: 1.55;
+  white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow-y: auto;
+}
+.moddiag-ok, .moddiag-bad, .moddiag-warn {
+  padding: 7px 10px; border-radius: 6px; margin-bottom: 6px; font-size: 12px;
+}
+.moddiag-ok   { background: #EAF3DE; color: #27500A; border-left: 3px solid #639922; }
+.moddiag-bad  { background: #FCEBEB; color: #501313; border-left: 3px solid #E24B4A; }
+.moddiag-warn { background: #FAEEDA; color: #412402; border-left: 3px solid #EF9F27; }
+.moddiag-sec {
+  margin: 10px 0 2px; font-size: 11.5px; color: var(--cl-muted);
+}
+
+.moddiag-rounds {
+  font-family: var(--cl-mono); font-size: 11.5px; line-height: 1.85;
+  color: var(--cl-body); word-break: break-word;
+}
+.moddiag-ok-inline  { color: #639922; font-weight: 500; }
+.moddiag-bad-inline { color: #E24B4A; font-weight: 500; }

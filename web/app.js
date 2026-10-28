@@ -120,6 +120,15 @@ function switchPage(pageName) {
       reportError('试聊', e);
     }
   }
+
+  // 语音风格页每次进入都刷新一次状态（开关可能被别处改过）
+  if (name === 'speech' && typeof speechOnEnter === 'function') {
+    try {
+      speechOnEnter();
+    } catch (e) {
+      reportError('语音风格', e);
+    }
+  }
 }
 
 function escapeHtml(s) {

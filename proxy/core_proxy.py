@@ -92,6 +92,15 @@ LOCAL_UPSTREAM = (conf.get("local_upstream_base_url") or "").strip().rstrip("/")
 LOCAL_MODEL_NAME = (conf.get("local_model_name") or "").strip()
 LOCAL_ROUTE_PASSTHROUGH = bool(conf.get("local_route_passthrough", True))
 
+# 本机 llama.cpp 快速节点（2026-10-27 新增）。
+# 与上面的 local（Mac Ollama）分工不同：
+#   local(Mac 192.168.0.116)  —— 游戏自带记忆压缩 summary 分流，24h 常驻、不占本机显存
+#   fast(本机 127.0.0.1:8080) —— 记忆总结等后台任务，速度远快于 Mac（同一块显卡直连）
+# 启动方式：H:/llama/llamagui 里点「运行」，参数含 --port 8080 --alias local-model。
+# 留空 = 不用本机节点，行为与之前一致。
+FAST_UPSTREAM = (conf.get("fast_upstream_base_url") or "").strip().rstrip("/")
+FAST_MODEL_NAME = (conf.get("fast_model_name") or "").strip()
+
 # ============================================================
 # 二、AI 配置（ai_config.json，按 mtime 热加载）
 # ============================================================
@@ -115,6 +124,20 @@ _AI = {
     # 本地模型名可以放在 ai_config.json 里覆盖 core_proxy_config.json ——
     # ai_config 是按 mtime 热加载的，所以改这一行存盘就换模型，不用重启。
     "local_model_name": "",
+    # ---- 语音风格层（实验性，默认关）----
+    # tts_style_inject: 注入 V1 风格帧要求（老功能，默认开）。
+    "tts_style_inject": True,
+    # tts_style_v2: 双层 delivery（角色基线；逐句表演）+ decode_reply 兼容顶层
+    #   a1tts_v1 字段。**默认关** —— 功能未充分验证，且编辑器有「检查更新」
+    #   会检测上传内容，稳妥起见先让用户自己开。
+    "tts_style_v2": False,
+    # tts_style_auto_perf: 模型没给表演段时，用规则(perceive)自动补第二层。
+    "tts_style_auto_perf": True,
+    # tts_script_v2: 要求模型输出 a1ttsv2 朗读台本（默认关）。
+    #   **这是让 NPC 出声的前提**：游戏本体没有 NPC 语音，台本只能由模型产出；
+    #   而 MOD 的提示增强钩的是游戏进程内 C# 方法，够不到我们的 HTTP 代理
+    #   （实测 59 个真实样本 0 个含 a1ttsv2）。所以要出声只能由我们在代理侧要求。
+    "tts_script_v2": False,
 }
 
 
@@ -178,6 +201,21 @@ def load_ai_config(force=False):
         _AI["past_events_max_chars"] = 800
     # 留空则回落到 core_proxy_config.json 里的 local_model_name
     _AI["local_model_name"] = str(conf.get("local_model_name") or "").strip()
+    # 语音风格层开关（实验性，v2 默认关 —— 见文件头 _AI 里的说明）
+    _AI["tts_style_inject"] = bool(conf.get("tts_style_inject", True))
+    _AI["tts_style_v2"] = bool(conf.get("tts_style_v2", False))
+    _AI["tts_style_auto_perf"] = bool(conf.get("tts_style_auto_perf", True))
+    _AI["tts_script_v2"] = bool(conf.get("tts_script_v2", False))
+    _AI["tts_single_segment"] = bool(conf.get("tts_single_segment", True))
+    # 关掉后不再从正文补写台本（和「原版 MOD」做对照时用）
+    _AI["tts_autofill"] = bool(conf.get("tts_autofill", True))
+    # 完全透传（对照实验）：一个字节都不改，等价「没有中转」
+    _AI["proxy_passthrough"] = bool(conf.get("proxy_passthrough", False))
+    # 三档：profile（只用角色基线，音色锁死）/ profile_model（基线+模型自写）/ full（再加我们的表演层）
+    _AI["tts_instruct_mode"] = str(conf.get("tts_instruct_mode") or "profile")
+    # 调试用：非空时直接顶掉 a1ttsv2.instruct，用于游戏内 A/B 验证
+    # 「MOD 到底有没有把 instruct 传给 Breeze」。
+    _AI["tts_instruct_override"] = str(conf.get("tts_instruct_override") or "").strip()
     # 历史裁剪：游戏不限制对话轮数，历史会一直涨，最终撑爆上下文窗口
     # （2026-10-24 实测确认）。0 表示不裁。
     try:
@@ -502,10 +540,15 @@ def strip_think(text):
 
 
 def normalize_for_compare(s):
+    """归一化到「只留字」，用于替换规则的模糊匹配。
+
+    引号/括号都要去掉：游戏正文里既有 “” 也有 「」，只去一种会让
+    同一句话因引号风格不同而匹配不上（与 _norm_for_match 保持一致）。
+    """
     if not s:
         return ""
     s = re.sub(r"\s+", "", s)
-    for ch in "“”\"‘’'（）()":
+    for ch in "“”「」『』\"‘’'（）()":
         s = s.replace(ch, "")
     return s
 
@@ -1378,6 +1421,24 @@ def prepare_messages(req_json, with_memory=True, with_card=True, dry_run=False):
         and "角色设定" in m["content"]
         for m in messages
     )
+    # 完全透传（对照实验用）：不改 system、不注入名片/记忆/注入语、不套替换规则。
+    # 用途：验证「原版 MOD + 原版 prompt」下某些现象是否还存在 ——
+    # 之前只关 tts_autofill/tts_style_v2 时，名片和记忆注入仍在改 prompt，
+    # 严格说不算原版。开这个开关才是真正的「中转什么都不做」。
+    if _AI.get("proxy_passthrough"):
+        print("[透传] proxy_passthrough 已开，本次请求一个字节都不改", flush=True)
+        sys_len = 0
+        if messages and messages[0].get("role") == "system":
+            c0 = messages[0].get("content")
+            sys_len = len(c0) if isinstance(c0, str) else 0
+        return {
+            "npc_name": None, "npc_id": None,
+            "rules_hit": 0, "rules_detail": [],
+            "inject_chars": 0, "card_chars": 0, "memory_chars": 0,
+            "system_chars": sys_len, "messages": len(messages),
+            "passthrough": True,
+        }
+
     if not is_dialogue:
         print("[跳过] 非对话请求（system 里没有「## 角色设定」），原样转发", flush=True)
         sys_len = 0
@@ -1444,23 +1505,18 @@ def prepare_messages(req_json, with_memory=True, with_card=True, dry_run=False):
     # MOD 哪天自己支持了 Python 代理、注入过，这里就不会重复加）。
     # 不想要的话在 ai_config.json 加 "tts_style_inject": false。
     try:
-        if _AI.get("tts_style_inject", True):
-            marker = "A1_TTS_STYLE_V1"
-            _msgs = req_json.get("messages") or []
-            has_marker = any(
-                marker in (m.get("content") or "")
-                for m in _msgs if m.get("role") == "system"
-            )
-            if not has_marker:
-                tpl_path = os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)),
-                    "tts_style_prompt_v1.txt")
-                if os.path.isfile(tpl_path):
-                    with open(tpl_path, "r", encoding="utf-8") as f:
-                        tpl = f.read().strip()
-                    if _msgs and _msgs[0].get("role") == "system":
-                        _msgs[0]["content"] += "\n\n" + tpl
-                        print(f"[TTS] 已注入语音风格帧要求（{len(tpl)} 字）")
+        _msgs = req_json.get("messages") or []
+        # 走 speech_layer 统一注入（V1 风格帧 + V2 朗读台本各带独立幂等标记）。
+        # 以前这里是手写的一段内联逻辑，只注 V1；V2 加进来后合并到一处，
+        # 避免两份实现各自 drift。
+        sl = _sl()
+        if sl and _msgs:
+            n1 = sl.inject_tts_style(_msgs, _AI)      # 读 tts_style_inject
+            n2 = sl.inject_tts_script(_msgs, _AI)     # 读 tts_script_v2（默认关）
+            if n1:
+                print(f"[TTS] 已注入语音风格帧要求（{n1} 字）")
+            if n2:
+                print(f"[TTS] 已注入朗读台本要求（{n2} 字，让模型输出 a1ttsv2）")
     except Exception as e:
         print(f"[TTS] 注入失败（不影响转发）: {e}", flush=True)
 
@@ -1482,6 +1538,245 @@ def prepare_messages(req_json, with_memory=True, with_card=True, dry_run=False):
         "system_chars": sys_len,
         "messages": len(final_messages),
     }
+
+
+# ============================================================
+# 语音风格层 v2（实验性）—— 出口侧规整
+# ============================================================
+# 开关 _AI["tts_style_v2"] 关掉时完全不执行，数据一字不改。
+#
+# 为什么需要它（两条来自实测的坑，不是推演）：
+#
+# 1) **模型不写内嵌帧，改写成回复 JSON 的顶层字段**
+#    实测 wa-unred(qwen35) 输出形如：
+#      {"content":"台词…","emotion":"平静",
+#       "a1tts_v1":{"emotion_tags":[…],"delivery":"…","intensity":0.25}}
+#    有时还用旧字段名 voice_style。这些内容本身合法，但老的「找 <a1tts_v1> 标签」
+#    做法会判 absent，**整帧静默丢失**，表现为 NPC 有字不出声。
+#    → 用 speech_layer.decode_reply() 兼容「内嵌帧优先、顶层字段兜底」。
+#
+# 2) **delivery 必须是两段式**（官方格式 `角色基线；逐句表演`）
+#    官方台账 4311 条全部是这个结构：58 种角色基线 × 48 种逐句表演。
+#    模型自己写的常是一段散文，或带多余分号 `基线；表演；`。
+#    → 用 speech_layer.normalize_delivery() 规整；模型没给表演段时，
+#      再用 perceive() 按台词/玩家上句的规则补第二层。
+
+_SPEECH_LAYER = None
+# 语音决策日志：编辑器日志页只留最近 500 行且重启即清，验证时老是丢证据，
+# 所以把每轮的台本处理结果另存一份到文件，方便事后比对。
+_TTS_LOG_PATH = PROJECT_DIR / "proxy" / "tts_decisions.log"
+_TTS_LOG_MAX_LINES = 2000
+
+
+def _tts_log(msg):
+    """把语音处理结果追加到 tts_decisions.log（超过上限自动截断到后半）。"""
+    try:
+        line = f"{datetime.now().strftime('%m-%d %H:%M:%S')}  {msg}\n"
+        with open(_TTS_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(line)
+        # 简单限长：文件过大时只保留后半
+        try:
+            if _TTS_LOG_PATH.stat().st_size > 512 * 1024:
+                txt = _TTS_LOG_PATH.read_text(encoding="utf-8").splitlines()
+                _TTS_LOG_PATH.write_text(
+                    "\n".join(txt[-_TTS_LOG_MAX_LINES // 2:]) + "\n",
+                    encoding="utf-8")
+        except Exception:
+            pass
+    except Exception:
+        pass  # 日志失败绝不影响转发
+
+
+def _sl():
+    """惰性导入 speech_layer（避免影响 core_proxy 启动速度/缺文件时崩溃）。"""
+    global _SPEECH_LAYER
+    if _SPEECH_LAYER is None:
+        try:
+            import speech_layer
+            _SPEECH_LAYER = speech_layer
+        except Exception as e:
+            print(f"[TTS] speech_layer 不可用: {e}", flush=True)
+            _SPEECH_LAYER = False
+    return _SPEECH_LAYER or None
+
+
+def _last_user_text(messages):
+    """取最后一条 user 消息的文本内容（没有则空串）。
+
+    独立成函数是因为响应侧多处要用，而 user_say 那个变量在函数后面才赋值，
+    直接在台本兜底处引用会拿到空值。
+    """
+    for m in reversed(messages or []):
+        if m.get("role") == "user":
+            c = m.get("content")
+            return c if isinstance(c, str) else ""
+    return ""
+
+
+def _sl_apply_style_v2(inner, clean_text, user_say, npc_id=None, npc_name=None):
+    """就地把风格帧规整成官方两段式；模型没给就按规则补。
+
+    只在 _AI["tts_style_v2"] 开启时被调用。任何异常都不影响返回。
+    """
+    # 双层防护：调用处已判断过开关，这里再判一次 —— 函数是公开的，
+    # 以后被别处直接调用时不应该绕过开关把线上数据改掉。
+    if not _AI.get("tts_style_v2"):
+        return
+    sl = _sl()
+    if not sl:
+        return
+
+    # 当前 NPC 的 actor_profile：用于拼两层 delivery 的角色基线
+    profile = _sl_current_profile(inner, npc_id, npc_name)
+
+    edited = []
+
+    # --- A2. V2 台本 a1ttsv2.instruct（实测模型最常走这条）---
+    #
+    # 2026-10-28 实机发现：模型按 MOD 契约输出的 instruct 常直接照抄示例
+    # 「保持参考声线，吐字清楚，语速适中，平静自然地说完」——
+    # 所有角色都是这一句，听起来完全没区别。
+    # 这里把角色基线补进去，形成「角色基线；模型原句」，让每个 NPC 有自己的说话方式。
+    v2 = inner.get("a1ttsv2")
+    if isinstance(v2, dict) and isinstance(v2.get("instruct"), str):
+        old_ins = v2["instruct"]
+        # 调试用：tts_instruct_override 非空时，直接顶掉 instruct。
+        # 用途是 A/B 验证「MOD 到底有没有把 instruct 传给 Breeze」：
+        # 同一角色连续两次对话，一次正常、一次给极端值，
+        # 若游戏里产出的音频明显不同 → 传过去了；完全一样 → 没传。
+        _ov = str(_AI.get("tts_instruct_override") or "").strip()
+        if _ov:
+            v2["instruct"] = _ov[:120]
+            edited.append(f"a1ttsv2.instruct 被 override 覆盖（{len(_ov)}字）")
+        else:
+            mode = str(_AI.get("tts_instruct_mode") or "profile")
+            if mode == "profile" and profile:
+                # 音色锁定模式：instruct 恒等于角色基线，每轮完全一样。
+                # 模型自写的那句（常带「温和笑意」「放轻」）会改音高 3–7%，
+                # 同一角色跨轮听起来就像换了人，所以这里直接覆盖掉。
+                base = sl.delivery_for(profile) if hasattr(sl, "delivery_for") else ""
+                if base and old_ins != base:
+                    v2["instruct"] = base[:120]
+                    edited.append(f"a1ttsv2.instruct 锁为角色基线（{len(base)}字，音色优先）")
+            else:
+                new_ins = sl.layer_instruct(old_ins, profile, max_len=120)
+                if new_ins != old_ins:
+                    v2["instruct"] = new_ins
+                    generic = sl.is_generic_instruct(old_ins)
+                    edited.append(
+                        f"a1ttsv2.instruct {len(old_ins)}→{len(new_ins)}字"
+                        + ("（原句是通用模板，已补角色基线）" if generic else "（已补角色基线）"))
+
+    # --- A. 顶层 a1tts_v1 / voice_style 字段（V1 老路径）---
+    for key in ("a1tts_v1", "a1ttsv1", "voice_style", "voiceStyle"):
+        cand = inner.get(key)
+        if not isinstance(cand, dict):
+            continue
+        try:
+            style = sl.VoiceStyle.parse(cand)
+        except ValueError as e:
+            print(f"[TTS] v2: 顶层 {key} 字段不合法（{e.args[0] if e.args else '?'}），放弃规整")
+            continue
+        new_delivery = sl.normalize_delivery(
+            style.delivery, profile, max_len=sl.DELIVERY_MAX)
+        # 模型没给表演段时，用规则补第二层（开关可关）
+        if (_AI.get("tts_style_auto_perf", True)
+                and new_delivery.count("；") < 1):
+            perf, why = sl.perceive(clean_text, user_say)
+            new_delivery = sl.compose(profile, perf)
+            edited.append(f"补表演={perf}({why})")
+        if new_delivery != style.delivery:
+            edited.append(f"{key}.delivery {len(style.delivery)}→{len(new_delivery)}字")
+        cand["delivery"] = new_delivery
+        # 顶层字段名统一成 a1ttsv1 之外的规范名：保持原键名不动，
+        # 因为 MOD 侧读的是自己那份契约，我们只改内容不改结构。
+
+    # --- B. 正文里内嵌的 <a1tts_v1> 帧 ---
+    if isinstance(clean_text, str) and sl.OPEN_TAG in clean_text:
+        res = sl.decode_reply(clean_text)
+        if res.status == "valid" and res.style:
+            new_delivery = sl.normalize_delivery(
+                res.style.delivery, profile, max_len=sl.DELIVERY_MAX)
+            if new_delivery != res.style.delivery:
+                from speech_layer.contract import Envelope as _Env
+                fixed = _Env.encode(res.content, sl.VoiceStyle(
+                    res.style.emotion_tags, new_delivery, res.style.intensity))
+                if isinstance(inner.get("content"), str):
+                    inner["content"] = fixed
+                edited.append(f"正文帧 delivery 规整 {len(res.style.delivery)}→{len(new_delivery)}字")
+        elif res.failure and res.failure != "absent":
+            print(f"[TTS] v2: 正文帧解码失败（{res.failure}），保持原样")
+
+    # 台词字数（用于算「每秒念多少字」，不靠听也能判断语速有没有变）
+    def _spoken_chars(obj):
+        try:
+            segs = (obj or {}).get("segments") or []
+            return sum(len(str(s.get("text") or "")) for s in segs if isinstance(s, dict))
+        except Exception:
+            return 0
+
+    if edited:
+        print(f"[TTS] v2 已规整: {'; '.join(edited)}")
+        # 落盘一份，方便事后核对（编辑器日志重启就清）
+        try:
+            v2 = inner.get("a1ttsv2") if isinstance(inner, dict) else None
+            ins = (v2 or {}).get("instruct") if isinstance(v2, dict) else ""
+            _tts_log(f"npc={npc_id or '?'} profile={profile or 'natural'} "
+                     f"| {'; '.join(edited)} | chars={_spoken_chars(v2)} | instruct={ins!r}")
+        except Exception:
+            pass
+    elif _AI.get("tts_style_v2"):
+        # v2 开着但没改动，也记一笔，便于确认「确实跑到了」
+        try:
+            v2 = inner.get("a1ttsv2") if isinstance(inner, dict) else None
+            if isinstance(v2, dict):
+                _tts_log(f"npc={npc_id or '?'} profile={profile or 'natural'} "
+                         f"| 未改动（已带基线或无 instruct） | chars={_spoken_chars(v2)}"
+                         f" | instruct={v2.get('instruct')!r}")
+        except Exception:
+            pass
+
+
+def _sl_current_profile(inner, npc_id=None, npc_name=None):
+    """取当前 NPC 的口吻基线（voicebook.PROFILE_DELIVERY 的键）。
+
+    **数据源只用项目自己的角色卡**（`editor_cards/*.md` 的「个性」字段），
+    经 `archetype_voice` 映射到 14 个个性原型对应的语音基线。
+    不引用 MOD 台账 —— 知识库 20 明确规定「轻量台账不含任何特定角色
+    台词/身份，规避版权与张冠李戴风险」。
+
+    优先级：
+    1. inner 里显式带的 actor_profile（编辑器/名片若配了就尊重）
+    2. 角色卡「个性」→ archetype_voice 映射
+    3. None（voicebook 回落 natural）
+
+    认不出个性就不猜，直接回落中性基线。
+    """
+    # 1) 显式字段（已是 voicebook 的键，直接透传）
+    for k in ("actor_profile", "actorProfile"):
+        v = inner.get(k)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+
+    nid = npc_id or inner.get("npc_id") or inner.get("npcId") or ""
+    if not str(nid).strip():
+        return None
+
+    try:
+        import npc_voice_profile as _nvp
+        import archetype_voice as _av
+
+        raw = _nvp.personality_for(nid)
+        if not raw:
+            return None
+        profile = _av.profile_for_archetype(raw)
+        if profile == _av.FALLBACK_PROFILE:
+            # 认不出就明说，方便排查是卡片没写还是写了奇怪的值
+            print(f"[TTS] 角色 {nid} 个性「{raw}」未匹配原型，回落 {profile}", flush=True)
+        return profile
+    except Exception as e:
+        print(f"[TTS] 口吻基线查询失败: {e}", flush=True)
+    return None
 
 
 # ============================================================
@@ -2053,6 +2348,41 @@ def chat_completions():
         return Response(json.dumps({"error": err}),
                         status=502, content_type="application/json; charset=utf-8")
 
+    # 完全透传（对照实验）：上游响应一个字节不改直接还给游戏。
+    # 连 content 都不包装成 {content, emotion, a1ttsv2...} 结构，
+    # 也就是「这台中转不存在」时游戏会拿到的样子。
+    # 只在排查「某个现象是不是代理造成的」时开，平时必须关：
+    # 开着的话 NPC 会丢失结构化字段（emotion/intent/observe），游戏可能判异常。
+    if _AI.get("proxy_passthrough"):
+        print("[透传] 上游原始响应直接返回（未包装、未补台本、未改 instruct）", flush=True)
+        return Response(raw_body, status=status or 200,
+                        content_type="application/json; charset=utf-8")
+
+    # 台本补全请求（0.8.2 的 VoiceCompletion）：响应必须原样返回，不能包装。
+    #
+    # 识别方式：system 里含 a1ttsv2 契约、但不含「## 角色设定」。
+    #   - 对话请求：有「## 角色设定」（MOD 可能同时注入 a1ttsv2 契约）
+    #   - 记忆压缩请求：两者都没有
+    #   - 台本补全请求：有 a1ttsv2、没有「## 角色设定」  ← 只有这种
+    #
+    # 为什么必须透传：补全要的是裸 JSON（{"instruct":..., "segments":[...]}）。
+    # 我们出口会把它包成 {content:{...}, emotion, a1ttsv2...}，MOD 那边就解析失败了。
+    try:
+        _msgs = req_json.get("messages") or []
+        _sys = ""
+        for _m in _msgs:
+            if _m.get("role") == "system" and isinstance(_m.get("content"), str):
+                _sys = _m["content"]
+                break
+        _is_script_completion = ("a1ttsv2" in _sys and "角色设定" not in _sys)
+    except Exception:
+        _is_script_completion = False
+
+    if _is_script_completion:
+        print("[透传] 台本补全请求，响应原样返回（不包装）", flush=True)
+        return Response(raw_body, status=status or 200,
+                        content_type="application/json; charset=utf-8")
+
     clean_text, extra_fields = normalize_response(raw_body)
 
     if not clean_text.strip():
@@ -2129,38 +2459,40 @@ def chat_completions():
     inner.setdefault("intent", {"give_gift": False, "gift_item": "none"})
     inner["content"] = clean_text
 
-    # TTS 台本兜底：语音 MOD（A1IndexTTSMod 0.8.x）的提示增强会要求模型
-    # 输出 a1ttsv2（breeze2 引擎的朗读台本），但小参数模型经常漏输出 ——
-    # 表现是 NPC 有文本、不朗读。MOD 按设计「未从正文补写」，那我们补：
-    # 从 content 生成基础台本（整段一段、无 tag），至少让 NPC 出声。
-    # 模型明确给了字段（哪怕是 null，表示无可朗读台词）就尊重，不覆盖。
-    if isinstance(inner, dict) and "a1ttsv2" not in inner:
-        # 只朗读引号内的对白。叙述、动作描写不该被念出来 ——
-        # 上一版直接把去括号后的正文全塞进台本，NPC 会把「她把尺子往
-        # 台面上一搁」这种叙述也读一遍，听着很怪。
-        # 没有引号对白（整段都是旁白）就不补台本：这轮没有说出口的话，
-        # NPC 不出声是合理的。
-        # 用引号切分而不是配对正则：模型经常漏写结尾引号
-        #（实测：「要不我念一句……就一句。」后面没有 ” ），配对正则会漏掉
-        # 最后一段。切分后奇数位置都是引号内的内容，未闭合的也能算。
-        parts = re.split(r"[“”]", clean_text)
-        quotes = [p.strip() for i, p in enumerate(parts)
-                  if i % 2 == 1 and len(p.strip()) >= 2]
-        if not quotes:
-            # 没有引号对白：有些 NPC 的回复根本不带引号（如杜老栓的
-            # 「后生，从镇外来？……」），正文本身就是台词。去掉括号动作
-            # 后整段当对白 —— 比起让它漏读，宁可能多读一点。
-            spoken = re.sub(r"[（(][^）)]*[）)]", "", clean_text).strip()
-            if len(spoken) >= 2:
-                quotes = [spoken]
-        if quotes:
-            inner["a1ttsv2"] = {
-                "instruct": "保持参考声线，吐字清楚，语速适中，平静自然地说完",
-                "segments": [{"text": q, "tag": ""} for q in quotes],
-            }
-            total = sum(len(q) for q in quotes)
-            print(f"[TTS] 模型没输出台本 → 已从正文提取 {len(quotes)} 段对白补写"
-                  f"（共 {total} 字）")
+    # TTS 台本兜底：模型漏输出 a1ttsv2 时，从正文引号对白补一段。
+    #
+    # 为什么必须补：游戏本体没有 NPC 语音，台本只能由模型产出；MOD 按设计
+    # 「未从正文补写」，实测 last-error.json 里就记着
+    # 「缺少有效 a1ttsv2 台本，未从正文补写」—— NPC 因此完全不出声。
+    #
+    # 具体提取规则（只读引号内对白、不读旁白；无引号时整段当台词）见
+    # speech_layer.talkback.build_talkback 的注释，那是原 core_proxy 的决策，
+    # 抽包时原样保留。
+    #
+    # instruct / tag 不再是写死的一句话：用当前 NPC 的口吻基线 + 规则判定的
+    # 表演类型合成，这样兜底台本也带区分度，而不是所有角色念同一句。
+    # tts_autofill=False 时不补台本。
+    # 用途：和「原版 MOD」对照 —— 没有我们补的台本时，送礼轮是否一样静音。
+    if (isinstance(inner, dict) and "a1ttsv2" not in inner
+            and _AI.get("tts_autofill", True)):
+        sl = _sl()
+        if sl:
+            try:
+                _prof = _sl_current_profile(inner, active_npc_id, active_npc_name)
+                _perf, _why = sl.perceive(clean_text, _last_user_text(messages))
+                # merge_to_one：一轮只出 1 段，避免逐段独立合成导致的音色漂移
+                # （2026-10-28 用户三次反馈「段与段不太统一」）。
+                # 需要逐段控制时把 ai_config 的 tts_single_segment 设 false。
+                if sl.fill_a1ttsv2(inner, profile=_prof, performance=_perf,
+                                   merge_to_one=_AI.get("tts_single_segment", True),
+                                   with_performance=(str(_AI.get("tts_instruct_mode") or "profile") == "full")):
+                    segs = inner["a1ttsv2"]["segments"]
+                    total = sum(len(s["text"]) for s in segs)
+                    print(f"[TTS] 模型没输出台本 → 已补写 {len(segs)} 段"
+                          f"（共 {total} 字，口吻={_prof or 'natural'}"
+                          f"，表演={_perf}:{_why}）")
+            except Exception as e:
+                print(f"[TTS] 台本兜底失败（不影响返回）: {e}", flush=True)
 
     outer = {
         "id": "chatcmpl-proxy",
@@ -2206,6 +2538,20 @@ def chat_completions():
         print(f"[TTS] 台本已保留: 字段={tts_keys or '无'} 正文帧={'有' if frame_in_text else '无'}")
     else:
         print("[TTS] 本轮响应没有台本字段（MOD 侧显示 absent 属正常，是模型没输出）")
+
+    # ---- 语音风格层 v2（实验性，默认关）--------------------------------
+    # 做三件默认行为不做的事：
+    #   1) 用 decode_reply 兼容「模型把风格数据写成顶层 a1tts_v1 字段」的写法
+    #      （实测 wa-unred 就是这样，老的内嵌帧提取会整帧丢掉）；
+    #   2) 把 delivery 规整成官方两段式「角色基线；逐句表演」，超长截断；
+    #   3) 模型没给表演段时，用 perceive 规则补第二层。
+    # 开关关掉时这一段完全跳过，数据一字不改。
+    if _AI.get("tts_style_v2"):
+        try:
+            _sl_apply_style_v2(inner, clean_text, user_say,
+                               npc_id=active_npc_id, npc_name=active_npc_name)
+        except Exception as e:
+            print(f"[TTS] v2 处理失败（不影响返回）: {e}", flush=True)
 
     return Response(json.dumps(outer, ensure_ascii=False),
                     status=200, content_type="application/json; charset=utf-8")
