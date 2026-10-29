@@ -162,6 +162,15 @@ _NOT_SPEECH_RE = re.compile(
     r'|api\s*key.*invalid',
     re.I)
 
+# 说话动词：引号前那截以它们结尾时，那截也是旁白。
+#
+# 2026-10-30 补：原来只认「以 。或：结尾」的旁白前缀，
+# 「我听见脚步再应一声，问一句“嗯。”」「她笑道“好。”」这类
+# 以说话动词 + 引号结尾的写法识别不出，会把旁白整句念出来。
+_SPEECH_VERB_RE = re.compile(
+    r"(?:说|道|问|答|喊|叫|笑|吼|嚷|念|骂|叹|应|嘟囔|嘀咕|开口|回答|反问"
+    r"|追问|应声|补充|接着道|低声道|轻声道)$")
+
 # performance -> segment tag（2–6 个汉字，符合 schema 的 `^(|[\u3400-\u9fff]{2,6})$`）
 #
 # 为什么需要这个：schema 的 tag 是「空 或 2–6 个汉字」的**开放描述**，
@@ -280,11 +289,15 @@ def build_talkback(content: str, merge_to_one: bool = True) -> Optional[List[str
     4. 去掉引号符号，按句末标点切段，最多 64 段
     5. 不足 2 字 → None（没有说出口的话，NPC 不吭声是对的）
 
-    ## 已知局限（刻意接受）
+    ## 2026-10-30 补的两条判据（原「已知局限」已修）
 
-    - 引号**后面**的短旁白（`“…”顿了顿，声音低下去些`）仍会被念出来。
-      要精确切需要做说话人归属，成本远大于收益。
-    - 逗号连接的旁白（`我听见脚步再应一声，问一句“…”`）识别不出，会整句念。
+    - 引号**后面**的短旁白（`“你这话说得轻巧。”顿了顿，声音低下去些`）：
+      单段引号且引号内以句末标点结尾、引号外仍有内容 → 判分隔式，只念引号内。
+      反例靠「引号内无句末标点」保住：`你倒一句「没有」就打发过去了` 仍整句念。
+    - 逗号连接的旁白（`我听见脚步再应一声，问一句“嗯。”`）：
+      引号前缀以说话动词结尾 → 剥掉前缀。两条保护：
+      ① 前缀里出现句末标点 → 是正文不是旁白（`…我认得出，你说“…”`）
+      ② 引号闭合后紧跟逗号 → 句中引用不是对白分隔（`你说“一起配合我”，是哪一家`）
     """
     if not content or not content.strip():
         return None
@@ -308,6 +321,27 @@ def build_talkback(content: str, merge_to_one: bool = True) -> Optional[List[str
         if not spoken:
             return None
 
+    # 2b. 引号前那截以**说话动词**结尾（可带逗号）→ 同样是旁白。
+    #     例：`我听见脚步再应一声，问一句“嗯。”` → 剥掉「我听见…问一句，」
+    #     必须在 2a 之后跑：2a 处理带句号/冒号的长前缀，2b 补动词型短前缀。
+    if spoken and spoken[0] not in _OPENERS:
+        m2 = re.match(r"^(?![“「『])(.{2,}?[，,]?)\s*(?=[“「『])", spoken, re.S)
+        if m2:
+            prefix = m2.group(1).rstrip("，,")
+            rest = spoken[m2.end():]
+            # 两条保护，缺一不可：
+            # 1. 前缀里出现句末标点 → 那是正文句子，不是旁白
+            #    （`还有邻家亲戚。…我认得出，你说“…”` 里的「你说」不能剥）
+            # 2. 引号闭合后紧跟逗号 → 引号是句中引用，不是对白分隔
+            #    （`你说“一起配合我”，是哪一家` 的引号后面就是逗号）
+            tail_comma = bool(re.match(r'[“「『].*?[”」』"]\s*[，,]', rest, re.S))
+            if (_SPEECH_VERB_RE.search(prefix)
+                    and not re.search(r"[。！？]", prefix)
+                    and not tail_comma):
+                cut = rest.strip()
+                if cut:
+                    spoken = cut
+
     # 3. 引号是对白分隔符吗？两条判据，命中任一就只取引号内：
     #    a) 出现 2 段以上引号 —— 一段台词一段旁白交替，典型的分隔式
     #       实测：「“你也还没歇呀。”顿了顿，又说：“方才我问你的话…”」
@@ -318,6 +352,18 @@ def build_talkback(content: str, merge_to_one: bool = True) -> Optional[List[str
     plain_len = len(_QUOTE_CHARS_RE.sub("", spoken))
     is_delimited = bool(quoted) and (
         len(quoted) >= 2 or (plain_len and quoted_len / plain_len >= 0.9))
+
+    # 3b. 单段引号，但引号内是**完整句子**（以句末标点结尾）且引号外还有内容
+    #     → 也是分隔式。补的是「引号后的旁白」这个已知局限：
+    #       `“你这话说得轻巧。”顿了顿，声音低下去些`
+    #     原先按占比判成「强调」→ 整句念，旁白被读出来。
+    #     反例必须保住：`你倒一句「没有」就打发过去了`
+    #     —— 引号内「没有」没有句末标点，不会误判成对白分隔。
+    if not is_delimited and len(quoted) == 1:
+        q_strip = quoted[0].rstrip()
+        if q_strip and q_strip[-1] in "。！？…":
+            if plain_len - quoted_len > 0:
+                is_delimited = True
     if is_delimited:
         # 4a. 分隔式：**一个引号块 = 一个片段**。
         # 不再按句号二次切分 —— 每次切分都是一次独立的 TTS 调用，
