@@ -366,7 +366,8 @@ def build_talkback(content: str, merge_to_one: bool = True) -> Optional[List[str
 
 def fill_a1ttsv2(inner: dict, profile=None, performance=None,
                  instruct_max: int = 120, merge_to_one: bool = True,
-                 with_performance: bool = False) -> bool:
+                 with_performance: bool = False,
+                 instruct_mode: str = "profile") -> bool:
     """若 inner 里缺 a1ttsv2 字段，则从 content 补写一段基础台本。
 
     就地修改 inner；模型明确给了字段（哪怕 null，表示"无可朗读台词"）
@@ -413,16 +414,23 @@ def fill_a1ttsv2(inner: dict, profile=None, performance=None,
     # 情绪表现交给标点、句长和 tag。想让表演层也进 instruct 时，
     # 把 ai_config 的 tts_instruct_performance 设 true（有情绪但音色会漂）。
     instruct = _FALLBACK_INSTRUCT
-    try:
-        from .voicebook import compose, delivery_for
-        if with_performance:
-            composed = compose(profile, performance)
-        else:
-            composed = delivery_for(profile) if profile else ""
-        if composed:
-            instruct = composed[:instruct_max]
-    except Exception:
-        pass
+    if instruct_mode == "off":
+        # 2026-10-30 实测：Breeze 对 instruct 的语速/音量响应是噪声，不是信号
+        # （「语速很慢」在 100000 上反而更快；「音量很小」在 100000 上最响；
+        #  「语速适中」在三个参考音里两次最快）。唯一稳定的是不给指令。
+        # 所以 off 档发空串，把节奏交还参考音自身。
+        instruct = ""
+    else:
+        try:
+            from .voicebook import compose, delivery_for
+            if with_performance:
+                composed = compose(profile, performance)
+            else:
+                composed = delivery_for(profile) if profile else ""
+            if composed:
+                instruct = composed[:instruct_max]
+        except Exception:
+            pass
 
     inner["a1ttsv2"] = {
         "instruct": instruct,

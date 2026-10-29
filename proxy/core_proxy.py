@@ -1645,11 +1645,18 @@ def _sl_apply_style_v2(inner, clean_text, user_say, npc_id=None, npc_name=None):
         # 同一角色连续两次对话，一次正常、一次给极端值，
         # 若游戏里产出的音频明显不同 → 传过去了；完全一样 → 没传。
         _ov = str(_AI.get("tts_instruct_override") or "").strip()
+        mode = str(_AI.get("tts_instruct_mode") or "profile")
         if _ov:
             v2["instruct"] = _ov[:120]
             edited.append(f"a1ttsv2.instruct 被 override 覆盖（{len(_ov)}字）")
+        elif mode == "off":
+            # 2026-10-30 实测：Breeze 对语速/音量指令的响应是噪声不是信号
+            # （「语速很慢」在 100000 上反而更快；「音量很小」在 100000 上最响）。
+            # off 档把节奏完全交还参考音，唯一可复现的行为。
+            if old_ins:
+                v2["instruct"] = ""
+                edited.append(f"a1ttsv2.instruct 清空（off 档，{len(old_ins)}→0字）")
         else:
-            mode = str(_AI.get("tts_instruct_mode") or "profile")
             if mode == "profile" and profile:
                 # 音色锁定模式：instruct 恒等于角色基线，每轮完全一样。
                 # 模型自写的那句（常带「温和笑意」「放轻」）会改音高 3–7%，
@@ -1677,14 +1684,20 @@ def _sl_apply_style_v2(inner, clean_text, user_say, npc_id=None, npc_name=None):
         except ValueError as e:
             print(f"[TTS] v2: 顶层 {key} 字段不合法（{e.args[0] if e.args else '?'}），放弃规整")
             continue
-        new_delivery = sl.normalize_delivery(
-            style.delivery, profile, max_len=sl.DELIVERY_MAX)
-        # 模型没给表演段时，用规则补第二层（开关可关）
-        if (_AI.get("tts_style_auto_perf", True)
-                and new_delivery.count("；") < 1):
-            perf, why = sl.perceive(clean_text, user_say)
-            new_delivery = sl.compose(profile, perf)
-            edited.append(f"补表演={perf}({why})")
+        _ov = _AI.get("tts_instruct_override") or ""
+        if _ov:
+            # 全局覆盖：所有角色统一用这一句，用于隔离「指令内容 vs 引擎」变量
+            new_delivery = _ov
+            edited.append(f"{key}.delivery 被 override 覆盖（{len(_ov)}字）")
+        else:
+            new_delivery = sl.normalize_delivery(
+                style.delivery, profile, max_len=sl.DELIVERY_MAX)
+            # 模型没给表演段时，用规则补第二层（开关可关）
+            if (_AI.get("tts_style_auto_perf", True)
+                    and new_delivery.count("；") < 1):
+                perf, why = sl.perceive(clean_text, user_say)
+                new_delivery = sl.compose(profile, perf)
+                edited.append(f"补表演={perf}({why})")
         if new_delivery != style.delivery:
             edited.append(f"{key}.delivery {len(style.delivery)}→{len(new_delivery)}字")
         cand["delivery"] = new_delivery
@@ -1695,7 +1708,8 @@ def _sl_apply_style_v2(inner, clean_text, user_say, npc_id=None, npc_name=None):
     if isinstance(clean_text, str) and sl.OPEN_TAG in clean_text:
         res = sl.decode_reply(clean_text)
         if res.status == "valid" and res.style:
-            new_delivery = sl.normalize_delivery(
+            _ov = _AI.get("tts_instruct_override") or ""
+            new_delivery = _ov or sl.normalize_delivery(
                 res.style.delivery, profile, max_len=sl.DELIVERY_MAX)
             if new_delivery != res.style.delivery:
                 from speech_layer.contract import Envelope as _Env
@@ -2485,7 +2499,8 @@ def chat_completions():
                 # 需要逐段控制时把 ai_config 的 tts_single_segment 设 false。
                 if sl.fill_a1ttsv2(inner, profile=_prof, performance=_perf,
                                    merge_to_one=_AI.get("tts_single_segment", True),
-                                   with_performance=(str(_AI.get("tts_instruct_mode") or "profile") == "full")):
+                                   with_performance=(str(_AI.get("tts_instruct_mode") or "profile") == "full"),
+                                   instruct_mode=str(_AI.get("tts_instruct_mode") or "profile")):
                     segs = inner["a1ttsv2"]["segments"]
                     total = sum(len(s["text"]) for s in segs)
                     print(f"[TTS] 模型没输出台本 → 已补写 {len(segs)} 段"
