@@ -24,6 +24,31 @@ from flask import Flask, request, Response
 GAME_DIR = ""
 CURRENT_NPC_NAME = None
 
+# 「最近一次对话的角色」落盘给编辑器用：代理重启后 /_status 里的 npc 就没了，
+# 编辑器要显示"当前角色是谁"就得有个跨进程持久的地方。只在变化时写，不产生频繁 IO。
+_LAST_NPC_FILE = None
+_LAST_NPC_WRITTEN = None
+
+
+def _remember_npc(npc_name):
+    global _LAST_NPC_FILE, _LAST_NPC_WRITTEN
+    if not npc_name or npc_name == "unknown":
+        return
+    try:
+        if _LAST_NPC_FILE is None:
+            _LAST_NPC_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                          "last_npc.json")
+        if _LAST_NPC_WRITTEN == npc_name:
+            return
+        tmp = _LAST_NPC_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"npc": npc_name, "ts": time.time()}, f, ensure_ascii=False)
+        os.replace(tmp, _LAST_NPC_FILE)
+        _LAST_NPC_WRITTEN = npc_name
+    except Exception as e:
+        print(f"[音色] 记录最近角色失败（不影响对话）: {type(e).__name__}: {e}",
+              flush=True)
+
 # ============================================================
 # 动态路径（打包/开发环境通用）
 # ============================================================
@@ -186,6 +211,31 @@ def load_ai_config(force=False):
     slot = str(conf.get("memory_slot", "past_events")).strip().lower()
     _AI["memory_slot"] = slot if slot in ("past_events", "append") else "past_events"
     _AI["save_guard"] = bool(conf.get("save_guard", True))
+    # TTS 代理相关：必须显式加载，否则改了 ai_config 也不会生效
+    try:
+        _AI["tts_speed"] = float(conf.get("tts_speed", 1.0))
+    except Exception:
+        _AI["tts_speed"] = 1.0
+    for _k, _d in (("tts_pitch", 0.0), ("tts_eq_gain", 0.0),
+                   ("tts_eq_q", 1.0), ("tts_volume", 0.0)):
+        try:
+            _AI[_k] = float(conf.get(_k, _d))
+        except Exception:
+            _AI[_k] = _d
+    try:
+        _AI["tts_eq_freq"] = float(conf.get("tts_eq_freq", 2000.0))
+    except Exception:
+        _AI["tts_eq_freq"] = 2000.0
+    _AI["tts_post_enabled"] = bool(conf.get("tts_post_enabled", True))
+    # 台词关键词 → options.instruct（instruct_map.py）。默认关，见该文件头的实测表
+    _AI["tts_instruct_map_enabled"] = bool(conf.get("tts_instruct_map_enabled", False))
+    _mode = str(conf.get("tts_instruct_map_mode") or "fill").strip().lower()
+    _AI["tts_instruct_map_mode"] = _mode if _mode in (
+        "off", "fill", "override", "append") else "fill"
+    _AI["tts_instruct_map_rules"] = conf.get("tts_instruct_map_rules") or []
+    _AI["tts_upstream"] = str(
+        conf.get("tts_upstream") or "http://127.0.0.1:8893").strip()
+    _AI["tts_a1_dir"] = str(conf.get("tts_a1_dir") or "").strip()
     _AI["memory_merge_url"] = str(conf.get("memory_merge_url") or "").strip()
     try:
         _AI["memory_merge_every"] = max(4, int(conf.get("memory_merge_every", 12)))
@@ -490,6 +540,7 @@ def inject_user_card(req_json, npc_name=None):
 
     global CURRENT_NPC_NAME
     CURRENT_NPC_NAME = npc_name
+    _remember_npc(npc_name)
 
     user_card = load_user_card_for_npc(npc_name)
     if not user_card:
@@ -1242,6 +1293,7 @@ def inject_memory_to_messages(req_json, npc_name=None, persist=True):
     if npc_name is None:
         npc_name = extract_npc_name(messages)
     CURRENT_NPC_NAME = npc_name
+    _remember_npc(npc_name)
 
     if not npc_name:
         print("[记忆] 本轮未提取到 NPC 名字，跳过注入", flush=True)
@@ -2571,6 +2623,379 @@ def chat_completions():
     return Response(json.dumps(outer, ensure_ascii=False),
                     status=200, content_type="application/json; charset=utf-8")
 
+
+
+# --- TTS 上游自动拉起 -------------------------------------------------------
+# 一旦 BreezeTtsUrl 指向本代理，MOD 就不再自己启动 audio.cpp 了 —— 它会每 7 秒
+# 轮询 /health，探测不到就只是干等，永远不出声（2026-10-30 实测）。
+# 所以拉起 8893 的责任转移到代理这边。
+_TTS_PROC = None
+_TTS_LAUNCH_LOCK = __import__("threading").Lock()
+_TTS_LAST_TRY = 0.0
+
+
+def _tts_paths():
+    """从 ai_config 取 runtime 与配置路径，缺省回落到 MOD 的默认位置。"""
+    a1 = str(_AI.get("tts_a1_dir")
+             or r"H:\SteamLibrary\steamapps\common\A1\A1IndexTTSMod")
+    rt = os.path.join(a1, ".cache", "audiocpp", "runtime", "audiocpp_server.exe")
+    cfg = os.path.join(a1, ".state", "audiocpp", "server.breeze2.json")
+    return rt, cfg
+
+
+def _derive_tts_config(src_cfg: str, port: int) -> str:
+    """基于 MOD 的配置派生一份，只把 port 改成本代理要连的端口。
+
+    ★ 必须派生，不能直接用 MOD 的：MOD 会把自己 BreezeTtsUrl 的端口写进
+    server.breeze2.json（实测已变成 8789 = 代理自己的端口）。若直接拿它启动，
+    audio.cpp 会和代理抢同一个端口，起不来（ConnectionError 死循环）。
+    """
+    d = json.load(open(src_cfg, encoding="utf-8-sig"))
+    d["port"] = int(port)
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "..", ".tts_upstream.json")
+    out = os.path.abspath(out)
+    json.dump(d, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    return out
+
+
+def _ensure_tts_upstream(upstream: str) -> bool:
+    """确保上游在跑；没跑就拉起来。返回是否可用。"""
+    global _TTS_PROC, _TTS_LAST_TRY
+    try:
+        requests.get(f"{upstream}/health", timeout=2)
+        return True
+    except Exception:
+        pass
+
+    with _TTS_LAUNCH_LOCK:
+        # 冷却：避免 MOD 每次轮询都触发一次重启
+        if time.time() - _TTS_LAST_TRY < 30:
+            return False
+        _TTS_LAST_TRY = time.time()
+
+        rt, cfg = _tts_paths()
+        if not (os.path.isfile(rt) and os.path.isfile(cfg)):
+            print(f"[TTS-PROXY] 无法拉起上游：缺少 {rt} 或 {cfg}")
+            return False
+
+        # 端口取自 upstream 地址（默认 8893），并派生一份配置避免与代理抢端口
+        try:
+            port = int(upstream.rsplit(":", 1)[1].split("/")[0])
+        except Exception:
+            port = 8893
+        try:
+            cfg = _derive_tts_config(cfg, port)
+        except Exception as e:
+            print(f"[TTS-PROXY] 派生配置失败: {type(e).__name__}: {e}")
+            return False
+
+        import subprocess
+        env = {k: v for k, v in os.environ.items()
+               if k.lower() not in ("http_proxy", "https_proxy", "all_proxy")}
+        # audio.cpp 的输出留档：拉不起来时唯一能看的原因就在这
+        ulog = os.path.abspath(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "..", ".tts_upstream.log"))
+        fh = open(ulog, "wb")
+        try:
+            # 不用 DETACHED_PROCESS：实测加了它 audio.cpp 会卡在 CUDA 初始化后
+            # 不再往下走（同一份配置手动跑却能正常 listening）。代价是代理退出时
+            # 子进程可能成为孤儿，可接受。
+            _TTS_PROC = subprocess.Popen(
+                [rt, "--config", cfg],
+                cwd=os.path.dirname(rt), env=env,
+                stdout=fh, stderr=subprocess.STDOUT)
+            print(f"[TTS-PROXY] 已拉起 audio.cpp PID={_TTS_PROC.pid} port={port} 日志={ulog}")
+        except Exception as e:
+            print(f"[TTS-PROXY] 拉起失败: {type(e).__name__}: {e}")
+            return False
+
+    # 等它就绪（模型加载约 20~40 秒）
+    port_hint = ""
+    try:
+        port_hint = upstream.rsplit(":", 1)[1].split("/")[0]
+    except Exception:
+        pass
+    for _ in range(40):
+        time.sleep(1.5)
+        try:
+            requests.get(f"{upstream}/health", timeout=2)
+            print(f"[TTS-PROXY] 上游就绪 ({port_hint})")
+            return True
+        except Exception:
+            continue
+    print(f"[TTS-PROXY] 上游拉起后仍未就绪 ({port_hint})")
+    return False
+
+
+def _wsola_hop(rate: float) -> int:
+    """挑合成步长，使 int(sh × rate) 的取整误差最小，平局取最接近 240 的。
+
+    ★ 抄自 VoiceLab 的实测结论：audiotsm 内部 analysis_hop = int(sh × speed)，
+    取整误差直接变成速率误差 —— sh=256 时 0.8x 得 204（偏 0.39%），
+    MCD 从 1.0 飙到 6.2（音质崩）。这里按倍率动态选，实测倍率误差 < 0.001。
+    """
+    return min((round(abs(sh * rate - round(sh * rate)), 9),
+                abs(sh - 240), sh) for sh in range(180, 321))[2]
+
+
+def _apply_tts_post(wav_bytes: bytes, speed: float = 1.0,
+                    semitones: float = 0.0, eq_freq: float = 0.0,
+                    eq_gain: float = 0.0, eq_q: float = 1.0,
+                    volume: float = 0.0) -> bytes:
+    """对 TTS 输出的 wav 做后处理：变调 → 变速 → EQ → 音量。失败时抛异常。
+
+    顺序为什么是「先变调再变速」：变调内部要用 WSOLA 拉伸再重采样，
+    如果先变速，WSOLA 的拼接点会被重采样再打一次，痕迹更重。
+
+    变调原理（时长不变、音高变）：
+        WSOLA 拉到 1/ratio 速度（音频变长 ratio 倍）→ 重采样压缩回原长度
+        → 净效果是音高乘 ratio，时长不变。
+
+    Q 值的用法：Q 大 = 只影响很窄一段（适合修某个共振峰）；
+    Q 小（0.3~0.5）= 影响很宽（把 150Hz 附近的 Q 调小就是"加低频厚度"）。
+    """
+    import io
+    import wave as _wave
+    import numpy as np
+    from audiotsm import wsola
+    from audiotsm.io.array import ArrayReader, ArrayWriter
+
+    with _wave.open(io.BytesIO(wav_bytes)) as w:
+        fs, ch, sw = w.getframerate(), w.getnchannels(), w.getsampwidth()
+        raw = w.readframes(w.getnframes())
+    if sw != 2:
+        raise ValueError(f"只支持 16bit PCM，收到 {sw*8}bit")
+
+    a = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+    if ch > 1:
+        a = a.reshape(-1, ch).mean(axis=1)      # 降单声道（Breeze 本来就单声道）
+
+    def _wsola(x, sp):
+        h = _wsola_hop(sp)
+        wr = ArrayWriter(channels=1)
+        wsola(channels=1, speed=sp, frame_length=h * 2, synthesis_hop=h).run(
+            ArrayReader(np.asarray(x, dtype=np.float32).reshape(1, -1).copy()), wr)
+        return np.asarray(wr.data)[0].astype(np.float32)
+
+    # 1) 变调
+    if abs(semitones) >= 0.1:
+        ratio = 2.0 ** (semitones / 12.0)
+        stretched = _wsola(a, 1.0 / ratio)          # 变长 ratio 倍
+        from scipy.signal import resample
+        a = resample(stretched, int(len(a))).astype(np.float32)
+
+    # 2) 变速
+    if abs(speed - 1.0) >= 0.02:
+        a = _wsola(a, speed)
+
+    # 3) EQ（峰值滤波：只抬/压某一段，不动整体音色）
+    if abs(eq_gain) >= 0.5 and eq_freq > 20:
+        from scipy.signal import lfilter
+        A = 10 ** (eq_gain / 40)
+        w0 = 2 * np.pi * eq_freq / fs
+        al = np.sin(w0) / (2 * max(eq_q, 0.1))
+        b = [1 + al * A, -2 * np.cos(w0), 1 - al * A]
+        d = [1 + al / A, -2 * np.cos(w0), 1 - al / A]
+        a = lfilter(b, d, a).astype(np.float32)
+
+    # 4) 整体音量（放在 EQ 之后，避免 EQ 抬起来的部分把整体推爆）
+    if abs(volume) >= 0.5:
+        a = a * (10 ** (volume / 20.0))
+
+    # 削波保护：超过 -3dBFS 就整体压下来，别让 MOD 那边再削一次
+    pk = float(np.max(np.abs(a))) if len(a) else 0.0
+    if pk > 0.708:
+        a = a * (0.708 / pk)
+
+    pcm = np.clip(a * 32767, -32768, 32767).astype(np.int16)
+    buf = io.BytesIO()
+    with _wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(fs)
+        w.writeframes(pcm.tobytes())
+    return buf.getvalue()
+
+
+@app.route("/health", methods=["GET"])
+def tts_health():
+    """语音服务的健康探测。
+
+    ★ MOD 在发 TTS 请求之前会先 GET /health 探活；这里 404 会让它判定
+    「服务不可用」而直接跳过合成 —— 表现为游戏里完全没声音（2026-10-30 实测）。
+
+    ★ 8893 没起时这里会主动拉起它（MOD 若发现 BreezeTtsUrl 指向外部就不再负责启动）。
+    直接转发上游的 health，保证返回体格式与 audio.cpp 一致
+    （{"status":"ok","backend":"cuda","models":1,...}）。
+    """
+    upstream = str(_AI.get("tts_upstream") or "http://127.0.0.1:8893").rstrip("/")
+    try:
+        r = requests.get(f"{upstream}/health", timeout=5)
+        return Response(r.content, status=r.status_code,
+                        mimetype=r.headers.get("Content-Type", "application/json"))
+    except Exception:
+        # 上游没跑：尝试拉起，成功后重试一次
+        if _ensure_tts_upstream(upstream):
+            try:
+                r = requests.get(f"{upstream}/health", timeout=5)
+                return Response(r.content, status=r.status_code,
+                                mimetype=r.headers.get("Content-Type", "application/json"))
+            except Exception as e:
+                print(f"[TTS-PROXY] /health 重试仍失败 {type(e).__name__}")
+        print(f"[TTS-PROXY] /health 上游不可用 {upstream}")
+        return Response(json.dumps({"status": "down", "upstream": upstream}),
+                        status=503, mimetype="application/json")
+
+
+def _apply_instruct_map(raw_body):
+    """按台词关键词改 options.instruct，返回 (body, 日志片段)。
+
+    ## 为什么在代理做
+    MOD 那边把台词发过来、我们自己再拼一次指令，是唯一不用改 MOD 的插入点；
+    而且关掉开关就能整体回退，风险可控。
+
+    ## 三条边界
+    - 解析失败/配置关闭：原样返回，绝不因为这里抛异常让语音断掉
+    - instruct 必须写进 options（顶层会被 audio.cpp 静默忽略）
+    - 只补不改为默认：mode=fill 时 MOD 已经有指令就不动它
+    """
+    if not _AI.get("tts_instruct_map_enabled"):
+        return raw_body, ""
+    mode = str(_AI.get("tts_instruct_map_mode") or "fill")
+    try:
+        from instruct_map import decide
+    except Exception as e:                      # 打包漏了模块也只会退化，不影响转发
+        print(f"[TTS-PROXY] instruct 映射不可用: {type(e).__name__}: {e}", flush=True)
+        return raw_body, ""
+    try:
+        payload = json.loads(raw_body.decode("utf-8"))
+        if not isinstance(payload, dict):
+            return raw_body, ""
+        text = str(payload.get("input") or "")
+        opts = payload.get("options")
+        opts = dict(opts) if isinstance(opts, dict) else {}
+        base = str(opts.get("instruct") or payload.get("instruct") or "")
+        final, key = decide(text, base, mode=mode,
+                            rules=_AI.get("tts_instruct_map_rules"))
+        if not key:
+            return raw_body, ""
+        opts["instruct"] = final
+        payload["options"] = opts
+        return (json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                f" 指令={key}({mode})")
+    except Exception as e:
+        print(f"[TTS-PROXY] instruct 映射失败，原样转发: {type(e).__name__}: {e}",
+              flush=True)
+        return raw_body, ""
+
+
+@app.route("/v1/audio/speech", methods=["POST"])
+def tts_proxy():
+    """TTS 转发：把 MOD 的语音请求中转到 audio.cpp，为后处理留出插入点。
+
+    ## 为什么可以走这里
+
+    实测 audio.cpp 的 /v1/audio/speech **永远返回完整 wav**（5 种流式尝试全部返回
+    相同的 Content-Length，没有 chunked 也没有 SSE）。MOD 的「流式播放」是它自己
+    收到完整 wav 后按 BreezeStreamingBufferMs 分块播的。所以中间插一层代理：
+    - 不损失流式（服务端本来就没有）
+    - 延迟只多一次本地 HTTP 跳转（几十毫秒）
+
+    ## 当前行为
+
+    纯转发，一个字节都不改。目的先验证 MOD 能否接受代理返回的响应
+    （Content-Type / X-AudioCPP-* 头 / 二进制体）。通了之后再在这里叠加
+    WSOLA 变速和 EQ。
+
+    改 MOD 的 BreezeTtsUrl 指向本服务：http://127.0.0.1:8789/v1/audio/speech
+    """
+    upstream = str(_AI.get("tts_upstream") or "http://127.0.0.1:8893").rstrip("/")
+    # 让 tts_speed / tts_upstream 这类改动存盘即生效（否则要重启代理）
+    try:
+        load_ai_config()
+    except Exception:
+        pass
+    upstream = str(_AI.get("tts_upstream") or "http://127.0.0.1:8893").rstrip("/")
+    body = request.get_data()
+    # ⚠ 语音输出增强已停用（2026-10-30）：脱离 MOD 的独立语音方案暂不可行，
+    #   先把「台词关键词 → options.instruct」和「音频后处理」两处关掉，代码全部保留。
+    #   恢复办法：去掉下两行的注释即可（其余代码不用动）。
+    # body, instruct_note = _apply_instruct_map(body)
+    instruct_note = ""
+    hdrs = {"Content-Type": request.headers.get("Content-Type", "application/json")}
+    t0 = time.time()
+    try:
+        up = requests.post(f"{upstream}/v1/audio/speech", data=body,
+                           headers=hdrs, timeout=600)
+    except Exception as e:
+        # 上游可能刚挂 / 还没起：拉起后重试一次
+        print(f"[TTS-PROXY] 转发失败 {upstream}: {type(e).__name__}")
+        if not _ensure_tts_upstream(upstream):
+            return Response(f"tts upstream unavailable: {e}", status=502,
+                            mimetype="text/plain")
+        try:
+            up = requests.post(f"{upstream}/v1/audio/speech", data=body,
+                               headers=hdrs, timeout=600)
+        except Exception as e2:
+            print(f"[TTS-PROXY] 重试失败: {type(e2).__name__}")
+            return Response(f"tts upstream failed: {e2}", status=502,
+                            mimetype="text/plain")
+
+    elapsed = time.time() - t0
+    resp_bytes = up.content
+    post_note = "无"
+
+    # 后处理：变调 / 变速 / EQ。任何一个参数偏离默认值才动手
+    def _num(key, default):
+        try:
+            return float(_AI.get(key) if _AI.get(key) is not None else default)
+        except Exception:
+            return default
+
+    speed = _num("tts_speed", 1.0)
+    semis = _num("tts_pitch", 0.0)
+    eq_freq = _num("tts_eq_freq", 2000.0)
+    eq_gain = _num("tts_eq_gain", 0.0)
+    eq_q = _num("tts_eq_q", 1.0)
+    volume = _num("tts_volume", 0.0)
+    # ⚠ 已停用（见上）：恢复时把这行 need_post 的注释换回来即可。
+    need_post = False
+    # need_post = (abs(speed - 1.0) >= 0.02 or abs(semis) >= 0.1
+    #              or abs(eq_gain) >= 0.5 or abs(volume) >= 0.5)
+
+    enabled = bool(_AI.get("tts_post_enabled", True))
+    if enabled and need_post and up.status_code == 200 \
+            and str(up.headers.get("Content-Type", "")).startswith("audio/"):
+        t1 = time.time()
+        try:
+            resp_bytes = _apply_tts_post(resp_bytes, speed, semis,
+                                         eq_freq, eq_gain, eq_q, volume)
+            bits = []
+            if abs(semis) >= 0.1:
+                bits.append(f"变调{semis:+.1f}半音")
+            if abs(speed - 1.0) >= 0.02:
+                bits.append(f"变速x{speed:.2f}")
+            if abs(eq_gain) >= 0.5:
+                bits.append(f"EQ{eq_freq:.0f}Hz{eq_gain:+.1f}dB/Q{eq_q:.1f}")
+            if abs(volume) >= 0.5:
+                bits.append(f"音量{volume:+.1f}dB")
+            post_note = " ".join(bits) + f"({(time.time()-t1)*1000:.0f}ms)"
+        except Exception as e:
+            # 后处理失败绝不能导致没声音，原样返回
+            post_note = f"后处理失败({type(e).__name__})已跳过"
+            print(f"[TTS-PROXY] 后处理失败，原样返回: {type(e).__name__}: {e}")
+
+    # 原样带回 audio.cpp 的诊断头，MOD 若读这些值不会因代理而丢失
+    resp = Response(resp_bytes, status=up.status_code)
+    for k in ("Content-Type", "X-AudioCPP-Wall-Ms",
+              "X-AudioCPP-Audio-Duration-Ms", "X-AudioCPP-RTF"):
+        if k in up.headers:
+            resp.headers[k] = up.headers[k]
+    n = len(resp_bytes)
+    print(f"[TTS-PROXY] {up.status_code} {n} 字节 {elapsed:.2f}s "
+          f"upstream={upstream}{instruct_note} 后处理={post_note}")
+    return resp
 
 
 @app.route("/_status", methods=["GET"])

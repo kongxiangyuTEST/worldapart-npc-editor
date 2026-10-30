@@ -33,6 +33,10 @@ ai_config.example.json.bak
 prompt_samples/
 # core_proxy 每轮请求都在写，属运行时数据
 proxy/usage_log.jsonl
+# 最近一次对话的角色（编辑器「角色音色」用来显示当前角色）
+proxy/last_npc.json
+# audio.cpp 启动时生成的临时服务配置（含本机绝对路径）
+.tts_upstream.json
 
 # ===== 本地模型（体积太大，不进仓库）=====
 models/*.gguf

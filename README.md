@@ -200,6 +200,29 @@ python -m py_compile editor.py proxy/core_proxy.py
 
 ---
 
+## 已停用的功能（2026-10-30 · 语音输出）
+
+**为什么停** — 曾想脱离 A1-TTS-MOD 自己做语音输出，评估后放弃：游戏的 NPC 语音只能由游戏进程内的插件播放（游戏本体 9683 个 bnk 全是音效，没有一句台词），自己写 BepInEx 插件等于重做半个 MOD，且要跟着游戏版本走。等出现更好的第三方方案再参考。
+
+**停了什么**（代码全部保留，只注释 / 隐藏）：
+
+| 位置 | 停用方式 |
+|---|---|
+| `web/index.html` 导航 | `data-page="speech"` 那行加了 `style="display:none;"` |
+| `web/index.html` 页面 | `#page-speech` 加了 `style="display:none;"` |
+| `web/index.html` 按钮 | 「用引擎试听」加了 `disabled` |
+| `web/speech.js` | `voiceSay()` 首行 `return` |
+| `proxy/core_proxy.py` | `_apply_instruct_map` 调用注释掉、`need_post = False` |
+
+**没停的** — `/v1/audio/speech` 转发本身（游戏出声还要走它，只是不再做变调/EQ/关键词指令）、参考音文件、以及全部文本侧功能（名片注入、长期记忆、替换规则、历史裁剪）。
+
+**恢复** — 把上表五处改回来即可，每处都留了 `⚠ 已停用（2026-10-30）` 注释；`core_proxy.py` 那两处把注释换回来就生效。
+
+**停用后的实际变化** — 游戏里角色照样说话，但声音回到 Breeze 原声（之前设的音高、EQ 不再叠加）；编辑器里少一个「语音风格」页，`references/npcs/*.wav` 与 `ai_config.json` 里的 `tts_*` 值都没删，恢复入口后接着用。
+
+
+---
+
 ## 技术栈
 
 - Python + pywebview（桌面壳）

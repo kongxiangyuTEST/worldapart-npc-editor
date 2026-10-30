@@ -212,13 +212,173 @@ async function modDiagOpenDir() {
 }
 
 // 页面进入：每次刷新状态（开关可能被别处改过）
+// ===== 分类标签 =====
+//
+// 语音页原本一屏 6 张卡片，找一样东西要滚半天。按用途分四组：
+//   音频 = 语速后处理（以后 EQ 也放这）
+//   朗读 = 让 NPC 说话的总开关
+//   口吻 = 按角色/原型看 delivery 怎么拼
+//   诊断 = MOD 捕获记录 + 检验
+let speechTab = 'audio';
+
+function switchSpeechTab(pane) {
+  speechTab = pane;
+  document.querySelectorAll('[data-speechtab]').forEach((el) => {
+    el.classList.toggle('active', el.dataset.speechtab === pane);
+  });
+  document.querySelectorAll('#page-speech [data-speechpane]').forEach((el) => {
+    el.style.display = (el.dataset.speechpane === pane) ? '' : 'none';
+  });
+}
+
 async function speechOnEnter() {
+  switchSpeechTab(speechTab);     // 先按当前分类把无关卡片收起来
   await speechLoadStatus();
   if (!speechReady) {
     await speechPreview();
   }
+  // 音频后处理参数（语速）
+  await voiceRefresh();
+  await ttsPostLoad();
   // MOD 诊断跟着一起刷新（捕获状态可能变了）
   await modDiagRefresh();
+}
+
+// ===== 音频后处理：语速 / 音高 / EQ =====
+//
+// 三个参数都在代理侧对音频做处理（core_proxy 的 /v1/audio/speech）：
+//   语速 = WSOLA 变速不变调
+//   音高 = WSOLA 拉伸 + 重采样（净效果音高变、时长不变）
+//   EQ  = 峰值滤波，抬/压某一段
+// 为什么不在模型侧调：Breeze 的输出时长由文本决定，instruct 对语速是噪声
+// （三组参考音实测，同词换参考音结论就反）。
+function _ttspostEls() {
+  return {
+    speed: document.getElementById('ttspost-speed'),
+    pitch: document.getElementById('ttspost-pitch'),
+    eqfreq: document.getElementById('ttspost-eqfreq'),
+    eqgain: document.getElementById('ttspost-eqgain'),
+    eqq: document.getElementById('ttspost-eqq'),
+    volume: document.getElementById('ttspost-volume'),
+    enabled: document.getElementById('ttspost-enabled'),
+    speedVal: document.getElementById('ttspost-speed-val'),
+    pitchVal: document.getElementById('ttspost-pitch-val'),
+    eqfreqVal: document.getElementById('ttspost-eqfreq-val'),
+    eqgainVal: document.getElementById('ttspost-eqgain-val'),
+    eqqVal: document.getElementById('ttspost-eqq-val'),
+    volVal: document.getElementById('ttspost-volume-val'),
+    badge: document.getElementById('ttspost-badge'),
+  };
+}
+
+async function ttsPostLoad() {
+  const el = _ttspostEls();
+  try {
+    const res = await pywebview.api.tts_post_status();
+    if (!res || !res.ok) {
+      if (el.badge) el.badge.textContent = '不可用';
+      return;
+    }
+    if (el.speed) el.speed.value = res.speed;
+    if (el.pitch) el.pitch.value = res.pitch;
+    if (el.eqfreq) el.eqfreq.value = res.eq_freq;
+    if (el.eqgain) el.eqgain.value = res.eq_gain;
+    if (el.eqq) el.eqq.value = res.eq_q;
+    if (el.volume) el.volume.value = res.volume;
+    if (el.enabled) el.enabled.checked = res.enabled !== false;
+    ttsPostPreview();
+  } catch (e) {
+    if (el.badge) el.badge.textContent = '读取失败';
+  }
+}
+
+function ttsPostPreview() {
+  const el = _ttspostEls();
+  const sp = el.speed ? Number(el.speed.value) : 1;
+  const pt = el.pitch ? Number(el.pitch.value) : 0;
+  const ef = el.eqfreq ? Number(el.eqfreq.value) : 2000;
+  const eg = el.eqgain ? Number(el.eqgain.value) : 0;
+  const eq = el.eqq ? Number(el.eqq.value) : 1;
+  const vol = el.volume ? Number(el.volume.value) : 0;
+
+  if (el.speedVal) el.speedVal.textContent = sp.toFixed(2) + 'x';
+  if (el.pitchVal) el.pitchVal.textContent = (pt > 0 ? '+' : '') + pt.toFixed(1) + ' 半音';
+  if (el.eqfreqVal) el.eqfreqVal.textContent = Math.round(ef) + ' Hz';
+  if (el.eqgainVal) el.eqgainVal.textContent = (eg > 0 ? '+' : '') + eg.toFixed(1) + ' dB';
+  if (el.eqqVal) {
+    el.eqqVal.textContent = eq.toFixed(1) + '（' + (eq >= 2 ? '窄' : eq >= 1 ? '中等' : '宽') + '）';
+  }
+  if (el.volVal) el.volVal.textContent = (vol > 0 ? '+' : '') + vol.toFixed(1) + ' dB';
+
+  const sh = document.getElementById('ttspost-speed-hint');
+  if (sh) {
+    sh.textContent = sp === 1 ? '1.0 = 原速。'
+      : sp <= 1.3 ? `${sp.toFixed(2)}x：这个区间几乎无损，推荐。`
+      : sp <= 1.6 ? `${sp.toFixed(2)}x：开始有轻微拼接感。`
+      : `${sp.toFixed(2)}x：拼接点很密，可能出现金属音。`;
+  }
+  const ph = document.getElementById('ttspost-pitch-hint');
+  if (ph) {
+    ph.textContent = pt === 0 ? '0 = 不动。'
+      : Math.abs(pt) <= 2 ? `${pt > 0 ? '+' : ''}${pt.toFixed(1)} 半音：较自然。`
+      : `${pt > 0 ? '+' : ''}${pt.toFixed(1)} 半音：幅度较大，可能听出处理痕迹。`;
+  }
+  const eh = document.getElementById('ttspost-eq-hint');
+  if (eh) {
+    eh.textContent = eg === 0 ? '增益 0 = 不做 EQ。'
+      : Math.round(ef) + 'Hz ' + (eg > 0 ? '提' : '压') + Math.abs(eg).toFixed(1) + 'dB，'
+        + 'Q=' + eq.toFixed(1)
+        + '（影响' + (eq >= 2 ? '很窄' : eq >= 1 ? '中等' : '很宽') + '的一段）。'
+        + (ef >= 1500 && ef <= 4000 && eq >= 0.8 ? ' 这一段是人声清晰度区。' : '');
+  }
+
+  const dirty = sp !== 1 || pt !== 0 || eg !== 0 || vol !== 0;
+  const on = el.enabled ? el.enabled.checked : true;
+  if (el.badge) {
+    el.badge.textContent = !on ? '已关闭' : (dirty ? '已调整' : '原样');
+    el.badge.className = 'speech-badge' + (on && dirty ? ' on' : '');
+  }
+}
+
+async function ttsPostSave() {
+  const el = _ttspostEls();
+  const btn = document.getElementById('ttspost-save');
+  if (!el.speed) return;
+  if (btn) { btn.disabled = true; btn.textContent = '保存中'; }
+  try {
+    const res = await pywebview.api.save_tts_post(
+      Number(el.speed.value), Number(el.pitch.value),
+      Number(el.eqfreq.value), Number(el.eqgain.value),
+      Number(el.eqq.value), Number(el.volume.value),
+      el.enabled ? el.enabled.checked : true);
+    if (res && res.ok) {
+      if (btn) btn.textContent = '已保存';
+      ttsPostPreview();
+    } else {
+      if (btn) btn.textContent = '保存失败';
+    }
+  } catch (e) {
+    if (btn) btn.textContent = '保存失败';
+  }
+  setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = '保存'; } }, 1200);
+}
+
+async function ttsPostToggle() {
+  const el = _ttspostEls();
+  const on = el.enabled ? el.enabled.checked : true;
+  try {
+    await pywebview.api.save_tts_post(null, null, null, null, null, null, on);
+  } catch (e) { /* 存盘失败不回滚勾选，下次保存会再写一次 */ }
+  ttsPostPreview();
+}
+
+function ttsPostReset() {
+  const el = _ttspostEls();
+  if (el.speed) el.speed.value = 1;
+  if (el.pitch) el.pitch.value = 0;
+  if (el.eqgain) el.eqgain.value = 0;
+  if (el.volume) el.volume.value = 0;
+  ttsPostPreview();
 }
 
 async function speechLoadStatus() {
@@ -456,3 +616,231 @@ async function speechPreview() {
     if (boxC) boxC.textContent = '试算失败: ' + e;
   }
 }
+
+// ===== 角色音色（参考音）=====
+//
+// 当前角色从 core_proxy 来：对话一次后 /_status 里带 npc；代理重启后
+// 读 proxy/last_npc.json（代理每轮写过）。都没有就提示"先聊一句"。
+// 换音色 = 覆盖 references/npcs/<角色ID>.wav，覆盖前 voice_refs 会先把原件
+// 备份到 references/_voice_backup/，所以「恢复角色默认」随时能退回。
+let voiceState = { npc: null, pending: '', applied: '', timer: 0, lastRel: '', lastSrc: '' };
+
+function voiceMsg(text, ok) {
+  const el = document.getElementById('voice-msg');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.opacity = text ? '1' : '0.66';
+  el.style.color = ok === false ? '#d98a7a' : '';
+}
+
+async function voiceRefresh() {
+  const badge = document.getElementById('voice-badge');
+  const nameEl = document.getElementById('voice-npc-name');
+  const subEl = document.getElementById('voice-npc-sub');
+  const pathEl = document.getElementById('voice-applied-path');
+  const descEl = document.getElementById('voice-applied-desc');
+  try {
+    const res = await pywebview.api.voice_status();
+    if (!res || !res.ok) {
+      if (badge) { badge.textContent = '不可用'; badge.className = 'speech-badge'; }
+      if (nameEl) nameEl.textContent = '—';
+      if (subEl) subEl.textContent = (res && res.msg) || '读不到参考音目录';
+      return;
+    }
+    voiceState.npc = res.npc || null;
+    const npc = res.npc;
+    if (badge) {
+      badge.textContent = npc ? '已识别' : '待对话';
+      badge.className = 'speech-badge' + (npc ? ' on' : '');
+    }
+    if (nameEl) {
+      nameEl.textContent = npc ? npc.name : '还没有角色';
+    }
+    if (subEl) {
+      if (!npc) {
+        subEl.textContent = '和任意角色对话一次，这里就会自动显示她/他';
+      } else if (!npc.id) {
+        subEl.textContent = `角色卡里没有「${npc.name}」，找不到它的 ID，没法换音色`;
+      } else {
+        subEl.textContent = (res.source === 'proxy' ? '本次对话' : '上次对话')
+          + ` · ID ${npc.id}` + (res.applied ? ` · ${res.applied.desc}` : '');
+      }
+    }
+    const ap = res.applied;
+    voiceState.applied = (ap && ap.rel) || '';
+    if (pathEl) pathEl.textContent = voiceState.applied || '—';
+    if (descEl) {
+      if (!ap || !ap.exists) {
+        descEl.textContent = '';
+      } else if (ap.backup) {
+        descEl.textContent = (ap.source ? `换自 ${ap.source} · ` : '')
+          + `原版已备份（${ap.backup_desc || '已备份'}），可点「恢复角色默认」退回`;
+      } else {
+        descEl.textContent = '这是角色默认参考音，没有改动过';
+      }
+    }
+    if (!voiceState.pending) {
+      voiceState.pending = (ap && (ap.source || ap.rel)) || '';
+    }
+    voiceRenderPending();
+    await voiceLoadList();
+  } catch (e) {
+    if (badge) badge.textContent = '读取失败';
+    voiceMsg('读取失败：' + e, false);
+  }
+}
+
+async function voiceLoadList() {
+  const box = document.getElementById('voice-list');
+  if (!box) return;
+  const q = (document.getElementById('voice-filter') || {}).value || '';
+  try {
+    const res = await pywebview.api.voice_list(q);
+    if (!res || !res.ok) {
+      box.innerHTML = `<div class="voice-list-empty">${escapeHtml((res && res.msg) || '读取失败')}</div>`;
+      return;
+    }
+    voiceState.items = res.items || [];
+    if (!voiceState.items.length) {
+      box.innerHTML = '<div class="voice-list-empty">没有匹配的音色</div>';
+      return;
+    }
+    const show = voiceState.items.slice(0, 120);
+    box.innerHTML = show.map((it) => {
+      const on = it.rel === voiceState.applied ? ' on' : '';
+      const sel = it.rel === voiceState.pending ? ' sel' : '';
+      const tag = it.kind === 'imported' ? ' <span class="voice-tag">导入</span>'
+        : it.kind === 'root' ? ' <span class="voice-tag">通用</span>' : '';
+      return `<div class="voice-row${on}${sel}" data-rel="${escapeHtml(it.rel)}"`
+        + ` onclick="voiceSelect(this)">`
+        + `<span class="voice-row-name">${escapeHtml(it.name || it.rel)}</span>`
+        + `<span class="voice-row-path">${escapeHtml(it.rel)}${tag}</span></div>`;
+    }).join('')
+      + (res.total > show.length
+        ? `<div class="voice-list-empty">还有 ${res.total - show.length} 项，输入关键词缩小范围</div>`
+        : '');
+    const cur = voiceState.items.find((i) => i.rel === voiceState.pending);
+    const tf = document.getElementById('voice-reftext');
+    if (tf && !tf.value.trim() && cur && cur.ref_text) tf.value = cur.ref_text;
+  } catch (e) {
+    box.innerHTML = `<div class="voice-list-empty">读取失败：${escapeHtml(String(e))}</div>`;
+  }
+}
+
+function voiceFilterInput() {
+  clearTimeout(voiceState.timer);
+  voiceState.timer = setTimeout(voiceLoadList, 260);
+}
+
+function voiceSelect(row) {
+  if (!row) return;
+  voiceState.pending = row.dataset.rel || '';
+  voiceRenderPending();
+  const box = document.getElementById('voice-list');
+  if (box) {
+    box.querySelectorAll('.voice-row.sel').forEach((r) => r.classList.remove('sel'));
+    row.classList.add('sel');
+  }
+  const item = voiceState.items.find((i) => i.rel === voiceState.pending);
+  const txt = document.getElementById('voice-reftext');
+  if (txt && item && item.ref_text) txt.value = item.ref_text;
+}
+
+function voiceRenderPending() {
+  const el = document.getElementById('voice-pending-name');
+  if (el) el.textContent = voiceState.pending || '—';
+}
+
+function voiceTarget() {
+  // 有当前角色就用它；没有（没对话过 / 没开游戏 MOD）就用列表里选中的那一行。
+  // 只用列表行的 npc_id：导入/root 类参考音没有 npc_id，不能当目标。
+  if (voiceState.npc && voiceState.npc.id) {
+    return { id: voiceState.npc.id, name: voiceState.npc.name, from: 'current' };
+  }
+  const item = voiceState.items.find((i) => i.rel === voiceState.pending);
+  if (item && item.npc_id) {
+    return { id: item.npc_id, name: item.name || ('ID ' + item.npc_id), from: 'picked' };
+  }
+  return null;
+}
+
+function voicePlaySrc(url) {
+  const audio = document.getElementById('voice-audio');
+  if (!audio) return;
+  voiceState.lastSrc = url;
+  audio.src = url;
+  audio.play().catch(() => { voiceMsg('浏览器拦了自动播放，再点一次', false); });
+}
+
+async function voicePlay() {
+  const rel = voiceState.pending || voiceState.applied;
+  if (!rel) { voiceMsg('先选一个参考音', false); return; }
+  // 同一个文件再点：直接播已经取到的 data URL，不走异步，
+  // 免得 WebView 把「异步之后的 play()」当成没有用户手势而拦掉。
+  if (voiceState.lastSrc && voiceState.lastRel === rel) {
+    voicePlaySrc(voiceState.lastSrc);
+    return;
+  }
+  voiceState.lastRel = rel;
+  voiceMsg('读取中…');
+  const res = await pywebview.api.voice_preview(rel);
+  if (!res || !res.ok) { voiceMsg((res && res.msg) || '读不到文件', false); return; }
+  voicePlaySrc(res.url);
+  voiceMsg('正在播放参考音本身：' + rel, true);
+}
+
+async function voiceSay() {
+  // 已停用（2026-10-30）：脱离 MOD 的独立语音方案暂不可行，先不提供引擎试听。
+  // 恢复：删掉下面两行 return 即可，其余逻辑没动。
+  voiceMsg('引擎试听已停用（等新的语音方案）', false);
+  return;
+  const rel = voiceState.pending || voiceState.applied;
+  if (!rel) { voiceMsg('先选一个参考音', false); return; }
+  const txtEl = document.getElementById('voice-reftext');
+  const refText = txtEl ? txtEl.value.trim() : '';
+  voiceMsg('让引擎念一句，大约等 5~15 秒…');
+  const res = await pywebview.api.voice_say(rel, '', refText);
+  if (!res || !res.ok) { voiceMsg((res && res.msg) || '引擎没返回', false); return; }
+  voicePlaySrc(res.url);
+  voiceMsg(`引擎试听完成（「${res.text}」），这就是进游戏后的音色`, true);
+}
+
+async function voiceApply() {
+  const npc = voiceTarget();
+  if (!npc) {
+    voiceMsg('先对话一次，或在列表里选中某个角色（要选 npcs/ 开头的）', false);
+    return;
+  }
+  const rel = voiceState.pending;
+  if (!rel) { voiceMsg('先选一个参考音', false); return; }
+  const res = await pywebview.api.voice_apply(npc.id, rel);
+  if (!res || !res.ok) { voiceMsg((res && res.msg) || '应用失败', false); return; }
+  voiceMsg(`${npc.name}${npc.from === 'picked' ? '（列表选中）' : ''} → ${res.to}　${res.msg}`, true);
+  await voiceRefresh();
+}
+
+async function voiceRestore() {
+  const npc = voiceTarget();
+  if (!npc) { voiceMsg('先对话一次，或在列表里选中某个角色', false); return; }
+  const res = await pywebview.api.voice_restore(npc.id);
+  if (!res || !res.ok) { voiceMsg((res && res.msg) || '恢复失败', false); return; }
+  voiceMsg(`${npc.name}　${res.msg}`, true);
+  voiceState.pending = '';
+  await voiceRefresh();
+}
+
+async function voiceImport() {
+  const npc = voiceTarget();
+  if (!npc) { voiceMsg('先对话一次，或在列表里选中某个角色，才知道导入给谁', false); return; }
+  const res = await pywebview.api.voice_import(npc.id);
+  if (!res || !res.ok) {
+    if (res && res.msg === '未选择') return;
+    voiceMsg((res && res.msg) || '导入失败', false);
+    return;
+  }
+  voiceState.pending = res.rel;
+  voiceRenderPending();
+  await voiceLoadList();
+  voiceMsg(`已导入 ${res.rel}（${res.desc}）— ${res.msg}`, true);
+}
+

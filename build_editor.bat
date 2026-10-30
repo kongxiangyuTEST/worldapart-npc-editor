@@ -34,6 +34,7 @@ echo [2/2] 开始打包...
   --collect-all clr_loader ^
   --hidden-import memory_manager ^
   --hidden-import config ^
+  --hidden-import voice_refs ^
   editor.py
 
 echo.

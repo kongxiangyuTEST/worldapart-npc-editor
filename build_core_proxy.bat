@@ -33,6 +33,7 @@ echo [2/2] 开始打包...
   --hidden-import markupsafe ^
   --hidden-import memory_manager ^
   --hidden-import config ^
+  --hidden-import instruct_map ^
   --collect-all flask ^
   core_proxy.py
 

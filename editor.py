@@ -25,6 +25,7 @@ from config import (CARDS_DIR, WEB_DIR, IGNORED_FILES, CARD_NAME_PREFIX_RE,
                     APP_VERSION, UPDATE_REPO, GAME_DIR,
                     KEEP_ON_UPDATE_DIRS, KEEP_ON_UPDATE_FILES)
 import services
+import voice_refs
 from services import CORE_PROXY, CADDY
 
 # ==================== 路径 ====================
@@ -2015,6 +2016,194 @@ class Api:
                     "script_v2": bool(conf.get("tts_script_v2", False))}
         except Exception as e:
             return {"ok": False, "msg": str(e)}
+
+    # --- 音频后处理（代理侧 WSOLA 变速）---
+    #
+    # 为什么放在代理侧：Breeze 的输出时长由文本决定，instruct 对语速是噪声
+    # （三组参考音实测，同词换参考音结论就反）。唯一可控的方式是拿到音频后
+    # 用 WSOLA 变速不变调。core_proxy 的 /v1/audio/speech 已经在做，这里只管参数。
+    def tts_post_status(self):
+        """读当前后处理参数。"""
+        try:
+            conf = _read_ai_conf() if os.path.isfile(AI_CONFIG_PATH) else {}
+            def _f(k, d):
+                try:
+                    return float(conf.get(k, d))
+                except Exception:
+                    return d
+            return {"ok": True,
+                    "speed": _f("tts_speed", 1.0),
+                    "pitch": _f("tts_pitch", 0.0),
+                    "eq_freq": _f("tts_eq_freq", 2000.0),
+                    "eq_gain": _f("tts_eq_gain", 0.0),
+                    "eq_q": _f("tts_eq_q", 1.0),
+                    "volume": _f("tts_volume", 0.0),
+                    "enabled": bool(conf.get("tts_post_enabled", True))}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def save_tts_post(self, speed=None, pitch=None, eq_freq=None,
+                      eq_gain=None, eq_q=None, volume=None, enabled=None):
+        """只改 TTS 后处理这几个值，其余 ai_config 字段原样保留。
+
+        存盘后 core_proxy 按 mtime 热加载（/v1/audio/speech 入口会主动调
+        load_ai_config），所以改完立即生效，不用重启代理。
+        """
+        try:
+            conf = _read_ai_conf() if os.path.isfile(AI_CONFIG_PATH) else {}
+            if speed is not None:
+                conf["tts_speed"] = round(max(0.5, min(3.0, float(speed))), 2)
+            if pitch is not None:
+                conf["tts_pitch"] = round(max(-6.0, min(6.0, float(pitch))), 2)
+            if eq_freq is not None:
+                conf["tts_eq_freq"] = round(max(100.0, min(10000.0, float(eq_freq))), 0)
+            if eq_gain is not None:
+                conf["tts_eq_gain"] = round(max(-12.0, min(12.0, float(eq_gain))), 1)
+            if eq_q is not None:
+                conf["tts_eq_q"] = round(max(0.3, min(4.0, float(eq_q))), 2)
+            if volume is not None:
+                conf["tts_volume"] = round(max(-12.0, min(3.0, float(volume))), 1)
+            if enabled is not None:
+                conf["tts_post_enabled"] = bool(enabled)
+            try:
+                shutil.copy2(AI_CONFIG_PATH, AI_CONFIG_PATH + ".bak")
+            except Exception:
+                pass
+            with open(AI_CONFIG_PATH, "w", encoding="utf-8") as f:
+                json.dump(conf, f, ensure_ascii=False, indent=2)
+            return {"ok": True, **{k: conf.get(k) for k in
+                                  ("tts_speed", "tts_pitch", "tts_eq_freq",
+                                   "tts_eq_gain", "tts_eq_q", "tts_volume")},
+                    "enabled": bool(conf.get("tts_post_enabled", True))}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    # --- 角色参考音（音色） ---
+    #
+    # 数据都在游戏 MOD 的 references 下：npcs/<id>.wav 是每个角色的默认参考音。
+    # 「当前角色」来自 core_proxy：对话一次后 _status 里带 npc；代理重启后
+    # 从 proxy/last_npc.json 读（代理每轮写过）。两边都没有就显示"还没对话过"。
+    def voice_status(self):
+        try:
+            game_dir = GAME_DIR
+            if not voice_refs.ready(game_dir):
+                return {"ok": False,
+                        "msg": "没找到 MOD 目录：<游戏目录>/A1IndexTTSMod/references/npcs"
+                               "（先在设置里配好游戏目录）"}
+            import urllib.request
+            name = ""
+            source = ""
+            try:
+                with urllib.request.urlopen(
+                        f"http://127.0.0.1:{self._proxy_port()}/_status",
+                        timeout=1.5) as r:
+                    got = (json.loads(r.read().decode("utf-8")).get("npc") or "").strip()
+                if got and got != "unknown":
+                    name, source = got, "proxy"
+            except Exception:
+                pass
+            if not name:
+                last = voice_refs.read_last_npc(PROJECT_DIR)
+                if last:
+                    name, source = last["name"], "state"
+
+            npc = voice_refs.resolve_npc(CARDS_DIR, name) if name else None
+            out = {"ok": True, "source": source, "npc": npc,
+                   "refs": voice_refs.refs_dir(game_dir),
+                   "applied": None}
+            if npc and npc.get("id"):
+                out["applied"] = voice_refs.applied_info(game_dir, npc["id"])
+            elif npc:
+                out["msg"] = f"角色卡里没有「{npc['name']}」，找不到它的 id"
+            return out
+        except Exception as e:
+            return {"ok": False, "msg": f"{type(e).__name__}: {e}"}
+
+    def voice_list(self, query=""):
+        try:
+            return voice_refs.list_voices(GAME_DIR, query, CARDS_DIR)
+        except Exception as e:
+            return {"ok": False, "msg": f"{type(e).__name__}: {e}"}
+
+    def voice_preview(self, rel):
+        """播放 references 下的原始 wav（听的是参考音本身）。"""
+        try:
+            return voice_refs.preview_data_url(GAME_DIR, rel)
+        except Exception as e:
+            return {"ok": False, "msg": f"{type(e).__name__}: {e}"}
+
+    def voice_say(self, rel, text="", ref_text=""):
+        """用候选参考音让 Breeze 现场念一句（听的是克隆后的效果）。
+
+        走的是代理的 /v1/audio/speech，和 MOD 游戏里用的是同一条链路，
+        所以"试听好听、进游戏不好听"这种情况基本不会出现。
+
+        Breeze 克隆必须带 reference_text（缺了直接 500），默认参考音的转写
+        从 MOD 的 npcs/npc_id_name.csv 里取；导入的音色由界面上的输入框给。
+        """
+        try:
+            rel = voice_refs._safe_rel(rel)
+            if not rel:
+                return {"ok": False, "msg": "路径不合法"}
+            path = os.path.join(voice_refs.refs_dir(GAME_DIR),
+                                rel.replace("/", os.sep))
+            if not os.path.isfile(path):
+                return {"ok": False, "msg": f"文件不存在: {rel}"}
+            ref_text = (ref_text or "").strip() \
+                or voice_refs.ref_text_for(GAME_DIR, rel)
+            if not ref_text:
+                return {"ok": False,
+                        "msg": "这个参考音没有转写。Breeze 克隆必须知道它念的"
+                               "那句话，在下面「参考音原话」里填上再试听"}
+            import urllib.request
+            text = (text or "").strip() or "你来了。今日山间有风，坐下来歇会儿吧。"
+            body = json.dumps({"model": "breeze2", "input": text,
+                               "response_format": "wav",
+                               "voice_ref": path.replace("\\", "/"),
+                               "reference_text": ref_text},
+                              ensure_ascii=False).encode("utf-8")
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{self._proxy_port()}/v1/audio/speech",
+                data=body, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=300) as r:
+                data = r.read()
+            if not data or len(data) < 1000:
+                return {"ok": False, "msg": "引擎没返回音频（检查 audio.cpp 是否在跑）"}
+            import base64 as _b64
+            return {"ok": True, "text": text,
+                    "url": "data:audio/wav;base64,"
+                           + _b64.b64encode(data).decode("ascii")}
+        except Exception as e:
+            return {"ok": False, "msg": f"{type(e).__name__}: {e}"}
+
+    def voice_import(self, npc_id=None):
+        """导入本地 wav 到 references/imported/（不自动应用）。"""
+        try:
+            if not voice_refs.ready(GAME_DIR):
+                return {"ok": False, "msg": "参考音目录不可用"}
+            start = _pick_start_dir("voice_import")
+            result = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG, directory=start,
+                file_types=("WAV 音频 (*.wav)", "所有文件 (*.*)"))
+            if not result:
+                return {"ok": False, "msg": "未选择"}
+            picked = result[0]
+            _remember_pick("voice_import", os.path.dirname(picked))
+            return voice_refs.import_wav(GAME_DIR, int(npc_id or 0), picked)
+        except Exception as e:
+            return {"ok": False, "msg": f"{type(e).__name__}: {e}"}
+
+    def voice_apply(self, npc_id, rel):
+        try:
+            return voice_refs.apply_voice(GAME_DIR, int(npc_id), rel)
+        except Exception as e:
+            return {"ok": False, "msg": f"{type(e).__name__}: {e}"}
+
+    def voice_restore(self, npc_id):
+        try:
+            return voice_refs.restore_voice(GAME_DIR, int(npc_id))
+        except Exception as e:
+            return {"ok": False, "msg": f"{type(e).__name__}: {e}"}
 
     # --- AI 注入配置 ---
     def get_ai_config(self):

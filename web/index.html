@@ -26,7 +26,9 @@
     <div class="nav-item" data-page="prompts">AI 提示词</div>
     <div class="nav-item" data-page="memory">长期记忆</div>
     <div class="nav-item" data-page="tools">工具</div>
-    <div class="nav-item" data-page="speech">语音风格</div>
+    <!-- 语音风格页已停用（2026-10-30）：脱离 MOD 的独立语音方案暂不可行，先隐藏入口。
+         页面本身与 speech.js 全部保留；要恢复就删掉下面这行的 style 属性。 -->
+    <div class="nav-item" data-page="speech" style="display:none;">语音风格</div>
     <div class="nav-item" data-page="trial">试聊</div>
 
     <div class="nav-group-label" style="margin-top:16px;">服务</div>
@@ -178,11 +180,21 @@
     <!-- 说明：这一页是「双层 delivery」的入口。功能不完善，默认关闭。
          编辑器本身有「检查更新」会检测上传内容，所以开关默认关，
          由用户确认后再打开。 -->
-    <div class="page" id="page-speech">
+    <!-- 整页已隐藏（2026-10-30）：语音输出方案停用，入口与页面一起收起。
+         恢复：删掉下面这行的 style 属性，并把导航里 data-page="speech" 的 display:none 也删掉。 -->
+    <div class="page" id="page-speech" style="display:none;">
       <div id="speech-page">
         <div class="page-header">
           <h2>语音风格</h2>
           <span class="speech-badge" id="speech-badge">读取中…</span>
+        </div>
+
+        <!-- 分类标签：卡片按用途分四组，避免一屏堆 6 张卡 -->
+        <div class="ai-tabs">
+          <div class="ai-tab active" data-speechtab="audio" onclick="switchSpeechTab('audio')">音频</div>
+          <div class="ai-tab" data-speechtab="read" onclick="switchSpeechTab('read')">朗读</div>
+          <div class="ai-tab" data-speechtab="voice" onclick="switchSpeechTab('voice')">口吻</div>
+          <div class="ai-tab" data-speechtab="diag" onclick="switchSpeechTab('diag')">诊断</div>
         </div>
 
         <!-- 标题固定、以下内容自己滚（.page 是 overflow:hidden，不要漏这层） -->
@@ -191,14 +203,14 @@
           让 NPC 的朗读多一层「这一句怎么演」。不改声音本身，只在文本侧给 TTS 更具体的表演要求。
         </div>
 
-        <div class="speech-warn" id="speech-warn">
+        <div class="speech-warn" id="speech-warn" data-speechpane="read">
           <b>实验功能</b>：双层 delivery 只在部分模型上验证过，规则补表演也还在调。默认<b>关闭</b>，
           打开后若发现朗读变怪，随时关掉即可恢复原样。编辑器「更新」页会检查上传内容，因此这里不会自动开启。
           <br>口吻基线来自<b>你自己的角色卡</b>「个性」字段（14 种原型 → 对应说话方式），不使用任何外部角色数据。
         </div>
 
         <!-- MOD 诊断：验证「我们的台本有没有到 MOD 手里」的唯一手段 -->
-        <section class="speech-card">
+        <section class="speech-card" data-speechpane="diag">
           <h3>MOD 诊断记录 <span class="speech-badge" id="moddiag-badge">读取中…</span></h3>
           <div class="speech-note" id="moddiag-status">
             读取 MOD 的 stage2a 捕获。这里能看到 MOD 实际收到的回复，判断我们写的台本有没有传过去。
@@ -213,8 +225,151 @@
           </div>
         </section>
 
+        <!-- 音频后处理：语速（代理侧 WSOLA 变速，不改音色） -->
+        <section class="speech-card" data-speechpane="audio">
+          <div class="ttspost-head">
+            <h3>角色音色 <span class="speech-badge" id="voice-badge">读取中…</span></h3>
+            <span class="voice-scope">仅当前角色</span>
+          </div>
+          <div class="speech-note">
+            每个角色的参考音就是 <b>references/npcs/&lt;角色ID&gt;.wav</b>，Breeze 靠它定音色。
+            换音色＝换这个文件，<b>改完要重启游戏</b>（MOD 启动时读取）。
+          </div>
+
+          <div class="voice-cur">
+            <div class="voice-line">
+              <span class="voice-label">当前角色</span>
+              <span class="voice-name" id="voice-npc-name">—</span>
+              <button class="secondary tiny" onclick="voiceRefresh()">刷新</button>
+            </div>
+            <div class="voice-sub" id="voice-npc-sub">和角色对话一次后自动识别</div>
+          </div>
+
+          <div class="voice-applied">
+            <div class="voice-line">
+              <span class="voice-label">已应用</span>
+              <span class="voice-mono" id="voice-applied-path">—</span>
+            </div>
+            <div class="voice-sub" id="voice-applied-desc"></div>
+          </div>
+
+          <div class="voice-pick-head">
+            <span>选择参考音</span>
+            <button class="voice-link" onclick="voiceImport()">导入 WAV…</button>
+          </div>
+          <input type="text" id="voice-filter" class="voice-filter"
+                 placeholder="筛选：角色名 / 文件名 / 角色ID" oninput="voiceFilterInput()">
+          <div class="voice-list" id="voice-list">
+            <div class="voice-list-empty">读取中…</div>
+          </div>
+
+          <div class="voice-pending">
+            <span class="voice-label">待应用</span>
+            <span class="voice-mono" id="voice-pending-name">—</span>
+          </div>
+          <div class="voice-reftext">
+            <span class="voice-label">参考音原话</span>
+            <input type="text" id="voice-reftext" class="voice-filter"
+                   placeholder="这段参考音里念的句子">
+          </div>
+          <div class="speech-hint" id="voice-reftext-hint">
+            默认角色的转写会自动填（MOD 的 npcs/npc_id_name.csv）；
+            导入的音色要自己填，否则只能播放、不能引擎试听。
+          </div>
+          <div class="speech-actions voice-actions">
+            <button class="secondary tiny" onclick="voicePlay()">播放参考音</button>
+            <button class="secondary tiny" disabled
+                    title="已停用（2026-10-30）：脱离 MOD 的独立语音方案暂不可行，等新方案">用引擎试听（已停用）</button>
+            <button class="primary tiny" onclick="voiceApply()">应用音色</button>
+            <button class="secondary tiny" onclick="voiceRestore()">恢复角色默认</button>
+          </div>
+          <div class="speech-hint" id="voice-msg"></div>
+          <audio id="voice-audio" preload="none"></audio>
+        </section>
+
+        <section class="speech-card" data-speechpane="audio">
+          <div class="ttspost-head">
+            <h3>音频后处理 <span class="speech-badge" id="ttspost-badge">读取中…</span></h3>
+            <label class="ttspost-switch">
+              <input type="checkbox" id="ttspost-enabled" onchange="ttsPostToggle()">
+              <span>启用处理</span>
+            </label>
+          </div>
+          <div class="speech-note">
+            Breeze 的输出时长由文本决定、文字指令不可控，所以这些只能在拿到音频后处理。
+            改完点保存，<b>存盘即生效</b>，不用重启代理。关掉「启用处理」则一个字节都不改。
+          </div>
+
+          <div class="ttspost-group">
+            <div class="ttspost-group-title">语速与音高</div>
+
+            <div class="ttspost-row">
+              <span class="ttspost-label">语速</span>
+              <input type="range" id="ttspost-speed" min="0.8" max="2" step="0.05" value="1"
+                     oninput="ttsPostPreview()">
+              <span class="ttspost-val" id="ttspost-speed-val">1.00x</span>
+            </div>
+            <div class="speech-hint" id="ttspost-speed-hint">1.0 = 原速。1.1~1.3 几乎无损。</div>
+
+            <div class="ttspost-row">
+              <span class="ttspost-label">音高</span>
+              <input type="range" id="ttspost-pitch" min="-6" max="6" step="0.5" value="0"
+                     oninput="ttsPostPreview()">
+              <span class="ttspost-val" id="ttspost-pitch-val">0.0 半音</span>
+            </div>
+            <div class="speech-hint" id="ttspost-pitch-hint">0 = 不动。±2 半音内较自然。</div>
+          </div>
+
+          <div class="ttspost-group">
+            <div class="ttspost-group-title">音色微调（EQ）</div>
+            <div class="ttspost-group-hint">
+              只改某一段频率的明暗，不动语速和音高。三项配合用：
+              <b>频率</b>选哪一段（2000~3000Hz 是人声清晰度区，150Hz 附近是厚度），
+              <b>增益</b>决定提多少或压多少，<b>宽度</b>决定影响范围（数字小 = 影响宽，像整体调色；数字大 = 只动很窄一段）。
+            </div>
+
+            <div class="ttspost-row">
+              <span class="ttspost-label">频率</span>
+              <input type="range" id="ttspost-eqfreq" min="200" max="8000" step="100" value="2000"
+                     oninput="ttsPostPreview()">
+              <span class="ttspost-val" id="ttspost-eqfreq-val">2000 Hz</span>
+            </div>
+            <div class="ttspost-row">
+              <span class="ttspost-label">增益</span>
+              <input type="range" id="ttspost-eqgain" min="-12" max="12" step="0.5" value="0"
+                     oninput="ttsPostPreview()">
+              <span class="ttspost-val" id="ttspost-eqgain-val">0.0 dB</span>
+            </div>
+            <div class="ttspost-row">
+              <span class="ttspost-label">宽度</span>
+              <input type="range" id="ttspost-eqq" min="0.3" max="4" step="0.1" value="1"
+                     oninput="ttsPostPreview()">
+              <span class="ttspost-val" id="ttspost-eqq-val">1.0（中等）</span>
+            </div>
+            <div class="speech-hint" id="ttspost-eq-hint">增益 0 = 不做 EQ。</div>
+          </div>
+
+          <div class="ttspost-group">
+            <div class="ttspost-group-title">音量</div>
+            <div class="ttspost-row">
+              <span class="ttspost-label">整体</span>
+              <input type="range" id="ttspost-volume" min="-12" max="3" step="0.5" value="0"
+                     oninput="ttsPostPreview()">
+              <span class="ttspost-val" id="ttspost-volume-val">0.0 dB</span>
+            </div>
+            <div class="speech-hint" id="ttspost-vol-hint">
+              上限 +3dB（再加会被削波保护压回来，等于没加）。想更大声请调游戏音量。
+            </div>
+          </div>
+
+          <div class="speech-actions" style="margin-top:14px;">
+            <button class="secondary tiny" id="ttspost-save" onclick="ttsPostSave()">保存</button>
+            <button class="secondary tiny" onclick="ttsPostReset()">全部归零</button>
+          </div>
+        </section>
+
         <!-- 开关区 -->
-        <section class="speech-card">
+        <section class="speech-card" data-speechpane="read">
           <h3>开关</h3>
           <div class="speech-switch-row">
             <label class="speech-switch">
@@ -247,7 +402,7 @@
         </section>
 
         <!-- 按 NPC 查（最实用：直接看这个角色会怎么念） -->
-        <section class="speech-card">
+        <section class="speech-card" data-speechpane="voice">
           <h3>按角色查看</h3>
           <div class="speech-note">
             读你自己的角色卡「个性」字段，映射到对应口吻基线。改了卡片的个性，这里立刻跟着变。
@@ -271,7 +426,7 @@
         </section>
 
         <!-- 试算区 -->
-        <section class="speech-card">
+        <section class="speech-card" data-speechpane="voice">
           <h3>按原型试算</h3>
           <div class="speech-grid">
             <label class="speech-field">
@@ -293,7 +448,7 @@
         </section>
 
         <!-- 规整 / 规则判定 -->
-        <section class="speech-card">
+        <section class="speech-card" data-speechpane="diag">
           <h3>检验</h3>
           <div class="speech-note">
             贴一段模型可能写出来的 delivery，看会被规整成什么样；也可以贴台词，看规则会判成哪种表演。
