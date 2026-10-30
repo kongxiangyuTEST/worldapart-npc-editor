@@ -3004,6 +3004,122 @@ class Api:
         except Exception as e:
             return {"ok": False, "msg": str(e)}
 
+    # --- 导出到酒馆（SillyTavern） ---
+    #
+    # 逻辑都在 tools/ 下的两个脚本里（tavern_card.py 出角色卡、tavern_export.py
+    # 出预设与世界书），这里只做「范围筛选 + 调脚本 + 汇总结果」。
+    # tools/ 不在 sys.path 里，按文件路径加载，避免污染全局 import。
+    def _tavern_mod(self, name):
+        import importlib.util
+        path = os.path.join(PROJECT_DIR, "tools", name + ".py")
+        if not os.path.isfile(path):
+            raise FileNotFoundError(path)
+        spec = importlib.util.spec_from_file_location("wa_tools_" + name, path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def _tavern_pick(self, start_id=None, end_id=None, keyword=""):
+        """筛出要导出的卡。范围按 NPC ID，关键词匹配角色名。"""
+        def _num(v):
+            try:
+                return int(str(v).strip()) if str(v or "").strip() else None
+            except (TypeError, ValueError):
+                return None
+
+        lo, hi = _num(start_id), _num(end_id)
+        kw = (keyword or "").strip()
+        picked = []
+        for fn in sorted(os.listdir(CARDS_DIR)):
+            if not fn.endswith(".md"):
+                continue
+            m = CARD_RE.match(fn)
+            if not m:
+                continue
+            npc_id, name = int(m.group(1)), m.group(2)
+            if lo is not None and npc_id < lo:
+                continue
+            if hi is not None and npc_id > hi:
+                continue
+            if kw and kw not in name and kw not in str(npc_id):
+                continue
+            picked.append({"id": npc_id, "name": name, "file": fn})
+        return picked
+
+    def tavern_scan(self, start_id=None, end_id=None, keyword=""):
+        """预览命中范围：数量 + 前几个名字 + 有多少张缺背景。"""
+        try:
+            cards = self._tavern_pick(start_id, end_id, keyword)
+            tc = self._tavern_mod("tavern_card")
+            blank = 0
+            for c in cards[:200]:
+                try:
+                    with open(os.path.join(CARDS_DIR, c["file"]), encoding="utf-8") as f:
+                        if not tc.parse_card(f.read())["background"].strip():
+                            blank += 1
+                except Exception:
+                    pass
+            return {"ok": True, "total": len(cards),
+                    "names": [c["name"] for c in cards[:8]],
+                    "blank_bg": blank,
+                    "checked": min(len(cards), 200)}
+        except Exception as e:
+            return {"ok": False, "msg": f"{type(e).__name__}: {e}"}
+
+    def tavern_pick_dir(self):
+        """选导出目录（记上次位置）。"""
+        try:
+            start = _pick_start_dir("tavern_out")
+            result = webview.windows[0].create_file_dialog(
+                webview.FOLDER_DIALOG, directory=start)
+            if result and len(result) > 0:
+                _remember_pick("tavern_out", result[0])
+                return {"ok": True, "path": result[0]}
+            return {"ok": False, "msg": "未选择"}
+        except Exception as e:
+            return {"ok": False, "msg": str(e)}
+
+    def tavern_export(self, out_dir="", start_id=None, end_id=None, keyword="",
+                      with_cards=True, with_preset=True, with_worldbook=False):
+        """按范围导出：角色卡（PNG+JSON） / 预设 / 世界书。"""
+        try:
+            cards = self._tavern_pick(start_id, end_id, keyword)
+            if not cards:
+                return {"ok": False, "msg": "这个范围里没有卡片"}
+            out_dir = (out_dir or "").strip()
+            if not out_dir:
+                return {"ok": False, "msg": "先选输出目录"}
+            os.makedirs(out_dir, exist_ok=True)
+
+            done, fail = 0, []
+            if with_cards:
+                tc = self._tavern_mod("tavern_card")
+                sub = os.path.join(out_dir, "角色卡")
+                for c in cards:
+                    try:
+                        tc.export_one(os.path.join(CARDS_DIR, c["file"]), sub)
+                        done += 1
+                    except Exception as e:
+                        fail.append(f"{c['name']}: {type(e).__name__}")
+            preset_path = wb_path = ""
+            if with_preset or with_worldbook:
+                te = self._tavern_mod("tavern_export")
+                if with_preset:
+                    preset_path = os.path.join(out_dir, "preset-worldapart.json")
+                    with open(preset_path, "w", encoding="utf-8") as f:
+                        json.dump(te.build_preset(False), f, ensure_ascii=False, indent=2)
+                if with_worldbook:
+                    wb_path = os.path.join(out_dir, "worldbook-worldapart.json")
+                    with open(wb_path, "w", encoding="utf-8") as f:
+                        json.dump(te.build_worldbook(False), f, ensure_ascii=False, indent=2)
+            print(f"[酒馆] 导出 {done} 张卡 → {out_dir}（预设={bool(preset_path)} 世界书={bool(wb_path)}）",
+                  flush=True)
+            return {"ok": True, "cards": done, "failed": len(fail), "failed_detail": fail[:5],
+                    "preset": preset_path, "worldbook": wb_path, "out_dir": out_dir,
+                    "msg": f"已导出 {done} 张卡" + ("" if not fail else f"，{len(fail)} 张失败")}
+        except Exception as e:
+            return {"ok": False, "msg": f"{type(e).__name__}: {e}"}
+
     def pick_game_dir(self):
         """弹文件夹选择框，让用户选游戏根目录（记上次选的位置）"""
         try:

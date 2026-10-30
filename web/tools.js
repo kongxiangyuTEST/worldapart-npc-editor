@@ -42,6 +42,8 @@ function renderToolTab() {
   } else if (toolsCurrentTab === 'batch') {
 
     box.innerHTML = `<div class="placeholder"><div class="big">📦</div><div>批量工具</div><div class="hint">之后再做</div></div>`;
+  } else if (toolsCurrentTab === 'tavern') {
+    box.innerHTML = renderTavernTab();
   } else if (toolsCurrentTab === 'io') {
     box.innerHTML = `<div class="placeholder"><div class="big">📥</div><div>导入 / 导出</div><div class="hint">之后再做</div></div>`;
   }
@@ -538,3 +540,111 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 500);
 });
 
+
+
+// ==================== Tab：导出到酒馆（SillyTavern） ====================
+//
+// 真正干活的在 tools/tavern_card.py（角色卡 PNG+JSON）与
+// tools/tavern_export.py（预设 / 世界书）；编辑器只管「选范围 → 调接口 → 显示结果」。
+// 范围默认留空=全部，但会提示先收窄：1592 张全导既慢又没人用得上。
+let tavernOutDir = '';
+
+function renderTavernTab() {
+  return `
+    <div class="upstream-box" style="margin-top:0;">
+      <h3 style="margin:0 0 10px;font-size:14px;color:var(--cl-ink);">导出到酒馆（SillyTavern）</h3>
+      <div class="field-hint" style="margin-bottom:12px;">
+        导出的角色卡是 PNG，卡数据嵌在图片里，酒馆里直接「导入角色」；预设 / 世界书分别用
+        各自的导入入口。注入语含敏感内容，默认只导出结构、不写正文。
+      </div>
+
+      <div class="tv-row">
+        <span class="tv-label">NPC ID</span>
+        <input id="tv-lo" class="tv-input" placeholder="起始" inputmode="numeric">
+        <span class="tv-sep">~</span>
+        <input id="tv-hi" class="tv-input" placeholder="结束" inputmode="numeric">
+        <span class="tv-label" style="margin-left:14px;">角色名含</span>
+        <input id="tv-kw" class="tv-input" style="flex:1;min-width:90px;" placeholder="留空 = 全部">
+        <button class="secondary" style="padding:4px 12px;font-size:12px;" onclick="tavernScan()">预览范围</button>
+      </div>
+      <div id="tv-scan" class="field-hint" style="margin-top:6px;">
+        还没预览。建议先收窄范围（例如 100000 ~ 100050），别一上来导全部。
+      </div>
+
+      <div class="tv-row" style="margin-top:12px;">
+        <label class="tv-check"><input type="checkbox" id="tv-cards" checked> 角色卡</label>
+        <label class="tv-check"><input type="checkbox" id="tv-preset" checked> 预设</label>
+        <label class="tv-check"><input type="checkbox" id="tv-wb"> 世界书（注入语常驻条目）</label>
+      </div>
+
+      <div class="tv-row" style="margin-top:10px;">
+        <span class="tv-label">输出目录</span>
+        <span id="tv-dir" class="field-hint" style="flex:1;word-break:break-all;">未选择</span>
+        <button class="secondary" style="padding:4px 12px;font-size:12px;" onclick="tavernPickDir()">选择…</button>
+      </div>
+
+      <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <button class="primary" style="padding:6px 16px;font-size:13px;" onclick="tavernDoExport()">开始导出</button>
+        <span id="tv-msg" class="field-hint"></span>
+      </div>
+    </div>`;
+}
+
+function _tvVal(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
+async function tavernScan() {
+  const box = document.getElementById('tv-scan');
+  if (!box) return;
+  box.textContent = '统计中…';
+  try {
+    const res = await pywebview.api.tavern_scan(_tvVal('tv-lo'), _tvVal('tv-hi'), _tvVal('tv-kw'));
+    if (!res || !res.ok) { box.textContent = (res && res.msg) || '统计失败'; return; }
+    if (!res.total) { box.textContent = '这个范围里没有卡片'; return; }
+    let t = `命中 ${res.total} 张：` + res.names.join('、') + (res.total > res.names.length ? ' …' : '');
+    if (res.blank_bg) t += `　｜　其中 ${res.blank_bg} 张背景为空（已在检查的 ${res.checked} 张内）`;
+    if (res.total > 200) t += '　｜　数量较多，导出会比较慢';
+    box.textContent = t;
+  } catch (e) {
+    box.textContent = '统计失败：' + e;
+  }
+}
+
+async function tavernPickDir() {
+  try {
+    const res = await pywebview.api.tavern_pick_dir();
+    if (res && res.ok) {
+      tavernOutDir = res.path;
+      const el = document.getElementById('tv-dir');
+      if (el) el.textContent = tavernOutDir;
+    }
+  } catch (e) { /* 取消选择不是错误 */ }
+}
+
+async function tavernDoExport() {
+  const msg = document.getElementById('tv-msg');
+  const btn = document.querySelector('#tools-tab-content .primary');
+  if (!tavernOutDir) { if (msg) msg.textContent = '先选输出目录'; return; }
+  const withCards = document.getElementById('tv-cards').checked;
+  const withPreset = document.getElementById('tv-preset').checked;
+  const withWb = document.getElementById('tv-wb').checked;
+  if (!withCards && !withPreset && !withWb) { if (msg) msg.textContent = '至少勾一项'; return; }
+  if (btn) btn.disabled = true;
+  if (msg) msg.textContent = '导出中，卡片多时会慢…';
+  try {
+    const res = await pywebview.api.tavern_export(
+      tavernOutDir, _tvVal('tv-lo'), _tvVal('tv-hi'), _tvVal('tv-kw'),
+      withCards, withPreset, withWb);
+    if (msg) {
+      msg.textContent = res && res.ok
+        ? `完成：${res.msg}` + (res.preset ? '，预设已生成' : '') + (res.worldbook ? '，世界书已生成' : '')
+        : ((res && res.msg) || '导出失败');
+    }
+  } catch (e) {
+    if (msg) msg.textContent = '导出失败：' + e;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
