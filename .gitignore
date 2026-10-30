@@ -91,3 +91,7 @@ lorebook.json
 # 音色对比临时音频
 .tmp_*.wav
 *.tmp.wav
+
+# 试听样本（音频体积大，不进仓库）
+对比样本/
+*.wav
